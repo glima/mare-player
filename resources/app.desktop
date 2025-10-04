@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Maré Player
+Comment=Maré Player — a COSMIC desktop applet for TIDAL music streaming
+Type=Application
+Icon=io.github.cosmic-applet-mare
+Exec=cosmic-applet-mare %F
+Terminal=false
+StartupNotify=true
+Categories=COSMIC;Audio;Music;Player
+Keywords=COSMIC;Maré;TIDAL;Music;Streaming;Audio
+NoDisplay=true
+X-CosmicApplet=true
+X-CosmicHoverPopup=Auto

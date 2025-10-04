@@ -1,0 +1,157 @@
+[package]
+name = "cosmic-applet-mare"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Maré Player — a COSMIC desktop applet for TIDAL music streaming"
+repository = "https://github.com/glima/mare-player"
+
+[package.metadata.cargo-machete]
+# libcosmic re-exports its public API under the `cosmic` namespace, so
+# cargo-machete cannot detect that it is used (no `use libcosmic::…` anywhere).
+ignored = ["libcosmic"]
+
+[features]
+default = ["panel-applet"]
+# Register as a COSMIC panel applet (panel button + popup window).
+# Disable this feature to build a standalone COSMIC application that
+# renders in its own window instead of living in the panel.
+panel-applet = ["libcosmic/applet", "libcosmic/applet-token"]
+
+[dependencies]
+futures-util = "0.3.31"
+i18n-embed-fl = "0.10"
+rust-embed = "8.7.2"
+tokio = { version = "1.48.0", features = ["sync", "time", "fs", "process", "rt", "macros", "io-util"] }
+
+# TIDAL API client
+tidlers = { git = "https://github.com/tomkoid/tidlers.git" }
+
+# Secure credential storage
+keyring = { version = "3", features = ["sync-secret-service"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Directory paths
+dirs = "6"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono"] }
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# URL handling for OAuth
+open = "5"
+
+# HTTP client (for additional API requests not covered by tidlers)
+reqwest = { version = "0.13.1", default-features = false, features = ["json", "rustls"] }
+
+# Random number generation for shuffle
+rand = "0.9"
+
+# Pure Rust audio decoding — only the codecs/formats TIDAL actually uses
+symphonia = { git = "https://github.com/pdeljanov/Symphonia.git", branch = "dev-0.6", default-features = false, features = [
+    "flac", "aac", "mp3", "isomp4", "opt-simd-sse", "opt-simd-avx",
+] }
+
+# PulseAudio output (via pipewire-pulse on modern Linux)
+libpulse-binding = "2.30.1"
+
+# FFT for real spectrum analysis
+rustfft = "6.4.1"
+
+# DASH manifest parsing only (we do our own HTTP downloading)
+dash-mpd = { version = "0.19.3", default-features = false }
+
+# Regex for sanitizing DASH manifests
+regex = "1.10"
+
+# D-Bus for MPRIS media player interface
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+# URL encoding for song.link API
+urlencoding = "2.1"
+
+# Image processing for circular album art (only need JPEG/PNG for TIDAL artwork)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+base64 = "0.22.1"
+
+# Parking lot for better mutexes
+parking_lot = "0.12.5"
+
+[dependencies.i18n-embed]
+version = "0.16"
+features = ["fluent-system", "desktop-requester"]
+
+[dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic.git"
+features = [
+    # Uses cosmic-settings-daemon to watch for config file changes
+    "dbus-config",
+    # Support creating additional application windows.
+    "multi-window",
+    # Uses tokio as the executor for the runtime
+    "tokio",
+    # Add Wayland support to winit
+    "wayland",
+    # Windowing support for X11, Windows, Mac, & Redox
+    "winit",
+    # GPU-accelerated rendering via wgpu (Vulkan/Metal/DX12).
+    # iced_renderer compiles as Fallback<wgpu, tiny-skia> — it tries
+    # the GPU backend first and falls back to the CPU software
+    # rasterizer automatically when no adapter is available.
+    "wgpu",
+]
+# Applet support ("applet", "applet-token") is activated conditionally
+# by the `panel-applet` feature — see [features] above.
+
+# Use a fork of libcosmic that trusts the compositor's DMA-BUF device
+# preference without probing the (possibly stale) Wayland surface.
+# Without this fix, hybrid GPU laptops (e.g. NVIDIA + Intel) hit
+# VK_ERROR_SURFACE_LOST_KHR during adapter selection and fall back to
+# llvmpipe (CPU software rasterizer).
+#
+# Upstream PR: https://github.com/pop-os/iced/pull/263
+#
+# To develop against a local libcosmic checkout instead, comment out
+# the git lines below and uncomment the path lines:
+#   libcosmic = { path = "../libcosmic" }
+#   cosmic-config = { path = "../libcosmic/cosmic-config" }
+#   cosmic-theme = { path = "../libcosmic/cosmic-theme" }
+[patch.'https://github.com/pop-os/libcosmic']
+libcosmic = { git = "https://github.com/glima/libcosmic.git" }
+cosmic-config = { git = "https://github.com/glima/libcosmic.git" }
+cosmic-theme = { git = "https://github.com/glima/libcosmic.git" }
+
+[profile.release]
+strip = true
+lto = "thin"
+codegen-units = 4
+
+# Like release but keeps symbols so cargo-bloat can attribute sizes
+[profile.release-bloat]
+inherits = "release"
+strip = false
+
+[lints.rust]
+unreachable_pub = "warn" # Warn on `pub` items that are not reachable from the crate root — helps find dead code in binary crates
+
+[lints.clippy]
+# Production safety lints. The idea is to only apply to src/
+# directory. tests/ can deliberately allow them back, since there we
+# care less. Production exceptions to these should be used very
+# seldomly.
+expect_used = "deny"      # Avoid .expect() — it panics on None/Err; use proper error handling instead
+indexing_slicing = "deny" # Ban array[index] and slice[i] — use .get(i) instead to avoid panics on out-of-bounds access
+manual_assert = "deny"    # Prefer assert!(), assert_eq!(), etc. over manual if-else + panic! — it's cleaner and idiomatic
+panic = "deny"            # Disallow any usage of panic! macro — panics in production can crash the program
+unwrap_used = "deny"      # Avoid .unwrap() — it panics on None/Err; prefer match or ? for error propagation
+wildcard_imports = "deny" # Ban use foo::* — use explicit imports for clarity and to avoid namespace pollution
+
+[dev-dependencies]
+libc = "0.2.180"
+tempfile = "3.24.0"

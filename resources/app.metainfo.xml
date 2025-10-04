@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.cosmic-applet-mare</id>
+  <name>Maré Player</name>
+  <summary>Maré Player — a COSMIC desktop applet for TIDAL music streaming</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <description>
+    <p>
+      Stream TIDAL from your COSMIC panel. Hi-Res FLAC playback, library
+      browsing, search, and full media-key control — all without leaving
+      your desktop.
+    </p>
+    <ul>
+      <li>Hi-Res audio — FLAC up to 24-bit/192 kHz via DASH</li>
+      <li>Library — playlists, albums, artists, favorites, mixes &amp; track radio</li>
+      <li>Real-time spectrum visualizer</li>
+      <li>MPRIS integration — media keys, playerctl, KDE Connect</li>
+      <li>Secure OAuth login with system keyring storage</li>
+      <li>Local song &amp; image caching with LRU eviction</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Panel applet with library collection and now-playing bar</caption>
+      <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_applet.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Standalone window showing album detail view</caption>
+      <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_standalone.png</image>
+    </screenshot>
+  </screenshots>
+  <launchable type="desktop-id">io.github.cosmic-applet-mare.desktop</launchable>
+  <provides>
+    <binary>cosmic-applet-mare</binary>
+  </provides>
+  <url type="homepage">https://github.com/glima/mare-player</url>
+  <url type="bugtracker">https://github.com/glima/mare-player/issues</url>
+  <developer_name>Maré Player Developers</developer_name>
+  <categories>
+    <category>Audio</category>
+    <category>Music</category>
+    <category>Player</category>
+  </categories>
+  <keywords>
+    <keyword>tidal</keyword>
+    <keyword>maré</keyword>
+    <keyword>music</keyword>
+    <keyword>streaming</keyword>
+    <keyword>cosmic</keyword>
+    <keyword>applet</keyword>
+  </keywords>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="0.1.0" date="2025-02-18">
+      <description>
+        <p>Initial release of Maré Player.</p>
+        <ul>
+          <li>Hi-Res audio streaming — FLAC up to 24-bit/192 kHz via DASH, decoded with symphonia</li>
+          <li>PulseAudio output (pipewire-pulse compatible)</li>
+          <li>Real-time FFT spectrum visualizer in the now-playing bar</li>
+          <li>MPRIS D-Bus integration — media keys, playerctl, KDE Connect</li>
+          <li>Library browsing — playlists, albums, artists, favorite tracks, mixes &amp; radio</li>
+          <li>Search across TIDAL's catalog (tracks, albums, artists, playlists)</li>
+          <li>Track radio — start a radio station from any track</li>
+          <li>Favorites — add/remove tracks, albums; follow/unfollow artists</li>
+          <li>Shuffle playback for playlists, albums, mixes, and favorites</li>
+          <li>Sharing via song.link URLs</li>
+          <li>Secure OAuth device-code authentication with system keyring storage</li>
+          <li>Persistent sessions with automatic token refresh</li>
+          <li>Disk caching for songs and images with configurable size limits and LRU eviction</li>
+          <li>Audio quality selection — Low, High, Lossless, or Hi-Res (Master)</li>
+          <li>Runs as a panel applet or standalone window</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>
