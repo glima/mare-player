@@ -8,11 +8,10 @@ Builds as either a **panel applet** (popup from the system panel) or a
 **standalone window** (regular application) — chosen at compile time
 via the `panel-applet` feature flag (enabled by default).
 
-<p align="center">
-  <img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="resources/screenshot_standalone.png" alt="Standalone window" width="600" />
-</p>
+<table align="center"><tr>
+<td><img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" /></td>
+<td><img src="resources/screenshot_standalone.png" alt="Standalone window" width="600" /></td>
+</tr></table>
 
 ## Features
 
