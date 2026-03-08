@@ -1,4 +1,4 @@
-# Maré Player
+# <img src="resources/icon.svg" width="36" align="absmiddle" /> Maré Player
 
 A COSMIC™ desktop application for the TIDAL music streaming service.
 Stream Hi-Res audio, browse your library, and control playback — with
@@ -8,10 +8,16 @@ Builds as either a **panel applet** (popup from the system panel) or a
 **standalone window** (regular application) — chosen at compile time
 via the `panel-applet` feature flag (enabled by default).
 
-<table align="center"><tr>
-<td><img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" /></td>
-<td><img src="resources/screenshot_standalone.png" alt="Standalone window" width="600" /></td>
-</tr></table>
+<table align="center">
+<tr>
+<td align="center"><img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" /></td>
+<td align="center"><img src="resources/screenshot_standalone.png" alt="Standalone window" width="600" /></td>
+</tr>
+<tr>
+<td align="center"><sub>Panel Applet mode</sub></td>
+<td align="center"><sub>Standalone Window mode</sub></td>
+</tr>
+</table>
 
 ## Features
 
