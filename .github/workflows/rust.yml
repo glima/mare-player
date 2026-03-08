@@ -2,23 +2,42 @@ name: Rust
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Check/sanitize
-      run: just check
-    - name: Run tests
-      run: just test
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libdbus-1-dev \
+            libsecret-1-dev \
+            libxkbcommon-dev \
+            libpulse-dev \
+            libwayland-dev \
+            libinput-dev \
+            libudev-dev \
+            libseat-dev \
+            libexpat1-dev
+
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Check/sanitize
+        run: just check
+
+      - name: Run tests
+        run: just test
