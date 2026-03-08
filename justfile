@@ -304,11 +304,15 @@ stats:
     fi
     tokei .
 
-# Bump cargo version, create git commit, and create tag
+# Bump cargo version, create git commit, and create tag (usage: just tag v0.1.0)
 tag version:
-    find -type f -name Cargo.toml -exec sed -i '0,/^version/s/^version.*/version = "{{ version }}"/' '{}' \; -exec git add '{}' \;
+    #!/usr/bin/env sh
+    set -eu
+    cargo_version="{{ trim_start_match(version, "v") }}"
+    tag="v${cargo_version}"
+    find -type f -name Cargo.toml -exec sed -i "0,/^version/s/^version.*/version = \"${cargo_version}\"/" '{}' \; -exec git add '{}' \;
     cargo check
     cargo clean
     git add Cargo.lock
-    git commit -m 'release: {{ version }}'
-    git tag -a {{ version }} -m ''
+    git commit -m "release: ${tag}"
+    git tag -a "${tag}" -m ''
