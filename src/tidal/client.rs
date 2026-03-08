@@ -509,20 +509,20 @@ impl TidalAppClient {
         if path.exists() {
             // Reject suspiciously small files — they are almost certainly
             // truncated fragments from an aborted download.
-            if let Ok(meta) = std::fs::metadata(&path) {
-                if meta.len() < Self::MIN_CACHED_AUDIO_BYTES {
-                    warn!(
-                        "Cached audio for track {} is only {} bytes — removing truncated file {:?}",
-                        track_id,
-                        meta.len(),
-                        path,
-                    );
-                    let _ = std::fs::remove_file(&path);
-                    // Also remove the replay-gain sidecar if present
-                    let rg_path = self.audio_cache.hashed_path(&key, "rg");
-                    let _ = std::fs::remove_file(&rg_path);
-                    return None;
-                }
+            if let Ok(meta) = std::fs::metadata(&path)
+                && meta.len() < Self::MIN_CACHED_AUDIO_BYTES
+            {
+                warn!(
+                    "Cached audio for track {} is only {} bytes — removing truncated file {:?}",
+                    track_id,
+                    meta.len(),
+                    path,
+                );
+                let _ = std::fs::remove_file(&path);
+                // Also remove the replay-gain sidecar if present
+                let rg_path = self.audio_cache.hashed_path(&key, "rg");
+                let _ = std::fs::remove_file(&rg_path);
+                return None;
             }
             // Touch the file so LRU eviction keeps it alive
             DiskCache::touch_path(&path);

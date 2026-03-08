@@ -40,6 +40,17 @@ build-release *args: (build-debug '--release' args)
 # Compiles release profile with vendored dependencies
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
 
+# Compiles and packages a .deb (requires cargo-deb)
+build-deb: build-release
+    command -v cargo-deb || cargo install cargo-deb
+    cargo deb --no-build
+
+# Compiles and packages an .rpm (requires cargo-generate-rpm)
+build-rpm: build-release
+    command -v cargo-generate-rpm || cargo install cargo-generate-rpm
+    strip -s {{ cargo-target-dir / 'release' / name }}
+    cargo generate-rpm
+
 # Compiles standalone (no panel applet) with debug profile, renames binary
 build-debug-standalone *args:
     cargo build --no-default-features {{ args }}
