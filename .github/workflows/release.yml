@@ -73,14 +73,18 @@ jobs:
           strip -s "$DIR/${{ env.BINARY }}"
           tar -czvf "${{ env.BINARY }}-${ARCH}.tar.gz" "$DIR"
 
+      - name: Collect packages
+        run: |
+          mkdir -p dist
+          cp target/debian/*.deb dist/
+          cp target/generate-rpm/*.rpm dist/
+          cp ${{ env.BINARY }}-*.tar.gz dist/
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: packages-${{ matrix.target }}
-          path: |
-            target/debian/*.deb
-            target/generate-rpm/*.rpm
-            ${{ env.BINARY }}-*.tar.gz
+          path: dist/*
 
   release:
     runs-on: ubuntu-latest
