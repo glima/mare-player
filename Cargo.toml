@@ -131,6 +131,7 @@ cosmic-theme = { git = "https://github.com/glima/libcosmic.git" }
 # ── packaging ────────────────────────────────────────────────────────
 
 [package.metadata.deb]
+name = "cosmic-applet-mare"
 copyright = "© Maré Player authors"
 license-file = "LICENSE"
 section = "sound"
@@ -143,7 +144,18 @@ assets = [
     ["LICENSE", "usr/share/doc/cosmic-applet-mare/LICENSE", "644"],
 ]
 
+[package.metadata.deb.variants.standalone]
+name = "mare-player"
+assets = [
+    ["target/release/mare-player", "usr/bin/", "755"],
+    ["resources/app.desktop", "usr/share/applications/io.github.cosmic-applet-mare.desktop", "644"],
+    ["resources/app.metainfo.xml", "usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", "644"],
+    ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", "644"],
+    ["LICENSE", "usr/share/doc/mare-player/LICENSE", "644"],
+]
+
 [package.metadata.generate-rpm]
+name = "cosmic-applet-mare"
 assets = [
     { source = "target/release/cosmic-applet-mare", dest = "/usr/bin/", mode = "755" },
     { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.cosmic-applet-mare.desktop", mode = "644" },
@@ -158,6 +170,16 @@ dbus-libs = "*"
 pulseaudio-libs = "*"
 libxkbcommon = "*"
 libsecret = "*"
+
+[package.metadata.generate-rpm.variants.standalone]
+name = "mare-player"
+assets = [
+    { source = "target/release/mare-player", dest = "/usr/bin/", mode = "755" },
+    { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.cosmic-applet-mare.desktop", mode = "644" },
+    { source = "resources/app.metainfo.xml", dest = "/usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", mode = "644" },
+    { source = "resources/icon.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/doc/mare-player/LICENSE", doc = true, mode = "644" },
+]
 
 [profile.release]
 strip = true

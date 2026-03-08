@@ -8,7 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  BINARY: cosmic-applet-mare
   APP_ID: io.github.cosmic-applet-mare
 
 jobs:
@@ -16,11 +15,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+        variant:
+          - applet
+          - standalone
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - target: aarch64-unknown-linux-gnu
             os: ubuntu-24.04-arm
+          - variant: applet
+            binary: cosmic-applet-mare
+            pkg_name: cosmic-applet-mare
+            cargo_args: ""
+            deb_variant: ""
+            rpm_variant: ""
+          - variant: standalone
+            binary: mare-player
+            pkg_name: mare-player
+            cargo_args: "--no-default-features"
+            deb_variant: "--variant=standalone"
+            rpm_variant: "--variant=standalone"
 
     runs-on: ${{ matrix.os }}
 
@@ -50,40 +67,46 @@ jobs:
       - run: cargo binstall --no-confirm just cargo-deb cargo-generate-rpm
 
       - name: Build release binary
-        run: just build-release
+        run: |
+          cargo build --release ${{ matrix.cargo_args }}
+          # For standalone, the binary is still named cosmic-applet-mare;
+          # copy it to the expected name
+          if [ "${{ matrix.variant }}" = "standalone" ]; then
+            cp target/release/cosmic-applet-mare target/release/${{ matrix.binary }}
+          fi
 
       - name: Build .deb package
-        run: cargo deb --no-build
+        run: cargo deb --no-build ${{ matrix.deb_variant }}
 
       - name: Build .rpm package
         run: |
-          strip -s target/release/${{ env.BINARY }}
-          cargo generate-rpm
+          strip -s target/release/${{ matrix.binary }}
+          cargo generate-rpm ${{ matrix.rpm_variant }}
 
       - name: Prepare tarball
         run: |
           ARCH=$(uname -m)
-          DIR=${{ env.BINARY }}
+          DIR=${{ matrix.pkg_name }}
           mkdir -p "$DIR"
-          cp target/release/${{ env.BINARY }} "$DIR/"
+          cp target/release/${{ matrix.binary }} "$DIR/"
           cp resources/app.desktop "$DIR/${{ env.APP_ID }}.desktop"
           cp resources/app.metainfo.xml "$DIR/${{ env.APP_ID }}.metainfo.xml"
           cp resources/icon.svg "$DIR/${{ env.APP_ID }}.svg"
           cp LICENSE "$DIR/"
-          strip -s "$DIR/${{ env.BINARY }}"
-          tar -czvf "${{ env.BINARY }}-${ARCH}.tar.gz" "$DIR"
+          strip -s "$DIR/${{ matrix.binary }}"
+          tar -czvf "${{ matrix.pkg_name }}-${ARCH}.tar.gz" "$DIR"
 
       - name: Collect packages
         run: |
           mkdir -p dist
           cp target/debian/*.deb dist/
           cp target/generate-rpm/*.rpm dist/
-          cp ${{ env.BINARY }}-*.tar.gz dist/
+          cp ${{ matrix.pkg_name }}-*.tar.gz dist/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: packages-${{ matrix.target }}
+          name: packages-${{ matrix.variant }}-${{ matrix.target }}
           path: dist/*
 
   release:
