@@ -127,7 +127,7 @@ impl AppModel {
 
             // Wrap in mouse_area for right-click and scroll
             let interactive = widget::mouse_area(btn)
-                .on_right_press(Message::NextTrack)
+                .on_right_release(Message::NextTrack)
                 .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
 
             autosize::autosize(interactive, AUTOSIZE_MAIN_ID.clone()).into()
