@@ -824,7 +824,14 @@ impl PlaybackLoop {
                     // end-of-track so the UI can react.
                     self.preloaded_decoder = None;
                     self.preloaded_download = None;
+                    self.current_decoder = None;
+                    self.position_samples.store(0, Ordering::SeqCst);
+                    *self.state.lock() = PlaybackState::Stopped;
+                    self.spectrum_analyzer.reset();
                     let _ = self.event_tx.send(AudioEngineEvent::TrackEnded);
+                    let _ = self
+                        .event_tx
+                        .send(AudioEngineEvent::StateChanged(PlaybackState::Stopped));
                     return;
                 }
 
@@ -1743,12 +1750,13 @@ mod tests {
     }
 
     /// Verify that position_samples is reset to 0 during gapless
-    /// transition (regardless of format match outcome).
+    /// transition regardless of whether PA is available (format match
+    /// path) or unavailable (ensure_output failure path).
     #[test]
     fn finish_track_gapless_resets_position() {
         use crate::audio::decoder::{AudioDecoder, StreamingDecoder};
 
-        let (mut pbl, _event_rx) = make_loop_with_format(44100, 1);
+        let (mut pbl, mut event_rx) = make_loop_with_format(44100, 1);
         pbl.position_samples.store(123456, Ordering::SeqCst);
 
         let cur = AudioDecoder::from_bytes(TINY_MP3.to_vec(), Some("mp3")).unwrap();
@@ -1759,10 +1767,27 @@ mod tests {
 
         pbl.finish_track();
 
+        // Position must be reset in both outcomes: successful gapless
+        // swap (PreloadConsumed) and failed output recreation (TrackEnded).
         assert_eq!(
             pbl.position_samples.load(Ordering::SeqCst),
             0,
             "position should be reset to 0 after gapless transition"
+        );
+
+        // Verify we got one of the two valid outcomes.
+        let mut got_preload_consumed = false;
+        let mut got_track_ended = false;
+        while let Ok(evt) = event_rx.try_recv() {
+            match evt {
+                AudioEngineEvent::PreloadConsumed => got_preload_consumed = true,
+                AudioEngineEvent::TrackEnded => got_track_ended = true,
+                _ => {}
+            }
+        }
+        assert!(
+            got_preload_consumed || got_track_ended,
+            "expected either PreloadConsumed (PA available) or TrackEnded (PA unavailable)"
         );
     }
 
