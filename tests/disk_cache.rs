@@ -16,6 +16,7 @@
 )]
 
 use cosmic_applet_mare::disk_cache::{DiskCache, log_file_path, trim_log_file};
+use cosmic_applet_mare::views::components::constants::CACHE_DIR_NAME;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -514,7 +515,7 @@ fn trim_preserves_complete_lines() {
 #[test]
 fn log_file_path_returns_valid_path() {
     let path = log_file_path("test.log");
-    assert!(path.to_string_lossy().contains("cosmic-applet-mare"));
+    assert!(path.to_string_lossy().contains(CACHE_DIR_NAME));
     assert!(path.to_string_lossy().contains("logs"));
     assert!(path.to_string_lossy().ends_with("test.log"));
     // Parent directory should exist (log_file_path creates it)

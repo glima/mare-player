@@ -1,6 +1,7 @@
 name := 'cosmic-applet-mare'
 standalone-name := 'mare-player'
 appid := 'io.github.cosmic-applet-mare'
+features := env('FEATURES', '--all-features')
 rootdir := ''
 prefix := '/usr'
 bloat-target := cargo-target-dir / 'release-bloat' / name
@@ -90,29 +91,43 @@ check *args:
         echo "cargo-audit not found, skipping security audit (install with: cargo install cargo-audit)"
     fi
 
-# Run tests with cargo-nextest (falls back to cargo test)
+# Run tests (override features via: just features='--no-default-features' test)
 test *args:
     #!/usr/bin/env bash
     set -euo pipefail
+    echo "Testing with: {{ features }}"
     if command -v cargo-nextest >/dev/null 2>&1; then
-        cargo nextest run --all-features --no-fail-fast --status-level=skip {{ args }}
+        cargo nextest run {{ features }} --no-fail-fast --status-level=skip {{ args }}
     else
         echo "cargo-nextest not found, falling back to cargo test"
-        cargo test --all-features {{ args }}
+        cargo test {{ features }} {{ args }}
     fi
 
 # Run tests with verbose output
 test-verbose *args:
     #!/usr/bin/env bash
     set -euo pipefail
+    echo "Testing with: {{ features }}"
     if command -v cargo-nextest >/dev/null 2>&1; then
-        NEXTEST_SHOW_OUTPUT=always cargo nextest run --all-features \
+        NEXTEST_SHOW_OUTPUT=always cargo nextest run {{ features }} \
             --no-fail-fast -v --status-level=skip \
             --success-output=immediate --failure-output=immediate {{ args }}
     else
         echo "cargo-nextest not found, falling back to cargo test"
-        cargo test --all-features -- --nocapture {{ args }}
+        cargo test {{ features }} -- --nocapture {{ args }}
     fi
+
+# Run tests for both applet and standalone feature sets
+test-matrix *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "═══ Testing: panel-applet (default features) ═══"
+    just features='--all-features' test {{ args }}
+    echo ""
+    echo "═══ Testing: standalone (no default features) ═══"
+    just features='--no-default-features' test {{ args }}
+    echo ""
+    echo "All feature combinations passed ✓"
 
 # Coverage directory
 

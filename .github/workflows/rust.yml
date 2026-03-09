@@ -39,5 +39,5 @@ jobs:
       - name: Check/sanitize
         run: just check
 
-      - name: Run tests
-        run: just test
+      - name: Run tests (applet + standalone)
+        run: just test-matrix
