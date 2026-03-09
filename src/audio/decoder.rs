@@ -1042,6 +1042,11 @@ pub struct StreamingDecoder {
 }
 
 impl StreamingDecoder {
+    /// Audio format metadata for the underlying decoder.
+    pub fn format_info(&self) -> &AudioFormat {
+        &self.decoder.format_info
+    }
+
     /// Create a new streaming decoder from an existing [`AudioDecoder`].
     pub fn from_decoder(decoder: AudioDecoder) -> Self {
         Self {
