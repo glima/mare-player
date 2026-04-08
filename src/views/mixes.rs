@@ -22,7 +22,7 @@ use crate::views::components::{
 impl AppModel {
     /// Render the mixes & radio list view.
     pub fn view_mixes(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -43,7 +43,7 @@ impl AppModel {
             if self.is_loading {
                 text(fl!("loading-mixes")).size(14).into()
             } else {
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("no-mixes-found")).size(14))
                     .push(button::text(fl!("refresh")).on_press(Message::LoadMixes))
                     .spacing(8)
@@ -56,10 +56,10 @@ impl AppModel {
                 .map(|mix| self.mix_row(mix))
                 .collect();
 
-            scrollable_list(widget::column::with_children(mix_items).spacing(4))
+            scrollable_list(widget::Column::with_children(mix_items).spacing(4))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(content)
             .spacing(12)
@@ -74,7 +74,7 @@ impl AppModel {
         let title = self.selected_mix_name.as_deref().unwrap_or(&fallback_mix);
         let tracks = self.selected_mix_tracks.clone();
 
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -121,10 +121,10 @@ impl AppModel {
                 })
                 .collect();
 
-            scrollable_list(widget::column::with_children(track_items).spacing(2))
+            scrollable_list(widget::Column::with_children(track_items).spacing(2))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(tracks_content)
             .spacing(12)
@@ -164,7 +164,7 @@ impl AppModel {
                 .into()
         };
 
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(thumb)
             .push(info)
             .spacing(8)

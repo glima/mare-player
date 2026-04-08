@@ -16,7 +16,7 @@ use crate::views::components::{TrackRowOptions, fading_header_title, scrollable_
 impl AppModel {
     /// Render the playlists list view.
     pub fn view_playlists(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -30,7 +30,7 @@ impl AppModel {
             if self.is_loading {
                 text(fl!("loading-playlists")).size(14).into()
             } else {
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("no-playlists-found")).size(14))
                     .push(button::text(fl!("refresh")).on_press(Message::LoadPlaylists))
                     .spacing(8)
@@ -43,10 +43,10 @@ impl AppModel {
                 .map(|playlist| self.playlist_row(playlist))
                 .collect();
 
-            scrollable_list(widget::column::with_children(playlist_items).spacing(4))
+            scrollable_list(widget::Column::with_children(playlist_items).spacing(4))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(content)
             .spacing(12)
@@ -64,7 +64,7 @@ impl AppModel {
             .unwrap_or(&fallback_playlist);
         let tracks = self.selected_playlist_tracks.clone();
 
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -111,10 +111,10 @@ impl AppModel {
                 })
                 .collect();
 
-            scrollable_list(widget::column::with_children(track_items).spacing(2))
+            scrollable_list(widget::Column::with_children(track_items).spacing(2))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(tracks_content)
             .spacing(12)

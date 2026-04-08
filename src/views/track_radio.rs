@@ -25,7 +25,7 @@ impl AppModel {
 
         let tracks = self.selected_radio_tracks.clone();
 
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -70,10 +70,10 @@ impl AppModel {
                 })
                 .collect();
 
-            scrollable_list(widget::column::with_children(track_items).spacing(2))
+            scrollable_list(widget::Column::with_children(track_items).spacing(2))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(tracks_content)
             .spacing(12)

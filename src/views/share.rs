@@ -27,7 +27,7 @@ impl AppModel {
         album_id: Option<String>,
         album_title: Option<String>,
     ) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::CancelShare)
@@ -66,7 +66,7 @@ impl AppModel {
                 None
             };
 
-        let mut content = widget::column()
+        let mut content = widget::Column::new()
             .push(header)
             .push(widget::space::vertical().height(12))
             .push(description)

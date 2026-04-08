@@ -30,7 +30,7 @@ impl AppModel {
             .unwrap_or(&fallback_artist);
 
         // Header row: back button, title, follow heart
-        let mut header = widget::row()
+        let mut header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -57,7 +57,7 @@ impl AppModel {
         let header = header.spacing(8).align_y(Alignment::Center);
 
         // Build scrollable content
-        let mut content_col = widget::column().spacing(12).width(Length::Fill);
+        let mut content_col = widget::Column::new().spacing(12).width(Length::Fill);
 
         if self.is_loading && self.selected_artist.is_none() {
             content_col = content_col.push(text(fl!("loading-artist")).size(14));
@@ -80,7 +80,7 @@ impl AppModel {
 
         let scrollable_content = scrollable_list(content_col);
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(scrollable_content)
             .spacing(12)
@@ -109,7 +109,7 @@ impl AppModel {
         };
 
         // Details column next to the picture
-        let mut details = widget::column().spacing(4);
+        let mut details = widget::Column::new().spacing(4);
 
         // Roles (e.g., "Artist, Producer")
         if !artist.roles.is_empty() {
@@ -132,13 +132,13 @@ impl AppModel {
         }
 
         // Top row: picture + details side by side
-        let info_row = widget::row()
+        let info_row = widget::Row::new()
             .push(picture)
             .push(details)
             .spacing(12)
             .align_y(Alignment::Center);
 
-        let mut section = widget::column().spacing(8).push(info_row);
+        let mut section = widget::Column::new().spacing(8).push(info_row);
 
         // Bio text below the picture row
         if let Some(bio) = &artist.bio
@@ -203,10 +203,10 @@ impl AppModel {
             })
             .collect();
 
-        widget::column()
+        widget::Column::new()
             .push(section_header)
             .push(
-                widget::column::with_children(track_items)
+                widget::Column::with_children(track_items)
                     .spacing(2)
                     .width(Length::Fill),
             )
@@ -262,7 +262,7 @@ impl AppModel {
 
                 let info_parts = fading_text_column(info_children);
 
-                let row_content = widget::row()
+                let row_content = widget::Row::new()
                     .push(self.thumbnail(album.cover_url.as_deref(), "media-optical-symbolic"))
                     .push(info_parts)
                     .spacing(8)
@@ -273,10 +273,10 @@ impl AppModel {
             })
             .collect();
 
-        widget::column()
+        widget::Column::new()
             .push(section_header)
             .push(
-                widget::column::with_children(album_items)
+                widget::Column::with_children(album_items)
                     .spacing(2)
                     .width(Length::Fill),
             )

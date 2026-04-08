@@ -18,7 +18,7 @@ use crate::views::components::{TrackRowOptions, scrollable_list};
 impl AppModel {
     /// Render the search view with search bar and results.
     pub fn view_search(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -28,7 +28,7 @@ impl AppModel {
             .spacing(8)
             .align_y(Alignment::Center);
 
-        let search_bar = widget::row()
+        let search_bar = widget::Row::new()
             .push(
                 text_input(&fl!("search-placeholder"), &self.search_query)
                     .id("search-input")
@@ -50,7 +50,7 @@ impl AppModel {
             if results.is_empty() {
                 text(fl!("no-results")).size(14).into()
             } else {
-                let mut items_col = widget::column().spacing(4);
+                let mut items_col = widget::Column::new().spacing(4);
 
                 // Tracks section
                 if !results.tracks.is_empty() {
@@ -93,7 +93,7 @@ impl AppModel {
             text(fl!("enter-search-term")).size(14).into()
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(search_bar)
             .push(results_content)

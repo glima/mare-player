@@ -92,20 +92,20 @@ impl AppModel {
                 .on_press(Message::ShowTrackRadio(track.clone()))
                 .padding(2);
 
-            widget::row()
+            widget::Row::new()
                 .push(radio_btn)
                 .push(duration)
                 .spacing(4)
                 .align_y(Alignment::Center)
                 .width(Length::Shrink)
         } else {
-            widget::row()
+            widget::Row::new()
                 .push(duration)
                 .align_y(Alignment::Center)
                 .width(Length::Shrink)
         };
 
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(thumbnail)
             .push(track_info)
             .push(trailing)
@@ -140,7 +140,7 @@ impl AppModel {
                 .into(),
         ]);
 
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(self.thumbnail(album.cover_url.as_deref(), "media-optical-symbolic"))
             .push(info)
             .spacing(8)
@@ -184,7 +184,7 @@ impl AppModel {
                 self.thumbnail(playlist.image_url.as_deref(), "folder-music-symbolic")
             };
 
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(thumb)
             .push(info)
             .spacing(8)
@@ -207,7 +207,7 @@ impl AppModel {
         label: String,
         on_press: Message,
     ) -> Element<'a, Message> {
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(widget::icon::from_name(icon).size(24))
             .push(text(label).size(14))
             .push(widget::space::horizontal())

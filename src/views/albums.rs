@@ -24,7 +24,7 @@ use crate::views::components::{
 impl AppModel {
     /// Render the albums list view.
     pub fn view_albums(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -38,7 +38,7 @@ impl AppModel {
             if self.is_loading {
                 text(fl!("loading-albums")).size(14).into()
             } else {
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("no-albums-found")).size(14))
                     .push(button::text(fl!("refresh")).on_press(Message::LoadAlbums))
                     .spacing(8)
@@ -51,10 +51,10 @@ impl AppModel {
                 .map(|album| self.album_row(album))
                 .collect();
 
-            scrollable_list(widget::column::with_children(album_items).spacing(4))
+            scrollable_list(widget::Column::with_children(album_items).spacing(4))
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(content)
             .spacing(12)
@@ -74,7 +74,7 @@ impl AppModel {
         let tracks = self.selected_album_tracks.clone();
 
         // Header row: back button, title, favorite heart, shuffle button
-        let mut header = widget::row()
+        let mut header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -116,7 +116,7 @@ impl AppModel {
         let header = header.spacing(8).align_y(Alignment::Center);
 
         // Build the scrollable body: album info section + tracks
-        let mut body = widget::column().spacing(12).width(Length::Fill);
+        let mut body = widget::Column::new().spacing(12).width(Length::Fill);
 
         // Album info section (cover + metadata)
         if let Some(album) = &self.selected_album {
@@ -149,7 +149,7 @@ impl AppModel {
                     })
                     .collect();
 
-                widget::column::with_children(track_items)
+                widget::Column::with_children(track_items)
                     .spacing(2)
                     .width(Length::Fill)
                     .into()
@@ -159,7 +159,7 @@ impl AppModel {
 
         let scrollable_body = scrollable_list(body);
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(scrollable_body)
             .spacing(12)
@@ -186,7 +186,7 @@ impl AppModel {
         };
 
         // Metadata column
-        let mut details = widget::column().spacing(3).width(Length::Fill).clip(true);
+        let mut details = widget::Column::new().spacing(3).width(Length::Fill).clip(true);
 
         // Artist name — clickable to navigate to artist detail
         let artist_element: Element<'_, Message> = if let Some(ref artist_id) = album.artist_id {
@@ -245,13 +245,13 @@ impl AppModel {
         }
 
         // Row: cover + details
-        let info_row = widget::row()
+        let info_row = widget::Row::new()
             .push(cover)
             .push(details)
             .spacing(12)
             .align_y(Alignment::Center);
 
-        let mut section = widget::column().spacing(8).push(info_row);
+        let mut section = widget::Column::new().spacing(8).push(info_row);
 
         // Album review text below the cover row (same truncation as artist bio)
         if let Some(review) = &album.review

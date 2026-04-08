@@ -88,7 +88,7 @@ impl AppModel {
                     }
                 }));
 
-                cosmic::iced_widget::Stack::new()
+                cosmic::iced::widget::Stack::new()
                     .push(base_art)
                     .push(mask)
                     .into()
@@ -112,7 +112,7 @@ impl AppModel {
             let faded_text = crate::views::components::fading_panel_text(panel_text);
 
             // Build button content row
-            let content = widget::row().push(album_art).push(faded_text);
+            let content = widget::Row::new().push(album_art).push(faded_text);
 
             let mut content = content.spacing(6).align_y(Alignment::Center);
 
@@ -144,7 +144,7 @@ impl AppModel {
                 .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
 
             if self.show_volume_bar {
-                widget::row()
+                widget::Row::new()
                     .push(interactive)
                     .push(self.build_volume_bar())
                     .spacing(2)
@@ -189,6 +189,6 @@ impl AppModel {
             .height(Length::Fixed(empty_height));
 
         // Stack: empty on top, filled on bottom
-        widget::column().push(empty).push(filled).into()
+        widget::Column::new().push(empty).push(filled).into()
     }
 }

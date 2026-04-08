@@ -23,9 +23,9 @@
 use crate::audio::SpectrumData;
 use crate::audio::spectrum::SharedSpectrumAnalyzer;
 use cosmic::Element;
+use cosmic::iced::core::widget::tree;
+use cosmic::iced::core::{Clipboard, Event, Shell};
 use cosmic::iced::{Color, Length, Rectangle, Size};
-use cosmic::iced_core::widget::tree;
-use cosmic::iced_core::{Clipboard, Event, Shell};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -267,7 +267,7 @@ pub struct VisualizerWidget {
     settled: Arc<AtomicBool>,
 }
 
-impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
+impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
     for VisualizerWidget
 {
     // -- tree state -----------------------------------------------------------
@@ -291,11 +291,11 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn layout(
         &mut self,
-        _tree: &mut cosmic::iced_core::widget::Tree,
+        _tree: &mut cosmic::iced::core::widget::Tree,
         _renderer: &cosmic::Renderer,
-        _limits: &cosmic::iced_core::layout::Limits,
-    ) -> cosmic::iced_core::layout::Node {
-        cosmic::iced_core::layout::Node::new(Size::new(
+        _limits: &cosmic::iced::core::layout::Limits,
+    ) -> cosmic::iced::core::layout::Node {
+        cosmic::iced::core::layout::Node::new(Size::new(
             VISUALIZER_WIDTH + HORIZONTAL_PAD,
             VISUALIZER_HEIGHT + VERTICAL_PAD * 2.0,
         ))
@@ -305,10 +305,10 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn update(
         &mut self,
-        tree: &mut cosmic::iced_core::widget::Tree,
+        tree: &mut cosmic::iced::core::widget::Tree,
         event: &Event,
-        _layout: cosmic::iced_core::Layout<'_>,
-        _cursor: cosmic::iced_core::mouse::Cursor,
+        _layout: cosmic::iced::core::Layout<'_>,
+        _cursor: cosmic::iced::core::mouse::Cursor,
         _renderer: &cosmic::Renderer,
         _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Msg>,
@@ -376,15 +376,15 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn draw(
         &self,
-        tree: &cosmic::iced_core::widget::Tree,
+        tree: &cosmic::iced::core::widget::Tree,
         renderer: &mut cosmic::Renderer,
         _theme: &cosmic::Theme,
-        _style: &cosmic::iced_core::renderer::Style,
-        layout: cosmic::iced_core::Layout<'_>,
-        _cursor: cosmic::iced_core::mouse::Cursor,
+        _style: &cosmic::iced::core::renderer::Style,
+        layout: cosmic::iced::core::Layout<'_>,
+        _cursor: cosmic::iced::core::mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        use cosmic::iced_core::Renderer as _;
+        use cosmic::iced::core::Renderer as _;
 
         let bounds = layout.bounds();
         let Some(clip) = bounds.intersection(viewport) else {
@@ -407,18 +407,18 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
                 let y = center_y - bar_h;
 
                 renderer.fill_quad(
-                    cosmic::iced_core::renderer::Quad {
+                    cosmic::iced::core::renderer::Quad {
                         bounds: Rectangle {
                             x,
                             y,
                             width: BAR_WIDTH,
                             height: bar_h,
                         },
-                        border: cosmic::iced_core::Border {
+                        border: cosmic::iced::core::Border {
                             radius: (BAR_WIDTH / 2.0).into(),
                             ..Default::default()
                         },
-                        shadow: cosmic::iced_core::Shadow::default(),
+                        shadow: cosmic::iced::core::Shadow::default(),
                         snap: false,
                     },
                     cosmic::iced::Background::Color(color),
@@ -435,18 +435,18 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
                 let y = center_y;
 
                 renderer.fill_quad(
-                    cosmic::iced_core::renderer::Quad {
+                    cosmic::iced::core::renderer::Quad {
                         bounds: Rectangle {
                             x,
                             y,
                             width: BAR_WIDTH,
                             height: bar_h,
                         },
-                        border: cosmic::iced_core::Border {
+                        border: cosmic::iced::core::Border {
                             radius: (BAR_WIDTH / 2.0).into(),
                             ..Default::default()
                         },
-                        shadow: cosmic::iced_core::Shadow::default(),
+                        shadow: cosmic::iced::core::Shadow::default(),
                         snap: false,
                     },
                     cosmic::iced::Background::Color(color),

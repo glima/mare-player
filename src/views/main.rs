@@ -20,7 +20,7 @@ impl AppModel {
         let big_size: u16 = 18;
 
         // Title row: text on the left, buttons on the right.
-        let mut title_row = widget::row()
+        let mut title_row = widget::Row::new()
             .push(branded_text(big_size))
             .spacing(6)
             .align_y(Alignment::Center);
@@ -33,7 +33,7 @@ impl AppModel {
             ));
         }
 
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(title_row)
             .push(widget::space::horizontal())
             .push(
@@ -75,7 +75,7 @@ impl AppModel {
             use crate::views::components::RADIO_SVG;
             let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
             radio_icon.symbolic = true;
-            let row = widget::row()
+            let row = widget::Row::new()
                 .push(widget::icon(radio_icon).size(24))
                 .push(text(fl!("mixes-and-radio")).size(14))
                 .push(widget::space::horizontal())
@@ -128,7 +128,7 @@ impl AppModel {
             Message::ShowHistory,
         );
 
-        let collection_section = widget::column()
+        let collection_section = widget::Column::new()
             .push(text(fl!("collection")).size(12))
             .push(albums_btn)
             .push(history_btn)
@@ -138,7 +138,7 @@ impl AppModel {
             .push(tracks_btn)
             .spacing(4);
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(collection_section)
             .spacing(8)

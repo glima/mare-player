@@ -135,7 +135,7 @@ impl AppModel {
 
     /// Build an error banner element for display at the top of the content.
     fn view_error_banner<'a>(&'a self, error: &'a str) -> Element<'a, Message> {
-        let error_row = widget::row()
+        let error_row = widget::Row::new()
             .push(text(error).size(12))
             .push(
                 button::icon(widget::icon::from_name("window-close-symbolic"))
@@ -176,7 +176,7 @@ impl AppModel {
         let content: Element<'_, Message> = if let Some(np) = &self.now_playing {
             let now_playing_bar = self.view_now_playing_bar(np);
 
-            widget::column()
+            widget::Column::new()
                 .push(main_content)
                 .push(now_playing_bar)
                 .into()
@@ -186,7 +186,7 @@ impl AppModel {
 
         // Wrap with error display if needed
         if let Some(error) = &self.error_message {
-            widget::column()
+            widget::Column::new()
                 .push(self.view_error_banner(error))
                 .push(content)
                 .spacing(8)
@@ -219,7 +219,7 @@ impl AppModel {
     pub fn view_standalone(&self) -> Element<'_, Message> {
         let page = self.view_page_content();
 
-        let mut col = widget::column().height(Length::Fill);
+        let mut col = widget::Column::new().height(Length::Fill);
 
         // Error banner at the top (shrink — only present when needed)
         if let Some(error) = &self.error_message {
@@ -340,7 +340,7 @@ impl AppModel {
         };
 
         // Track info text — GPU-clipped with gradient fade to surface colour
-        let track_info_col = widget::column()
+        let track_info_col = widget::Column::new()
             .push(title_element)
             .push(artist_element)
             .push_maybe(context_element)
@@ -354,7 +354,7 @@ impl AppModel {
         let visualizer = self.visualizer_state.view();
 
         // Info row with album art on the left, track info, then visualizer on the right
-        let info_row = widget::row()
+        let info_row = widget::Row::new()
             .push(now_playing_art)
             .push(track_info)
             .push(visualizer)
@@ -364,7 +364,7 @@ impl AppModel {
         // Buttons row below - centered
         let track_for_radio = self.playback_queue.get(self.playback_queue_index).cloned();
 
-        let buttons_row = widget::row()
+        let buttons_row = widget::Row::new()
             .push({
                 let tip = if is_favorite {
                     fl!("tooltip-remove-from-favorites")
@@ -493,7 +493,7 @@ impl AppModel {
                     .height(Length::Fixed(120.0));
 
                 let popup_content = container(
-                    widget::column()
+                    widget::Column::new()
                         .push(vol_pct_label)
                         .push(vol_slider)
                         .push(widget::icon::from_name(volume_icon_name).size(16))
@@ -554,14 +554,14 @@ impl AppModel {
             s
         };
 
-        let progress_row = widget::row()
+        let progress_row = widget::Row::new()
             .push(text(elapsed).size(10))
             .push(seek_slider)
             .push(text(remaining).size(10))
             .spacing(6)
             .align_y(Alignment::Center);
 
-        let bar_col = widget::column()
+        let bar_col = widget::Column::new()
             .push(info_row)
             .push(centered_buttons)
             .push(progress_row)

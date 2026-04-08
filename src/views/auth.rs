@@ -16,7 +16,7 @@ use crate::views::components::branded_title;
 impl AppModel {
     /// Render the login view prompting user to sign in.
     pub fn view_login(&self) -> Element<'_, Message> {
-        let content = widget::column()
+        let content = widget::Column::new()
             .push(branded_title(24))
             .push(text(fl!("sign-in-prompt")).size(14))
             .push(widget::space::vertical().height(20))
@@ -41,7 +41,7 @@ impl AppModel {
     pub fn view_awaiting_oauth(&self) -> Element<'_, Message> {
         let content = if self.is_loading {
             // Show loading state while polling for OAuth completion
-            widget::column()
+            widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
                 .push(widget::space::vertical().height(20))
                 .push(text("⏳").size(32))
@@ -57,7 +57,7 @@ impl AppModel {
                 .padding(8)
                 .class(cosmic::theme::Container::Card);
 
-            widget::column()
+            widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
                 .push(widget::space::vertical().height(10))
                 .push(text(fl!("oauth-open-url")).size(12))
@@ -75,7 +75,7 @@ impl AppModel {
                 .spacing(8)
                 .align_x(Alignment::Center)
         } else {
-            widget::column()
+            widget::Column::new()
                 .push(text(fl!("preparing-login")).size(16))
                 .align_x(Alignment::Center)
         };
@@ -89,7 +89,7 @@ impl AppModel {
 
     /// Render a simple loading view.
     pub fn view_loading(&self) -> Element<'_, Message> {
-        let content = widget::column()
+        let content = widget::Column::new()
             .push(text(fl!("loading")).size(16))
             .spacing(8)
             .align_x(Alignment::Center);

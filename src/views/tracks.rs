@@ -42,7 +42,7 @@ impl AppModel {
         };
 
         // --- header row ---
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -73,7 +73,7 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // --- optional filter bar ---
-        let mut col = widget::column().spacing(12).padding(12).width(Length::Fill);
+        let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
         col = col.push(header);
 
         if self.favorite_tracks_filter_visible {
@@ -97,7 +97,7 @@ impl AppModel {
                 // Tracks exist but filter matched nothing.
                 text(fl!("no-results")).size(14).into()
             } else {
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("no-favorite-tracks")).size(14))
                     .push(button::text(fl!("refresh")).on_press(Message::LoadFavoriteTracks))
                     .spacing(8)
@@ -121,7 +121,7 @@ impl AppModel {
                 })
                 .collect();
 
-            scrollable_list(widget::column::with_children(track_items).spacing(2))
+            scrollable_list(widget::Column::with_children(track_items).spacing(2))
         };
 
         col.push(content).into()

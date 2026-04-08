@@ -108,7 +108,7 @@ pub fn list_item<'a>(
 /// that automatically matches the current button background (normal or
 /// hovered), so the fade is invisible in every interactive state.
 pub fn fading_text_column<'a>(children: Vec<Element<'a, Message>>) -> Element<'a, Message> {
-    let text_col = widget::column::with_children(children).width(Length::Fill);
+    let text_col = widget::Column::with_children(children).width(Length::Fill);
 
     FadingClip::new(text_col, FADE_WIDTH)
         .width(Length::Fill)
@@ -197,7 +197,7 @@ pub static APP_ICON_SVG: &[u8] = include_bytes!("../../../resources/icon.svg");
 /// rendered at ⅓ that size (minimum 1).
 pub fn branded_text<'a>(big_size: u16) -> Element<'a, Message> {
     let small_size = (big_size / 3).max(1);
-    widget::row()
+    widget::Row::new()
         .push(text("MARÉ").size(big_size))
         .push(text("PLAYER").size(small_size))
         .spacing(6)
@@ -220,7 +220,7 @@ pub fn branded_title<'a>(big_size: u16) -> Element<'a, Message> {
     let icon_size = big_size + small_size;
     let gap = big_size / 2;
 
-    widget::row()
+    widget::Row::new()
         .push(branded_text(big_size))
         .push(app_icon_element(icon_size))
         .spacing(gap)
@@ -235,7 +235,9 @@ pub fn branded_title<'a>(big_size: u16) -> Element<'a, Message> {
 /// Wrap a content column in a scrollable container that fills available space
 /// in standalone mode, or caps at [`MAX_POPUP_HEIGHT`](super::constants::MAX_POPUP_HEIGHT)
 /// in panel-applet mode.
-pub fn scrollable_list(content: widget::Column<'_, Message>) -> Element<'_, Message> {
+pub fn scrollable_list(
+    content: widget::Column<'_, Message, cosmic::Theme>,
+) -> Element<'_, Message> {
     #[cfg(feature = "panel-applet")]
     {
         use super::constants::MAX_POPUP_HEIGHT;

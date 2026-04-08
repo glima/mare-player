@@ -6,8 +6,8 @@
 
 use std::sync::Arc;
 
+use cosmic::iced::core::window::Screenshot;
 use cosmic::iced::window::Id;
-use cosmic::iced_core::window::Screenshot;
 use cosmic::surface;
 use tokio::sync::Mutex;
 

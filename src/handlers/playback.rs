@@ -7,7 +7,7 @@
 use cosmic::Application;
 use cosmic::cosmic_config::CosmicConfigEntry;
 #[cfg(feature = "panel-applet")]
-use cosmic::iced_winit::commands::popup::destroy_popup;
+use cosmic::iced::platform_specific::shell::commands::popup::destroy_popup;
 use cosmic::prelude::*;
 
 use crate::messages::Message;

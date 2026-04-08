@@ -41,7 +41,7 @@ impl AppModel {
             .unwrap_or(&fallback_artist);
 
         // Header row: back button + track title
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::NavigateBack)
@@ -52,7 +52,7 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // Build scrollable content with all sections in one column
-        let mut content_col = widget::column().spacing(16).width(Length::Fill);
+        let mut content_col = widget::Column::new().spacing(16).width(Length::Fill);
 
         // Track info summary (cover + title + artist + album)
         if let Some(track) = &self.selected_detail_track {
@@ -65,7 +65,7 @@ impl AppModel {
                 content_col.push(self.view_track_detail_artist_albums_section(artist_name));
         } else if self.is_loading {
             content_col = content_col.push(
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("more-albums-by", artist = artist_name)).size(15))
                     .push(text(fl!("loading-recommendations")).size(12))
                     .spacing(6),
@@ -78,7 +78,7 @@ impl AppModel {
         } else if !self.track_detail_related_artists.is_empty() {
             // Related artists arrived but albums are still loading
             content_col = content_col.push(
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("related-albums")).size(15))
                     .push(text(fl!("loading-recommendations")).size(12))
                     .spacing(6),
@@ -90,7 +90,7 @@ impl AppModel {
             content_col = content_col.push(self.view_track_detail_related_artists_section());
         } else if self.is_loading {
             content_col = content_col.push(
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("related-artists")).size(15))
                     .push(text(fl!("loading-recommendations")).size(12))
                     .spacing(6),
@@ -99,7 +99,7 @@ impl AppModel {
 
         let scrollable_content = scrollable_list(content_col);
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(scrollable_content)
             .spacing(12)
@@ -126,7 +126,7 @@ impl AppModel {
                 .into()
         };
 
-        let mut details = widget::column().spacing(4);
+        let mut details = widget::Column::new().spacing(4);
 
         details = details.push(
             text(track.title.clone())
@@ -173,7 +173,7 @@ impl AppModel {
         }
         details = details.push(text(meta_parts.join(" • ")).size(11));
 
-        widget::row()
+        widget::Row::new()
             .push(cover)
             .push(details)
             .spacing(12)
@@ -191,10 +191,10 @@ impl AppModel {
             .map(|album| self.compact_album_row(album))
             .collect();
 
-        widget::column()
+        widget::Column::new()
             .push(section_header)
             .push(
-                widget::column::with_children(album_items)
+                widget::Column::with_children(album_items)
                     .spacing(2)
                     .width(Length::Fill),
             )
@@ -212,10 +212,10 @@ impl AppModel {
             .map(|album| self.compact_album_row_with_artist(album))
             .collect();
 
-        widget::column()
+        widget::Column::new()
             .push(section_header)
             .push(
-                widget::column::with_children(album_items)
+                widget::Column::with_children(album_items)
                     .spacing(2)
                     .width(Length::Fill),
             )
@@ -251,7 +251,7 @@ impl AppModel {
                         .into(),
                 ]);
 
-                let row_content = widget::row()
+                let row_content = widget::Row::new()
                     .push(picture)
                     .push(info_parts)
                     .spacing(8)
@@ -262,10 +262,10 @@ impl AppModel {
             })
             .collect();
 
-        widget::column()
+        widget::Column::new()
             .push(section_header)
             .push(
-                widget::column::with_children(artist_items)
+                widget::Column::with_children(artist_items)
                     .spacing(2)
                     .width(Length::Fill),
             )
@@ -308,7 +308,7 @@ impl AppModel {
 
         let info_parts = fading_text_column(info_children);
 
-        let row_content = widget::row()
+        let row_content = widget::Row::new()
             .push(self.thumbnail(album.cover_url.as_deref(), "media-optical-symbolic"))
             .push(info_parts)
             .spacing(8)
@@ -363,7 +363,7 @@ impl AppModel {
 
         let info_parts = fading_text_column(info_children);
 
-        let row_content = widget::row()
+        let row_content = widget::Row::new()
             .push(self.thumbnail(album.cover_url.as_deref(), "media-optical-symbolic"))
             .push(info_parts)
             .spacing(8)

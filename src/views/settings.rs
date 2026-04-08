@@ -39,7 +39,7 @@ static QUALITY_OPTIONS: &[AudioQuality] = &[
 impl AppModel {
     /// Render the settings view.
     pub fn view_settings(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -64,7 +64,7 @@ impl AppModel {
             .position(|q| *q == current_quality)
             .unwrap_or(1);
 
-        let quality_section = widget::column()
+        let quality_section = widget::Column::new()
             .push(text(fl!("audio-quality")).size(14))
             .push(
                 widget::dropdown(QUALITY_OPTIONS, Some(selected_idx), |idx| {
@@ -113,10 +113,10 @@ impl AppModel {
                     .unwrap_or(2)
             });
 
-        let cache_section = widget::column()
+        let cache_section = widget::Column::new()
             .push(text(fl!("cache")).size(14))
             .push(
-                widget::row()
+                widget::Row::new()
                     .push(text(fl!("song-cache")).size(12))
                     .push(widget::space::horizontal())
                     .push(
@@ -129,7 +129,7 @@ impl AppModel {
                     ),
             )
             .push(
-                widget::row()
+                widget::Row::new()
                     .push(text(fl!("song-cache-limit")).size(12))
                     .push(widget::space::horizontal())
                     .push(
@@ -188,7 +188,7 @@ impl AppModel {
             };
 
             // Name + email column
-            let mut info_col = widget::column().spacing(2);
+            let mut info_col = widget::Column::new().spacing(2);
             info_col = info_col.push(text(display_name.clone()).size(14));
 
             // Show email underneath if it's different from the display name
@@ -226,7 +226,7 @@ impl AppModel {
                 );
             }
 
-            let user_row = widget::row()
+            let user_row = widget::Row::new()
                 .push(avatar)
                 .push(info_col)
                 .push(widget::space::horizontal())
@@ -234,13 +234,13 @@ impl AppModel {
                 .spacing(12)
                 .align_y(Alignment::Center);
 
-            widget::column()
+            widget::Column::new()
                 .push(text(fl!("account")).size(14))
                 .push(user_row)
                 .spacing(12)
                 .into()
         } else {
-            widget::column()
+            widget::Column::new()
                 .push(text(fl!("account")).size(14))
                 .push(text(fl!("not-signed-in")).size(12))
                 .push(
@@ -253,10 +253,10 @@ impl AppModel {
         };
 
         // About section
-        let about_section = widget::column()
+        let about_section = widget::Column::new()
             .push(text(fl!("about")).size(14))
             .push(
-                widget::row()
+                widget::Row::new()
                     .push(text(fl!("version")).size(12))
                     .push(widget::space::horizontal())
                     .push(text(env!("CARGO_PKG_VERSION")).size(12))
@@ -271,7 +271,7 @@ impl AppModel {
             .width(Length::Fill)
             .align_x(Alignment::Center);
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(app_icon)
             .push(widget::space::vertical().height(8))

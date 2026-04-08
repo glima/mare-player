@@ -19,7 +19,7 @@ use crate::views::components::{THUMBNAIL_SIZE, fading_text_column, list_item, sc
 impl AppModel {
     /// Render the followed artists (profiles) list view.
     pub fn view_profiles(&self) -> Element<'_, Message> {
-        let header = widget::row()
+        let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
                     .on_press(Message::ShowMain)
@@ -40,7 +40,7 @@ impl AppModel {
             if self.is_loading {
                 text(fl!("loading-followed-artists")).size(14).into()
             } else {
-                widget::column()
+                widget::Column::new()
                     .push(text(fl!("no-followed-artists")).size(14))
                     .push(button::text(fl!("refresh")).on_press(Message::LoadProfiles))
                     .spacing(8)
@@ -48,7 +48,7 @@ impl AppModel {
             }
         } else {
             let count = self.user_followed_artists.len();
-            let count_label = widget::row()
+            let count_label = widget::Row::new()
                 .push(text(fl!("artist-count", count = count)).size(12))
                 .padding([0, 0, 4, 0]);
 
@@ -58,16 +58,16 @@ impl AppModel {
                 .map(|artist| self.profile_artist_row(artist))
                 .collect();
 
-            let list = scrollable_list(widget::column::with_children(artist_items).spacing(4));
+            let list = scrollable_list(widget::Column::with_children(artist_items).spacing(4));
 
-            widget::column()
+            widget::Column::new()
                 .push(count_label)
                 .push(list)
                 .spacing(4)
                 .into()
         };
 
-        widget::column()
+        widget::Column::new()
             .push(header)
             .push(content)
             .spacing(12)
@@ -112,7 +112,7 @@ impl AppModel {
                 .into()
         };
 
-        let row = widget::row()
+        let row = widget::Row::new()
             .push(thumb)
             .push(info)
             .spacing(8)

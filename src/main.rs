@@ -8,7 +8,7 @@
 //! control, and local disk caching — all integrated into the COSMIC panel.
 
 #[cfg(not(feature = "panel-applet"))]
-use cosmic::iced_core::layout::Limits;
+use cosmic::iced::core::layout::Limits;
 use std::fs::OpenOptions;
 use std::sync::Mutex;
 

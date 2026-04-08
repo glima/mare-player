@@ -580,7 +580,7 @@ impl AppModel {
 
         tracing::info!("Capturing screenshot of window {:?}", id);
 
-        cosmic::iced_runtime::window::screenshot(id)
+        cosmic::iced::runtime::window::screenshot(id)
             .map(|s| cosmic::Action::App(Message::ScreenshotCaptured(s)))
     }
 
@@ -588,7 +588,7 @@ impl AppModel {
     /// to `~/Pictures/` with a timestamped filename.
     pub fn handle_screenshot_captured(
         &mut self,
-        screenshot: cosmic::iced_core::window::Screenshot,
+        screenshot: cosmic::iced::core::window::Screenshot,
     ) {
         // Spawn the (potentially slow) PNG encoding on a background thread
         // so we never block the UI.
@@ -607,7 +607,7 @@ impl AppModel {
     /// The RGBA bytes from iced's GPU read-back already contain the
     /// compositor's rounded-corner alpha, so the saved PNG faithfully
     /// preserves transparent corners with no extra processing needed.
-    fn save_screenshot_png(screenshot: &cosmic::iced_core::window::Screenshot) {
+    fn save_screenshot_png(screenshot: &cosmic::iced::core::window::Screenshot) {
         use image::{ImageBuffer, Rgba};
 
         let width = screenshot.size.width;

@@ -192,39 +192,39 @@ fn composite(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::
 // `layout.children().next().unwrap()` — there is no fallible API for
 // accessing the single mandatory child node.
 #[allow(clippy::indexing_slicing, clippy::unwrap_used)]
-impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
+impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
     for FadingClip<'_, Msg>
 {
     fn size(&self) -> Size<Length> {
         Size::new(self.width, self.height)
     }
 
-    fn tag(&self) -> cosmic::iced_core::widget::tree::Tag {
-        cosmic::iced_core::widget::tree::Tag::of::<FadingClipState>()
+    fn tag(&self) -> cosmic::iced::core::widget::tree::Tag {
+        cosmic::iced::core::widget::tree::Tag::of::<FadingClipState>()
     }
 
-    fn state(&self) -> cosmic::iced_core::widget::tree::State {
-        cosmic::iced_core::widget::tree::State::new(FadingClipState::default())
+    fn state(&self) -> cosmic::iced::core::widget::tree::State {
+        cosmic::iced::core::widget::tree::State::new(FadingClipState::default())
     }
 
-    fn children(&self) -> Vec<cosmic::iced_core::widget::Tree> {
-        vec![cosmic::iced_core::widget::Tree::new(&self.child)]
+    fn children(&self) -> Vec<cosmic::iced::core::widget::Tree> {
+        vec![cosmic::iced::core::widget::Tree::new(&self.child)]
     }
 
-    fn diff(&mut self, tree: &mut cosmic::iced_core::widget::Tree) {
+    fn diff(&mut self, tree: &mut cosmic::iced::core::widget::Tree) {
         tree.diff_children(std::slice::from_mut(&mut self.child));
     }
 
     fn layout(
         &mut self,
-        tree: &mut cosmic::iced_core::widget::Tree,
+        tree: &mut cosmic::iced::core::widget::Tree,
         renderer: &cosmic::Renderer,
-        limits: &cosmic::iced_core::layout::Limits,
-    ) -> cosmic::iced_core::layout::Node {
+        limits: &cosmic::iced::core::layout::Limits,
+    ) -> cosmic::iced::core::layout::Node {
         // First pass: measure the child with unbounded width to learn its
         // natural (unconstrained) width.  For single-line `Wrapping::None`
         // text this is cheap — just one paragraph layout.
-        let unbounded = cosmic::iced_core::layout::Limits::NONE.max_height(limits.max().height);
+        let unbounded = cosmic::iced::core::layout::Limits::NONE.max_height(limits.max().height);
         let natural =
             self.child
                 .as_widget_mut()
@@ -234,7 +234,7 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
         // Second pass: real layout with the actual (constrained) limits.
         // This overwrites any child-tree state set by the first pass.
         let node =
-            cosmic::iced_core::layout::contained(limits, self.width, self.height, |limits| {
+            cosmic::iced::core::layout::contained(limits, self.width, self.height, |limits| {
                 self.child
                     .as_widget_mut()
                     .layout(&mut tree.children[0], renderer, limits)
@@ -250,16 +250,16 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn draw(
         &self,
-        tree: &cosmic::iced_core::widget::Tree,
+        tree: &cosmic::iced::core::widget::Tree,
         renderer: &mut cosmic::Renderer,
         theme: &cosmic::Theme,
-        style: &cosmic::iced_core::renderer::Style,
-        layout: cosmic::iced_core::Layout<'_>,
-        cursor: cosmic::iced_core::mouse::Cursor,
+        style: &cosmic::iced::core::renderer::Style,
+        layout: cosmic::iced::core::Layout<'_>,
+        cursor: cosmic::iced::core::mouse::Cursor,
         viewport: &Rectangle,
     ) {
         use cosmic::iced::Color;
-        use cosmic::iced_core::Renderer as _;
+        use cosmic::iced::core::Renderer as _;
 
         let bounds = layout.bounds();
         let Some(clipped) = bounds.intersection(viewport) else {
@@ -380,10 +380,10 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
         if let Some(fade_clipped) = fade_bounds.intersection(viewport) {
             renderer.with_layer(fade_clipped, |renderer| {
                 renderer.fill_quad(
-                    cosmic::iced_core::renderer::Quad {
+                    cosmic::iced::core::renderer::Quad {
                         bounds: fade_bounds,
-                        border: cosmic::iced_core::Border::default(),
-                        shadow: cosmic::iced_core::Shadow::default(),
+                        border: cosmic::iced::core::Border::default(),
+                        shadow: cosmic::iced::core::Shadow::default(),
                         snap: false,
                     },
                     cosmic::iced::Background::Gradient(
@@ -399,19 +399,19 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn update(
         &mut self,
-        tree: &mut cosmic::iced_core::widget::Tree,
-        event: &cosmic::iced_core::Event,
-        layout: cosmic::iced_core::Layout<'_>,
-        cursor: cosmic::iced_core::mouse::Cursor,
+        tree: &mut cosmic::iced::core::widget::Tree,
+        event: &cosmic::iced::core::Event,
+        layout: cosmic::iced::core::Layout<'_>,
+        cursor: cosmic::iced::core::mouse::Cursor,
         renderer: &cosmic::Renderer,
-        clipboard: &mut dyn cosmic::iced_core::Clipboard,
-        shell: &mut cosmic::iced_core::Shell<'_, Msg>,
+        clipboard: &mut dyn cosmic::iced::core::Clipboard,
+        shell: &mut cosmic::iced::core::Shell<'_, Msg>,
         viewport: &Rectangle,
     ) {
         // Track mouse-button state so draw() can match the pressed
         // background colour of the parent button.
-        if let cosmic::iced_core::Event::Mouse(mouse_ev) = event {
-            use cosmic::iced_core::mouse::{Button, Event as ME};
+        if let cosmic::iced::core::Event::Mouse(mouse_ev) = event {
+            use cosmic::iced::core::mouse::{Button, Event as ME};
             match mouse_ev {
                 ME::ButtonPressed(Button::Left) => {
                     tree.state.downcast_mut::<FadingClipState>().mouse_pressed = true;
@@ -437,12 +437,12 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn mouse_interaction(
         &self,
-        tree: &cosmic::iced_core::widget::Tree,
-        layout: cosmic::iced_core::Layout<'_>,
-        cursor: cosmic::iced_core::mouse::Cursor,
+        tree: &cosmic::iced::core::widget::Tree,
+        layout: cosmic::iced::core::Layout<'_>,
+        cursor: cosmic::iced::core::mouse::Cursor,
         viewport: &Rectangle,
         renderer: &cosmic::Renderer,
-    ) -> cosmic::iced_core::mouse::Interaction {
+    ) -> cosmic::iced::core::mouse::Interaction {
         self.child.as_widget().mouse_interaction(
             &tree.children[0],
             layout.children().next().unwrap(),
@@ -454,12 +454,13 @@ impl<Msg: 'static> cosmic::iced_core::Widget<Msg, cosmic::Theme, cosmic::Rendere
 
     fn overlay<'b>(
         &'b mut self,
-        tree: &'b mut cosmic::iced_core::widget::Tree,
-        layout: cosmic::iced_core::Layout<'b>,
+        tree: &'b mut cosmic::iced::core::widget::Tree,
+        layout: cosmic::iced::core::Layout<'b>,
         renderer: &cosmic::Renderer,
         viewport: &Rectangle,
         translation: Vector,
-    ) -> Option<cosmic::iced_core::overlay::Element<'b, Msg, cosmic::Theme, cosmic::Renderer>> {
+    ) -> Option<cosmic::iced::core::overlay::Element<'b, Msg, cosmic::Theme, cosmic::Renderer>>
+    {
         self.child.as_widget_mut().overlay(
             &mut tree.children[0],
             layout.children().next().unwrap(),
