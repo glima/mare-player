@@ -6,6 +6,8 @@
 //! image loading, sharing (song.link), MPRIS integration, and
 //! in-app screenshot capture (**Ctrl+Shift+S**).
 
+use std::sync::Arc;
+
 use crate::config::{AudioQuality, Config};
 use crate::image_cache::make_circular;
 use crate::messages::{Message, MprisStartResult};
@@ -405,7 +407,7 @@ impl AppModel {
                     },
                     |result| match result {
                         Ok(track) => cosmic::Action::App(Message::PlayTrackList(
-                            vec![track],
+                            Arc::from(vec![track]),
                             0,
                             Some("MPRIS OpenUri".to_string()),
                         )),

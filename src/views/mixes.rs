@@ -5,6 +5,8 @@
 //! This module contains the mixes list view (personalized mixes from the
 //! TIDAL home feed) and the mix detail view showing tracks in a selected mix.
 
+use std::sync::Arc;
+
 use crate::fl;
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
@@ -72,7 +74,7 @@ impl AppModel {
     pub fn view_mix_detail(&self) -> Element<'_, Message> {
         let fallback_mix = fl!("fallback-mix");
         let title = self.selected_mix_name.as_deref().unwrap_or(&fallback_mix);
-        let tracks = self.selected_mix_tracks.clone();
+        let tracks: Arc<[_]> = self.selected_mix_tracks.clone().into();
 
         let header = widget::Row::new()
             .push(
@@ -88,7 +90,7 @@ impl AppModel {
                         None
                     } else {
                         Some(Message::ShufflePlay(
-                            tracks.clone(),
+                            Arc::clone(&tracks),
                             self.selected_mix_name.clone(),
                         ))
                     })
@@ -102,10 +104,8 @@ impl AppModel {
         } else if self.selected_mix_tracks.is_empty() {
             text(fl!("no-tracks-mix")).size(14).into()
         } else {
-            let all_tracks = self.selected_mix_tracks.clone();
             let context = self.selected_mix_name.clone();
-            let track_items: Vec<Element<'_, Message>> = self
-                .selected_mix_tracks
+            let track_items: Vec<Element<'_, Message>> = tracks
                 .iter()
                 .enumerate()
                 .map(|(index, track)| {
@@ -113,7 +113,7 @@ impl AppModel {
                         track,
                         index,
                         &TrackRowOptions {
-                            tracks: &all_tracks,
+                            tracks: Arc::clone(&tracks),
                             context: context.clone(),
                             ..Default::default()
                         },

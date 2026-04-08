@@ -15,6 +15,8 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, container, text};
 
 use crate::messages::Message;
+use std::sync::Arc;
+
 use crate::tidal::models::Track;
 
 use super::fading_clip::FadingClip;
@@ -32,9 +34,9 @@ const MAX_PANEL_TEXT_WIDTH: f32 = 300.0;
 /// Options for rendering a track row via [`AppModel::track_row`](crate::state::AppModel::track_row).
 ///
 /// Use [`Default::default()`] for sensible defaults, then override as needed.
-pub struct TrackRowOptions<'a> {
+pub struct TrackRowOptions {
     /// The full track list for queue context when clicked.
-    pub tracks: &'a [Track],
+    pub tracks: Arc<[Track]>,
     /// Optional playback context label (e.g. album/playlist name).
     pub context: Option<String>,
     /// Fallback icon name when cover art is not cached.
@@ -44,10 +46,10 @@ pub struct TrackRowOptions<'a> {
     pub show_radio_button: bool,
 }
 
-impl<'a> Default for TrackRowOptions<'a> {
+impl Default for TrackRowOptions {
     fn default() -> Self {
         Self {
-            tracks: &[],
+            tracks: Arc::from([]),
             context: None,
             fallback_icon: "audio-x-generic-symbolic",
             show_radio_button: true,
@@ -55,7 +57,7 @@ impl<'a> Default for TrackRowOptions<'a> {
     }
 }
 
-impl TrackRowOptions<'_> {
+impl TrackRowOptions {
     /// Compute the fixed width for the duration column based on the longest
     /// duration string in the current track list.
     ///

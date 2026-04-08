@@ -7,6 +7,8 @@
 //! A toggleable search bar filters the tracks client-side by matching
 //! the query against track title, artist name, and album name.
 
+use std::sync::Arc;
+
 use crate::fl;
 use cosmic::Element;
 use cosmic::iced::widget::text_input;
@@ -40,6 +42,7 @@ impl AppModel {
         } else {
             all_tracks
         };
+        let tracks: Arc<[_]> = tracks.into();
 
         // --- header row ---
         let header = widget::Row::new()
@@ -63,7 +66,7 @@ impl AppModel {
                         None
                     } else {
                         Some(Message::ShufflePlay(
-                            tracks.clone(),
+                            Arc::clone(&tracks),
                             Some(fl!("context-favorites")),
                         ))
                     })
@@ -73,7 +76,10 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // --- optional filter bar ---
-        let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
+        let mut col = widget::Column::new()
+            .spacing(12)
+            .padding(12)
+            .width(Length::Fill);
         col = col.push(header);
 
         if self.favorite_tracks_filter_visible {
@@ -112,7 +118,7 @@ impl AppModel {
                         track,
                         index,
                         &TrackRowOptions {
-                            tracks: &tracks,
+                            tracks: Arc::clone(&tracks),
                             context: Some(fl!("context-favorites")),
                             fallback_icon: "emblem-favorite-symbolic",
                             ..Default::default()

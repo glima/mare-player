@@ -16,6 +16,7 @@ use crate::tidal::client::PlaybackUrl;
 use crate::tidal::models::Track;
 use crate::tidal::mpris::LoopStatus;
 use crate::tidal::player::{NowPlaying, PlaybackState};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 // =============================================================================
@@ -97,7 +98,7 @@ impl AppModel {
     /// Handle play track list starting at index
     pub fn handle_play_track_list(
         &mut self,
-        tracks: Vec<Track>,
+        tracks: Arc<[Track]>,
         start_index: usize,
         context: Option<String>,
     ) -> Task<cosmic::Action<Message>> {
@@ -109,7 +110,7 @@ impl AppModel {
         );
         // Set playback context
         self.playback_context = context;
-        self.playback_queue = tracks;
+        self.playback_queue = tracks.to_vec();
         self.playback_queue_index = start_index;
         self.shuffle_enabled = false;
         let play_task = self.play_track_at_index(start_index);
@@ -124,7 +125,7 @@ impl AppModel {
     /// Handle shuffle play tracks
     pub fn handle_shuffle_play(
         &mut self,
-        tracks: Vec<Track>,
+        tracks: Arc<[Track]>,
         context: Option<String>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
@@ -136,7 +137,7 @@ impl AppModel {
         self.playback_context = context;
         use rand::seq::SliceRandom;
         let mut rng = rand::rng();
-        let mut shuffled = tracks;
+        let mut shuffled = tracks.to_vec();
         shuffled.shuffle(&mut rng);
         self.playback_queue = shuffled;
         self.playback_queue_index = 0;

@@ -5,6 +5,8 @@
 //! This module contains the search interface with results for
 //! tracks, albums, and playlists.
 
+use std::sync::Arc;
+
 use crate::fl;
 use cosmic::Element;
 use cosmic::iced::widget::text_input;
@@ -55,13 +57,19 @@ impl AppModel {
                 // Tracks section
                 if !results.tracks.is_empty() {
                     items_col = items_col.push(text(fl!("tracks")).size(12));
-                    let search_tracks: Vec<_> = results.tracks.iter().take(5).cloned().collect();
+                    let search_tracks: Arc<[_]> = results
+                        .tracks
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .into();
                     for (index, track) in search_tracks.iter().enumerate() {
                         items_col = items_col.push(self.track_row(
                             track,
                             index,
                             &TrackRowOptions {
-                                tracks: &search_tracks,
+                                tracks: Arc::clone(&search_tracks),
                                 context: Some(fl!("context-search")),
                                 ..Default::default()
                             },

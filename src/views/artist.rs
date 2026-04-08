@@ -5,6 +5,8 @@
 //! Shows artist picture, bio, popularity, top tracks, and discography (albums).
 //! Navigable from the now-playing bar or search results.
 
+use std::sync::Arc;
+
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
@@ -178,7 +180,7 @@ impl AppModel {
     fn view_artist_top_tracks_section(&self) -> Element<'_, Message> {
         let section_header = text(fl!("top-tracks")).size(15);
 
-        let all_tracks = self.selected_artist_top_tracks.clone();
+        let all_tracks: Arc<[_]> = self.selected_artist_top_tracks.clone().into();
         let artist_name = self
             .selected_artist
             .as_ref()
@@ -195,7 +197,7 @@ impl AppModel {
                     track,
                     index,
                     &TrackRowOptions {
-                        tracks: &all_tracks,
+                        tracks: Arc::clone(&all_tracks),
                         context: context.clone(),
                         ..Default::default()
                     },

@@ -10,6 +10,8 @@
 //! A toggleable search bar filters the history client-side by matching
 //! the query against track title, artist name, and album name.
 
+use std::sync::Arc;
+
 use crate::fl;
 use cosmic::Element;
 use cosmic::iced::widget::text_input;
@@ -43,6 +45,8 @@ impl AppModel {
             all_tracks
         };
 
+        let tracks: Arc<[_]> = tracks.into();
+
         // --- header row ---
         let header = widget::Row::new()
             .push(
@@ -65,7 +69,7 @@ impl AppModel {
                         None
                     } else {
                         Some(Message::ShufflePlay(
-                            tracks.clone(),
+                            Arc::clone(&tracks),
                             Some(fl!("context-history")),
                         ))
                     })
@@ -85,7 +89,10 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // --- optional filter bar ---
-        let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
+        let mut col = widget::Column::new()
+            .spacing(12)
+            .padding(12)
+            .width(Length::Fill);
         col = col.push(header);
 
         if self.history_filter_visible {
@@ -116,7 +123,7 @@ impl AppModel {
                         track,
                         index,
                         &TrackRowOptions {
-                            tracks: &tracks,
+                            tracks: Arc::clone(&tracks),
                             context: Some(fl!("context-history")),
                             fallback_icon: "document-open-recent-symbolic",
                             ..Default::default()

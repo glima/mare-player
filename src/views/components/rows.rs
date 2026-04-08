@@ -8,6 +8,8 @@
 //! styling and to [`super::icons`] for icon handles, keeping this module
 //! focused purely on *what* goes into each row.
 
+use std::sync::Arc;
+
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
@@ -58,7 +60,7 @@ impl AppModel {
         &self,
         track: &Track,
         index: usize,
-        opts: &TrackRowOptions<'_>,
+        opts: &TrackRowOptions,
     ) -> Element<'a, Message> {
         let thumbnail = self.thumbnail(track.cover_url.as_deref(), opts.fallback_icon);
 
@@ -114,12 +116,12 @@ impl AppModel {
             .align_y(Alignment::Center)
             .width(Length::Fill);
 
-        let tracks_clone: Vec<Track> = opts.tracks.to_vec();
+        let tracks_arc = Arc::clone(&opts.tracks);
         let context_clone = opts.context.clone();
 
         list_item(
             row,
-            Message::PlayTrackList(tracks_clone, index, context_clone),
+            Message::PlayTrackList(tracks_arc, index, context_clone),
             0,
         )
     }

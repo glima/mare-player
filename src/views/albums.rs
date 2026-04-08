@@ -7,6 +7,8 @@
 //! track count), a favorite heart icon, and a clickable artist name that
 //! navigates to the artist detail view.
 
+use std::sync::Arc;
+
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
@@ -71,7 +73,7 @@ impl AppModel {
             .as_ref()
             .map(|a| a.title.as_str())
             .unwrap_or(&fallback_album);
-        let tracks = self.selected_album_tracks.clone();
+        let tracks: Arc<[_]> = self.selected_album_tracks.clone().into();
 
         // Header row: back button, title, favorite heart, shuffle button
         let mut header = widget::Row::new()
@@ -106,7 +108,7 @@ impl AppModel {
                     None
                 } else {
                     Some(Message::ShufflePlay(
-                        tracks.clone(),
+                        Arc::clone(&tracks),
                         self.selected_album.as_ref().map(|a| a.title.clone()),
                     ))
                 })
@@ -130,7 +132,6 @@ impl AppModel {
             } else if self.selected_album_tracks.is_empty() {
                 text(fl!("no-tracks-album")).size(14).into()
             } else {
-                let all_tracks = self.selected_album_tracks.clone();
                 let context = self.selected_album.as_ref().map(|a| a.title.clone());
                 let track_items: Vec<Element<'_, Message>> = self
                     .selected_album_tracks
@@ -141,7 +142,7 @@ impl AppModel {
                             track,
                             index,
                             &TrackRowOptions {
-                                tracks: &all_tracks,
+                                tracks: Arc::clone(&tracks),
                                 context: context.clone(),
                                 ..Default::default()
                             },
@@ -186,7 +187,10 @@ impl AppModel {
         };
 
         // Metadata column
-        let mut details = widget::Column::new().spacing(3).width(Length::Fill).clip(true);
+        let mut details = widget::Column::new()
+            .spacing(3)
+            .width(Length::Fill)
+            .clip(true);
 
         // Artist name — clickable to navigate to artist detail
         let artist_element: Element<'_, Message> = if let Some(ref artist_id) = album.artist_id {

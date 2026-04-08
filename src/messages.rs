@@ -190,9 +190,9 @@ pub enum Message {
 
     // Track actions
     /// Play a list of tracks starting from a specific index, with optional context (playlist/album name)
-    PlayTrackList(Vec<Track>, usize, Option<String>),
+    PlayTrackList(Arc<[Track]>, usize, Option<String>),
     /// Shuffle and play a list of tracks, with optional context (playlist/album name)
-    ShufflePlay(Vec<Track>, Option<String>),
+    ShufflePlay(Arc<[Track]>, Option<String>),
     /// Play next track in queue
     NextTrack,
     /// Play previous track in queue

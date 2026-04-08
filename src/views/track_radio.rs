@@ -5,6 +5,8 @@
 //! Shows a list of recommended/similar tracks generated from a seed track,
 //! mirroring TIDAL's "Go to track radio" feature.
 
+use std::sync::Arc;
+
 use cosmic::Element;
 use cosmic::iced::Length;
 use cosmic::widget::{self, button, text};
@@ -23,7 +25,7 @@ impl AppModel {
             .map(|t| fl!("track-radio", title = t.title.clone()))
             .unwrap_or_else(|| fl!("track-radio-fallback"));
 
-        let tracks = self.selected_radio_tracks.clone();
+        let tracks: Arc<[_]> = self.selected_radio_tracks.clone().into();
 
         let header = widget::Row::new()
             .push(
@@ -38,7 +40,10 @@ impl AppModel {
                     .on_press_maybe(if tracks.is_empty() {
                         None
                     } else {
-                        Some(Message::ShufflePlay(tracks.clone(), Some(title.clone())))
+                        Some(Message::ShufflePlay(
+                            Arc::clone(&tracks),
+                            Some(title.clone()),
+                        ))
                     })
                     .padding(4),
             )
@@ -50,10 +55,8 @@ impl AppModel {
         } else if self.selected_radio_tracks.is_empty() {
             text(fl!("no-radio-tracks")).size(14).into()
         } else {
-            let all_tracks = self.selected_radio_tracks.clone();
             let context = Some(title);
-            let track_items: Vec<Element<'_, Message>> = self
-                .selected_radio_tracks
+            let track_items: Vec<Element<'_, Message>> = tracks
                 .iter()
                 .enumerate()
                 .map(|(index, track)| {
@@ -61,7 +64,7 @@ impl AppModel {
                         track,
                         index,
                         &TrackRowOptions {
-                            tracks: &all_tracks,
+                            tracks: Arc::clone(&tracks),
                             context: context.clone(),
                             show_radio_button: false,
                             ..Default::default()

@@ -15,6 +15,8 @@
     clippy::wildcard_imports
 )]
 
+use std::sync::Arc;
+
 use cosmic_applet_mare::tidal::models::Track;
 use cosmic_applet_mare::views::components::{
     MAX_POPUP_HEIGHT, NOW_PLAYING_ART_SIZE, PANEL_ART_SIZE, THUMBNAIL_SIZE, TrackRowOptions,
@@ -150,7 +152,7 @@ mod track_row_options_fields {
         let tracks: Vec<Track> = vec![];
         let opts = TrackRowOptions {
             context: Some("My Playlist".to_string()),
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         assert_eq!(opts.context, Some("My Playlist".to_string()));
@@ -161,7 +163,7 @@ mod track_row_options_fields {
         let tracks: Vec<Track> = vec![];
         let opts = TrackRowOptions {
             show_radio_button: false,
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         assert!(!opts.show_radio_button);
@@ -172,7 +174,7 @@ mod track_row_options_fields {
         let tracks: Vec<Track> = vec![];
         let opts = TrackRowOptions {
             fallback_icon: "media-optical-symbolic",
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         assert_eq!(opts.fallback_icon, "media-optical-symbolic");
@@ -194,8 +196,9 @@ mod track_row_options_fields {
                 ..Default::default()
             },
         ];
+        let tracks: Arc<[Track]> = tracks.into();
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: Arc::clone(&tracks),
             ..Default::default()
         };
         assert_eq!(opts.tracks.len(), 2);
@@ -230,7 +233,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -253,11 +256,11 @@ mod duration_column_width {
             ..Default::default()
         }];
         let short_opts = TrackRowOptions {
-            tracks: &short_tracks,
+            tracks: short_tracks.into(),
             ..Default::default()
         };
         let long_opts = TrackRowOptions {
-            tracks: &long_tracks,
+            tracks: long_tracks.into(),
             ..Default::default()
         };
         let short_width = short_opts.duration_column_width();
@@ -285,7 +288,7 @@ mod duration_column_width {
             },
         ];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -305,7 +308,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -324,7 +327,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -343,7 +346,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -362,7 +365,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -381,7 +384,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         assert!(
@@ -412,7 +415,7 @@ mod duration_column_width {
             },
         ];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let w1 = opts.duration_column_width();
@@ -440,7 +443,7 @@ mod duration_column_width {
             },
         ];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
@@ -459,7 +462,7 @@ mod duration_column_width {
             ..Default::default()
         }];
         let opts = TrackRowOptions {
-            tracks: &tracks,
+            tracks: tracks.into(),
             ..Default::default()
         };
         let width = opts.duration_column_width();
