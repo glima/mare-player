@@ -58,21 +58,20 @@ impl AppModel {
                     let raw = cached.data.to_vec();
                     // Heavy image processing (decode + circular mask + PNG
                     // re-encode) runs here, off the main thread.
-                    let circular = match make_circular(&raw) {
-                        Ok(c) => c,
+                    match make_circular(&raw) {
+                        Ok(rgba) => Some((url_clone, rgba.width, rgba.height, rgba.pixels)),
                         Err(e) => {
                             tracing::warn!("Failed to make image circular: {}, using original", e);
-                            raw
+                            None
                         }
-                    };
-                    Some((url_clone, circular))
+                    }
                 } else {
                     None
                 }
             },
             |result| {
-                if let Some((url, data)) = result {
-                    cosmic::Action::App(Message::ImageLoaded(url, data))
+                if let Some((url, width, height, pixels)) = result {
+                    cosmic::Action::App(Message::ImageLoaded(url, width, height, pixels))
                 } else {
                     cosmic::Action::App(Message::ClearError) // No-op
                 }
@@ -81,9 +80,9 @@ impl AppModel {
     }
 
     /// Handle image loaded (data is already circular-masked from the async task)
-    pub fn handle_image_loaded(&mut self, url: String, data: Vec<u8>) {
+    pub fn handle_image_loaded(&mut self, url: String, width: u32, height: u32, pixels: Vec<u8>) {
         self.pending_image_loads.remove(&url);
-        let handle = cosmic::widget::image::Handle::from_bytes(data);
+        let handle = cosmic::widget::image::Handle::from_rgba(width, height, pixels);
         self.loaded_images.insert(url, handle);
     }
 
@@ -120,6 +119,9 @@ impl AppModel {
         self.play_history.clear();
         let client = self.tidal_client.blocking_lock();
         self.play_history.save(client.api_cache());
+        drop(client);
+        // Clear virtual list if currently on history view
+        self.set_track_list(Vec::new());
     }
 
     /// Handle set audio quality

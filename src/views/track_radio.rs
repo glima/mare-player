@@ -4,6 +4,9 @@
 //!
 //! Shows a list of recommended/similar tracks generated from a seed track,
 //! mirroring TIDAL's "Go to track radio" feature.
+//!
+//! Track rows are rendered through a virtual `List` — only the rows
+//! visible in the scroll viewport are materialised.
 
 use std::sync::Arc;
 
@@ -14,7 +17,8 @@ use cosmic::widget::{self, button, text};
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{TrackRowOptions, fading_header_title, scrollable_list};
+use crate::views::components::rows::build_track_row;
+use crate::views::components::{TrackRowOptions, fading_header_title, scrollable_element};
 
 impl AppModel {
     /// Render the track radio view showing similar tracks based on a seed track.
@@ -55,25 +59,22 @@ impl AppModel {
         } else if self.selected_radio_tracks.is_empty() {
             text(fl!("no-radio-tracks")).size(14).into()
         } else {
+            let loaded_images = &self.loaded_images;
             let context = Some(title);
-            let track_items: Vec<Element<'_, Message>> = tracks
-                .iter()
-                .enumerate()
-                .map(|(index, track)| {
-                    self.track_row(
-                        track,
-                        index,
-                        &TrackRowOptions {
-                            tracks: Arc::clone(&tracks),
-                            context: context.clone(),
-                            show_radio_button: false,
-                            ..Default::default()
-                        },
-                    )
-                })
-                .collect();
+            let opts = TrackRowOptions {
+                tracks: Arc::clone(&self.track_list_arc),
+                context: context.clone(),
+                show_radio_button: false,
+                ..Default::default()
+            };
 
-            scrollable_list(widget::Column::with_children(track_items).spacing(2))
+            let track_list = cosmic::iced::widget::list::List::new(
+                &self.track_list_content,
+                move |index, track| build_track_row(loaded_images, track, index, &opts),
+            )
+            .spacing(2);
+
+            scrollable_element(track_list)
         };
 
         widget::Column::new()

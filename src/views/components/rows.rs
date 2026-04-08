@@ -7,7 +7,12 @@
 //! all delegate to the composable helpers in [`super::list_helpers`] for
 //! styling and to [`super::icons`] for icon handles, keeping this module
 //! focused purely on *what* goes into each row.
+//!
+//! The free functions [`build_thumbnail`] and [`build_track_row`] contain the
+//! core logic and can be called from virtual `List` closures that don't have
+//! access to `&self`.  The corresponding [`AppModel`] methods delegate to them.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use cosmic::Element;
@@ -25,7 +30,111 @@ use super::icons::RADIO_SVG;
 use super::list_helpers::{TrackRowOptions, fading_text_column, list_item};
 
 // =============================================================================
-// Row Builders
+// Free-standing builders (usable without `&self`)
+// =============================================================================
+
+/// Standalone thumbnail builder for virtual `List` closures.
+///
+/// Returns an image element when the URL is present and already cached in
+/// `loaded_images`, otherwise falls back to a named icon.
+pub fn build_thumbnail<'a>(
+    loaded_images: &HashMap<String, cosmic::widget::image::Handle>,
+    url: Option<&str>,
+    fallback_icon: &'static str,
+) -> Element<'a, Message> {
+    if let Some(url) = url
+        && let Some(handle) = loaded_images.get(url)
+    {
+        return cosmic::widget::image(handle.clone())
+            .width(THUMBNAIL_SIZE)
+            .height(THUMBNAIL_SIZE)
+            .into();
+    }
+    widget::icon::from_name(fallback_icon)
+        .size(THUMBNAIL_SIZE)
+        .into()
+}
+
+/// Standalone track row builder for virtual `List` closures.
+///
+/// This contains the full row-building logic. The [`AppModel::track_row`]
+/// method delegates here.
+pub fn build_track_row<'a>(
+    loaded_images: &HashMap<String, cosmic::widget::image::Handle>,
+    track: &Track,
+    index: usize,
+    opts: &TrackRowOptions,
+) -> Element<'a, Message> {
+    let thumbnail = build_thumbnail(
+        loaded_images,
+        track.cover_url.as_deref(),
+        opts.fallback_icon,
+    );
+
+    let track_info = fading_text_column(vec![
+        text(track.title.clone())
+            .size(13)
+            .wrapping(Wrapping::None)
+            .into(),
+        text(track.artist_name.clone())
+            .size(11)
+            .wrapping(Wrapping::None)
+            .into(),
+    ]);
+
+    let duration = container(
+        text(track.duration_display())
+            .size(11)
+            .wrapping(Wrapping::None),
+    )
+    .width(Length::Fixed(opts.duration_column_width()))
+    .align_x(Alignment::End);
+
+    // "Go to track radio" button — shows similar tracks for this track
+    // Hidden inside the track radio view to prevent recursive radios.
+    let trailing = if opts.show_radio_button {
+        let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
+        radio_icon.symbolic = true;
+        let radio_btn = button::icon(radio_icon)
+            .extra_small()
+            .tooltip(fl!("tooltip-go-to-track-radio"))
+            .on_press(Message::ShowTrackRadio(track.clone()))
+            .padding(2);
+
+        widget::Row::new()
+            .push(radio_btn)
+            .push(duration)
+            .spacing(4)
+            .align_y(Alignment::Center)
+            .width(Length::Shrink)
+    } else {
+        widget::Row::new()
+            .push(duration)
+            .align_y(Alignment::Center)
+            .width(Length::Shrink)
+    };
+
+    let row = widget::Row::new()
+        .push(thumbnail)
+        .push(track_info)
+        .push(trailing)
+        .spacing(8)
+        .padding([4, 8])
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+
+    let tracks_arc = Arc::clone(&opts.tracks);
+    let context_clone = opts.context.clone();
+
+    list_item(
+        row,
+        Message::PlayTrackList(tracks_arc, index, context_clone),
+        0,
+    )
+}
+
+// =============================================================================
+// Row Builders (methods delegating to the free functions above)
 // =============================================================================
 
 impl AppModel {
@@ -36,17 +145,7 @@ impl AppModel {
         url: Option<&str>,
         fallback_icon: &'static str,
     ) -> Element<'a, Message> {
-        if let Some(url) = url
-            && let Some(handle) = self.loaded_images.get(url)
-        {
-            return cosmic::widget::image(handle.clone())
-                .width(THUMBNAIL_SIZE)
-                .height(THUMBNAIL_SIZE)
-                .into();
-        }
-        widget::icon::from_name(fallback_icon)
-            .size(THUMBNAIL_SIZE)
-            .into()
+        build_thumbnail(&self.loaded_images, url, fallback_icon)
     }
 
     /// Create a track row element for use in track lists.
@@ -62,68 +161,7 @@ impl AppModel {
         index: usize,
         opts: &TrackRowOptions,
     ) -> Element<'a, Message> {
-        let thumbnail = self.thumbnail(track.cover_url.as_deref(), opts.fallback_icon);
-
-        let track_info = fading_text_column(vec![
-            text(track.title.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
-                .into(),
-            text(track.artist_name.clone())
-                .size(11)
-                .wrapping(Wrapping::None)
-                .into(),
-        ]);
-
-        let duration = container(
-            text(track.duration_display())
-                .size(11)
-                .wrapping(Wrapping::None),
-        )
-        .width(Length::Fixed(opts.duration_column_width()))
-        .align_x(Alignment::End);
-
-        // "Go to track radio" button — shows similar tracks for this track
-        // Hidden inside the track radio view to prevent recursive radios.
-        let trailing = if opts.show_radio_button {
-            let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
-            radio_icon.symbolic = true;
-            let radio_btn = button::icon(radio_icon)
-                .extra_small()
-                .tooltip(fl!("tooltip-go-to-track-radio"))
-                .on_press(Message::ShowTrackRadio(track.clone()))
-                .padding(2);
-
-            widget::Row::new()
-                .push(radio_btn)
-                .push(duration)
-                .spacing(4)
-                .align_y(Alignment::Center)
-                .width(Length::Shrink)
-        } else {
-            widget::Row::new()
-                .push(duration)
-                .align_y(Alignment::Center)
-                .width(Length::Shrink)
-        };
-
-        let row = widget::Row::new()
-            .push(thumbnail)
-            .push(track_info)
-            .push(trailing)
-            .spacing(8)
-            .padding([4, 8])
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
-
-        let tracks_arc = Arc::clone(&opts.tracks);
-        let context_clone = opts.context.clone();
-
-        list_item(
-            row,
-            Message::PlayTrackList(tracks_arc, index, context_clone),
-            0,
-        )
+        build_track_row(&self.loaded_images, track, index, opts)
     }
 
     /// Create an album list-item element (thumbnail + title + artist).

@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
 
+use cosmic::iced::widget::list;
 use cosmic::iced::window::Id;
 #[cfg(not(feature = "panel-applet"))]
 use cosmic::widget::menu::key_bind::KeyBind;
@@ -151,6 +152,10 @@ pub struct AppModel {
     pub(crate) show_volume_popup: bool,
     /// Local play history (most-recently-played tracks, persisted to disk)
     pub(crate) play_history: PlayHistory,
+    /// Virtual-list content for the active track-list view (only visible items are rendered).
+    pub(crate) track_list_content: list::Content<Track>,
+    /// Shared reference to the same tracks, for `PlayTrackList`/`ShufflePlay` messages.
+    pub(crate) track_list_arc: Arc<[Track]>,
     /// Whether the history search/filter bar is visible
     pub(crate) history_filter_visible: bool,
     /// Current filter query for the history view (local, client-side only)
@@ -165,6 +170,18 @@ pub struct AppModel {
     /// Keyboard shortcut bindings for the header menu bar (standalone mode only).
     #[cfg(not(feature = "panel-applet"))]
     pub(crate) menu_key_binds: HashMap<KeyBind, TidalMenuAction>,
+}
+
+impl AppModel {
+    /// Populate the virtual track list used by the currently visible view.
+    ///
+    /// This sets up both the `Content<Track>` (for the iced virtual `List`
+    /// widget) and the `Arc<[Track]>` (for `PlayTrackList` / `ShufflePlay`
+    /// messages). Call when entering a track-list view or when its data changes.
+    pub(crate) fn set_track_list(&mut self, tracks: Vec<Track>) {
+        self.track_list_arc = tracks.clone().into();
+        self.track_list_content = tracks.into_iter().collect();
+    }
 }
 
 /// Current view state for the popup

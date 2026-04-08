@@ -42,7 +42,10 @@ fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
     let running_clone = running.clone();
 
     std::thread::spawn(move || {
-        let mut signals = Signals::new([SIGUSR1]).expect("Failed to register SIGUSR1 handler");
+        let Ok(mut signals) = Signals::new([SIGUSR1]) else {
+            tracing::error!("Failed to register SIGUSR1 handler");
+            return;
+        };
         for _ in signals.forever() {
             if !running_clone.load(Ordering::SeqCst) {
                 break;

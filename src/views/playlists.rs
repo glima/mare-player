@@ -13,7 +13,10 @@ use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{TrackRowOptions, fading_header_title, scrollable_list};
+use crate::views::components::rows::build_track_row;
+use crate::views::components::{
+    TrackRowOptions, fading_header_title, scrollable_element, scrollable_list,
+};
 
 impl AppModel {
     /// Render the playlists list view.
@@ -64,7 +67,6 @@ impl AppModel {
             .selected_playlist_name
             .as_deref()
             .unwrap_or(&fallback_playlist);
-        let tracks: Arc<[_]> = self.selected_playlist_tracks.clone().into();
 
         let header = widget::Row::new()
             .push(
@@ -76,11 +78,11 @@ impl AppModel {
             .push(
                 button::icon(widget::icon::from_name("media-playlist-shuffle-symbolic"))
                     .tooltip(fl!("tooltip-shuffle-play"))
-                    .on_press_maybe(if tracks.is_empty() {
+                    .on_press_maybe(if self.track_list_content.is_empty() {
                         None
                     } else {
                         Some(Message::ShufflePlay(
-                            Arc::clone(&tracks),
+                            Arc::clone(&self.track_list_arc),
                             self.selected_playlist_name.clone(),
                         ))
                     })
@@ -94,24 +96,21 @@ impl AppModel {
         } else if self.selected_playlist_tracks.is_empty() {
             text(fl!("no-tracks-playlist")).size(14).into()
         } else {
+            let loaded_images = &self.loaded_images;
             let context = self.selected_playlist_name.clone();
-            let track_items: Vec<Element<'_, Message>> = tracks
-                .iter()
-                .enumerate()
-                .map(|(index, track)| {
-                    self.track_row(
-                        track,
-                        index,
-                        &TrackRowOptions {
-                            tracks: Arc::clone(&tracks),
-                            context: context.clone(),
-                            ..Default::default()
-                        },
-                    )
-                })
-                .collect();
+            let opts = TrackRowOptions {
+                tracks: Arc::clone(&self.track_list_arc),
+                context: context.clone(),
+                ..Default::default()
+            };
 
-            scrollable_list(widget::Column::with_children(track_items).spacing(2))
+            let track_list = cosmic::iced::widget::list::List::new(
+                &self.track_list_content,
+                move |index, track| build_track_row(loaded_images, track, index, &opts),
+            )
+            .spacing(2);
+
+            scrollable_element(track_list)
         };
 
         widget::Column::new()

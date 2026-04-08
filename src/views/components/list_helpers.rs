@@ -254,3 +254,28 @@ pub fn scrollable_list(
             .into()
     }
 }
+
+/// Wrap any widget element in a scrollable container.
+///
+/// This is the generic counterpart to [`scrollable_list`] — it accepts an
+/// already-built [`Element`] (e.g. a virtual `List` converted to Element)
+/// and wraps it in the same scrollable + padding + height-capping structure.
+pub fn scrollable_element<'a>(content: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
+    let elem = content.into();
+    #[cfg(feature = "panel-applet")]
+    {
+        use super::constants::MAX_POPUP_HEIGHT;
+        container(
+            scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0]))
+                .height(Length::Shrink),
+        )
+        .max_height(MAX_POPUP_HEIGHT)
+        .into()
+    }
+    #[cfg(not(feature = "panel-applet"))]
+    {
+        scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0]))
+            .height(Length::Fill)
+            .into()
+    }
+}

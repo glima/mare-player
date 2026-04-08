@@ -90,7 +90,13 @@ impl AppModel {
                         if let Some(cached_png) = image_cache.get_cached_grid(&grid_cache_key).await
                         {
                             tracing::debug!("Grid thumbnail cache hit for playlist {}", uuid_clone);
-                            return Some((uuid_clone, cached_png));
+                            // Decode the cached PNG to raw RGBA so the UI can
+                            // use Handle::from_rgba without re-decoding.
+                            if let Ok(img) = image::load_from_memory(&cached_png) {
+                                let rgba = img.into_rgba8();
+                                let (w, h) = rgba.dimensions();
+                                return Some((uuid_clone, w, h, rgba.into_raw()));
+                            }
                         }
 
                         // Download the raw images (via cache)
@@ -108,11 +114,26 @@ impl AppModel {
                         // Composite into a 2×2 circular grid (render at 160 px for quality)
                         let refs: Vec<&[u8]> = raw_images.iter().map(|v| v.as_slice()).collect();
                         match crate::image_cache::make_grid_thumbnail(&refs, 160) {
-                            Ok(png) => {
-                                // Persist the composite so subsequent startups
-                                // skip the download + composite entirely.
-                                image_cache.save_grid(&grid_cache_key, &png).await;
-                                Some((uuid_clone, png))
+                            Ok(rgba) => {
+                                // Persist as PNG so subsequent startups skip
+                                // the download + composite entirely.
+                                if let Some(img) = image::RgbaImage::from_raw(
+                                    rgba.width,
+                                    rgba.height,
+                                    rgba.pixels.clone(),
+                                ) {
+                                    let mut png_buf = Vec::new();
+                                    if img
+                                        .write_to(
+                                            &mut std::io::Cursor::new(&mut png_buf),
+                                            image::ImageFormat::Png,
+                                        )
+                                        .is_ok()
+                                    {
+                                        image_cache.save_grid(&grid_cache_key, &png_buf).await;
+                                    }
+                                }
+                                Some((uuid_clone, rgba.width, rgba.height, rgba.pixels))
                             }
                             Err(e) => {
                                 tracing::warn!("Grid thumbnail failed for {}: {}", uuid_clone, e);
@@ -121,8 +142,10 @@ impl AppModel {
                         }
                     },
                     |result| {
-                        if let Some((uuid, data)) = result {
-                            cosmic::Action::App(Message::PlaylistThumbnailGenerated(uuid, data))
+                        if let Some((uuid, w, h, pixels)) = result {
+                            cosmic::Action::App(Message::PlaylistThumbnailGenerated(
+                                uuid, w, h, pixels,
+                            ))
                         } else {
                             cosmic::Action::App(Message::ClearError) // no-op
                         }
@@ -139,8 +162,14 @@ impl AppModel {
     }
 
     /// Handle a completed playlist grid thumbnail (store as image handle).
-    pub fn handle_playlist_thumbnail_generated(&mut self, uuid: String, data: Vec<u8>) {
-        let handle = cosmic::widget::image::Handle::from_bytes(data);
+    pub fn handle_playlist_thumbnail_generated(
+        &mut self,
+        uuid: String,
+        width: u32,
+        height: u32,
+        pixels: Vec<u8>,
+    ) {
+        let handle = cosmic::widget::image::Handle::from_rgba(width, height, pixels);
         self.playlist_thumbnails.insert(uuid, handle);
     }
 }

@@ -19,6 +19,7 @@ use crate::helpers::max_description_chars;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::artist::strip_markup;
+use crate::views::components::rows::build_track_row;
 use crate::views::components::{
     ALBUM_COVER_SIZE, TrackRowOptions, fading_header_title, favorite_icon_handle, scrollable_list,
 };
@@ -73,8 +74,6 @@ impl AppModel {
             .as_ref()
             .map(|a| a.title.as_str())
             .unwrap_or(&fallback_album);
-        let tracks: Arc<[_]> = self.selected_album_tracks.clone().into();
-
         // Header row: back button, title, favorite heart, shuffle button
         let mut header = widget::Row::new()
             .push(
@@ -104,11 +103,11 @@ impl AppModel {
         header = header.push(
             button::icon(widget::icon::from_name("media-playlist-shuffle-symbolic"))
                 .tooltip(fl!("tooltip-shuffle-play"))
-                .on_press_maybe(if tracks.is_empty() {
+                .on_press_maybe(if self.track_list_content.is_empty() {
                     None
                 } else {
                     Some(Message::ShufflePlay(
-                        Arc::clone(&tracks),
+                        Arc::clone(&self.track_list_arc),
                         self.selected_album.as_ref().map(|a| a.title.clone()),
                     ))
                 })
@@ -133,27 +132,19 @@ impl AppModel {
                 text(fl!("no-tracks-album")).size(14).into()
             } else {
                 let context = self.selected_album.as_ref().map(|a| a.title.clone());
-                let track_items: Vec<Element<'_, Message>> = self
-                    .selected_album_tracks
-                    .iter()
-                    .enumerate()
-                    .map(|(index, track)| {
-                        self.track_row(
-                            track,
-                            index,
-                            &TrackRowOptions {
-                                tracks: Arc::clone(&tracks),
-                                context: context.clone(),
-                                ..Default::default()
-                            },
-                        )
-                    })
-                    .collect();
+                let loaded_images = &self.loaded_images;
+                let opts = TrackRowOptions {
+                    tracks: Arc::clone(&self.track_list_arc),
+                    context: context.clone(),
+                    ..Default::default()
+                };
+                let track_list = cosmic::iced::widget::list::List::new(
+                    &self.track_list_content,
+                    move |index, track| build_track_row(loaded_images, track, index, &opts),
+                )
+                .spacing(2);
 
-                widget::Column::with_children(track_items)
-                    .spacing(2)
-                    .width(Length::Fill)
-                    .into()
+                track_list.into()
             };
 
         body = body.push(tracks_content);

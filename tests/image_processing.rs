@@ -17,7 +17,7 @@
     clippy::wildcard_imports
 )]
 
-use cosmic_applet_mare::image_cache::{make_circular, make_grid_thumbnail};
+use cosmic_applet_mare::image_cache::{RgbaPixels, make_circular, make_grid_thumbnail};
 use image::{ImageFormat, RgbaImage};
 use std::io::Cursor;
 
@@ -43,11 +43,10 @@ fn make_solid_jpeg(width: u32, height: u32, r: u8, g: u8, b: u8) -> Vec<u8> {
     buf
 }
 
-/// Decode a PNG byte buffer back into an RGBA image for inspection.
-fn decode_png(data: &[u8]) -> RgbaImage {
-    image::load_from_memory_with_format(data, ImageFormat::Png)
-        .expect("decode png")
-        .to_rgba8()
+/// Convert an `RgbaPixels` result into an `RgbaImage` for inspection.
+fn rgba_image(rgba: &RgbaPixels) -> RgbaImage {
+    RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels.clone())
+        .expect("RgbaPixels should have correct dimensions")
 }
 
 // ===========================================================================
@@ -58,20 +57,23 @@ mod circular_basic {
     use super::*;
 
     #[test]
-    fn produces_png_output() {
+    fn produces_rgba_output() {
         let input = make_solid_png(100, 100, 255, 0, 0);
         let result = make_circular(&input).unwrap();
-
-        // Should be valid PNG data (starts with PNG magic bytes)
-        assert!(result.len() > 8, "output too small to be PNG");
-        assert_eq!(&result[1..4], b"PNG", "output should be PNG format");
+        assert_eq!(result.width, 100);
+        assert_eq!(result.height, 100);
+        assert_eq!(
+            result.pixels.len(),
+            (100 * 100 * 4) as usize,
+            "should have width*height*4 RGBA bytes"
+        );
     }
 
     #[test]
     fn output_is_square() {
         let input = make_solid_png(100, 100, 0, 255, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), img.height(), "output should be square");
     }
 
@@ -79,7 +81,7 @@ mod circular_basic {
     fn square_input_preserves_size() {
         let input = make_solid_png(64, 64, 0, 0, 255);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 64);
         assert_eq!(img.height(), 64);
     }
@@ -89,7 +91,7 @@ mod circular_basic {
         // Landscape: 200x100 → should crop to 100x100
         let input = make_solid_png(200, 100, 128, 128, 128);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
     }
@@ -99,7 +101,7 @@ mod circular_basic {
         // Portrait: 100x200 → should crop to 100x100
         let input = make_solid_png(100, 200, 64, 64, 64);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
     }
@@ -108,7 +110,7 @@ mod circular_basic {
     fn corners_are_transparent() {
         let input = make_solid_png(100, 100, 255, 0, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         // The four corners should be fully transparent (alpha = 0)
         let corners = [(0, 0), (99, 0), (0, 99), (99, 99)];
@@ -126,7 +128,7 @@ mod circular_basic {
     fn center_is_opaque() {
         let input = make_solid_png(100, 100, 255, 0, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         // The center should be fully opaque
         let pixel = img.get_pixel(50, 50);
@@ -139,7 +141,7 @@ mod circular_basic {
     fn center_preserves_colour() {
         let input = make_solid_png(100, 100, 42, 128, 200);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         let pixel = img.get_pixel(50, 50);
         assert_eq!(pixel[0], 42);
         assert_eq!(pixel[1], 128);
@@ -159,7 +161,7 @@ mod circular_formats {
     fn accepts_jpeg_input() {
         let input = make_solid_jpeg(80, 80, 255, 128, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 80);
         assert_eq!(img.height(), 80);
     }
@@ -168,7 +170,7 @@ mod circular_formats {
     fn accepts_png_input() {
         let input = make_solid_png(60, 60, 0, 255, 128);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 60);
         assert_eq!(img.height(), 60);
     }
@@ -185,7 +187,7 @@ mod circular_edge_cases {
     fn single_pixel_image() {
         let input = make_solid_png(1, 1, 255, 0, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 1);
         assert_eq!(img.height(), 1);
     }
@@ -194,7 +196,7 @@ mod circular_edge_cases {
     fn two_by_two_image() {
         let input = make_solid_png(2, 2, 0, 255, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 2);
         assert_eq!(img.height(), 2);
     }
@@ -203,7 +205,7 @@ mod circular_edge_cases {
     fn large_image() {
         let input = make_solid_png(1000, 1000, 100, 100, 100);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 1000);
         assert_eq!(img.height(), 1000);
 
@@ -220,7 +222,7 @@ mod circular_edge_cases {
     fn very_wide_rectangle() {
         let input = make_solid_png(500, 10, 200, 50, 50);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         // Should be cropped to the smaller dimension
         assert_eq!(img.width(), 10);
         assert_eq!(img.height(), 10);
@@ -230,7 +232,7 @@ mod circular_edge_cases {
     fn very_tall_rectangle() {
         let input = make_solid_png(10, 500, 50, 200, 50);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 10);
         assert_eq!(img.height(), 10);
     }
@@ -239,7 +241,7 @@ mod circular_edge_cases {
     fn odd_dimensions() {
         let input = make_solid_png(77, 77, 128, 128, 128);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 77);
         assert_eq!(img.height(), 77);
     }
@@ -298,7 +300,7 @@ mod circular_mask {
         let size = 100u32;
         let input = make_solid_png(size, size, 255, 128, 0);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
         let radius = center;
@@ -336,7 +338,7 @@ mod circular_mask {
         let size = 200u32;
         let input = make_solid_png(size, size, 200, 200, 200);
         let result = make_circular(&input).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
         let radius = center;
@@ -374,13 +376,16 @@ mod grid_basic {
     use super::*;
 
     #[test]
-    fn produces_png_output() {
-        let img1 = make_solid_png(50, 50, 255, 0, 0);
-        let images: Vec<&[u8]> = vec![&img1];
-        let result = make_grid_thumbnail(&images, 100).unwrap();
-
-        assert!(result.len() > 8);
-        assert_eq!(&result[1..4], b"PNG");
+    fn produces_rgba_output() {
+        let input = make_solid_png(100, 100, 255, 0, 0);
+        let result = make_grid_thumbnail(&[input.as_slice()], 160).unwrap();
+        assert_eq!(result.width, 160);
+        assert_eq!(result.height, 160);
+        assert_eq!(
+            result.pixels.len(),
+            (160 * 160 * 4) as usize,
+            "should have width*height*4 RGBA bytes"
+        );
     }
 
     #[test]
@@ -392,7 +397,7 @@ mod grid_basic {
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
 
         let result = make_grid_thumbnail(&images, 200).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 200);
         assert_eq!(img.height(), 200);
     }
@@ -402,7 +407,7 @@ mod grid_basic {
         let img1 = make_solid_png(50, 50, 128, 128, 128);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 64).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 64);
         assert_eq!(img.height(), 64);
     }
@@ -413,7 +418,7 @@ mod grid_basic {
         let img2 = make_solid_png(100, 100, 0, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2];
         let result = make_grid_thumbnail(&images, 320).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 320);
         assert_eq!(img.height(), 320);
     }
@@ -427,7 +432,7 @@ mod grid_basic {
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
 
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let corners = [(0, 0), (99, 0), (0, 99), (99, 99)];
         for (x, y) in corners {
@@ -453,7 +458,7 @@ mod grid_image_counts {
         let img1 = make_solid_png(50, 50, 255, 0, 0);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
     }
@@ -464,7 +469,7 @@ mod grid_image_counts {
         let img2 = make_solid_png(50, 50, 0, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -475,7 +480,7 @@ mod grid_image_counts {
         let img3 = make_solid_png(50, 50, 0, 0, 255);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -487,7 +492,7 @@ mod grid_image_counts {
         let img4 = make_solid_png(50, 50, 255, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -500,7 +505,7 @@ mod grid_image_counts {
         let img5 = make_solid_png(50, 50, 128, 128, 128);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4, &img5];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -511,7 +516,7 @@ mod grid_image_counts {
             .collect();
         let refs: Vec<&[u8]> = imgs.iter().map(|v| v.as_slice()).collect();
         let result = make_grid_thumbnail(&refs, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 }
@@ -557,7 +562,7 @@ mod grid_errors {
         let images: Vec<&[u8]> = vec![&valid, garbage];
         // Should succeed using the one valid image
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -567,7 +572,7 @@ mod grid_errors {
         let valid = make_solid_png(50, 50, 0, 255, 0);
         let images: Vec<&[u8]> = vec![garbage, &valid];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 }
@@ -587,7 +592,7 @@ mod grid_input_sizes {
         let img4 = make_solid_png(30, 30, 255, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 120).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 120);
         assert_eq!(img.height(), 120);
     }
@@ -600,7 +605,7 @@ mod grid_input_sizes {
         let img4 = make_solid_png(75, 150, 255, 255, 0); // portrait
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
     }
@@ -613,7 +618,7 @@ mod grid_input_sizes {
         let img4 = make_solid_png(2, 2, 255, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -622,7 +627,7 @@ mod grid_input_sizes {
         let img1 = make_solid_png(1000, 1000, 255, 0, 0);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 32).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 32);
         assert_eq!(img.height(), 32);
     }
@@ -635,7 +640,7 @@ mod grid_input_sizes {
         let img4 = make_solid_jpeg(80, 80, 255, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 
@@ -647,7 +652,7 @@ mod grid_input_sizes {
         let img4 = make_solid_jpeg(80, 80, 255, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, 100).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
     }
 }
@@ -675,7 +680,7 @@ mod grid_quadrants {
 
         let images: Vec<&[u8]> = vec![&red, &green, &blue, &yellow];
         let result = make_grid_thumbnail(&images, size).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
         let radius = center;
@@ -750,7 +755,7 @@ mod grid_circle_mask {
         let img1 = make_solid_png(50, 50, 255, 255, 255);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, size).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
         let radius = center;
@@ -782,7 +787,7 @@ mod grid_circle_mask {
         let img4 = make_solid_png(50, 50, 50, 50, 50);
         let images: Vec<&[u8]> = vec![&img1, &img2, &img3, &img4];
         let result = make_grid_thumbnail(&images, size).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
         let radius = center;
@@ -832,7 +837,10 @@ mod grid_determinism {
 
         let result1 = make_grid_thumbnail(&images, 100).unwrap();
         let result2 = make_grid_thumbnail(&images, 100).unwrap();
-        assert_eq!(result1, result2, "same inputs should produce same output");
+        assert_eq!(
+            result1.pixels, result2.pixels,
+            "same inputs should produce same output"
+        );
     }
 
     #[test]
@@ -844,9 +852,9 @@ mod grid_determinism {
         for _ in 0..10 {
             let result = make_grid_thumbnail(&images, 64).unwrap();
             if let Some(ref p) = prev {
-                assert_eq!(&result, p);
+                assert_eq!(&result.pixels, p);
             }
-            prev = Some(result);
+            prev = Some(result.pixels);
         }
     }
 }
@@ -863,7 +871,7 @@ mod grid_output_sizes {
         let img1 = make_solid_png(50, 50, 255, 0, 0);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 3).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 3);
         assert_eq!(img.height(), 3);
     }
@@ -874,7 +882,7 @@ mod grid_output_sizes {
         let img2 = make_solid_png(50, 50, 0, 255, 0);
         let images: Vec<&[u8]> = vec![&img1, &img2];
         let result = make_grid_thumbnail(&images, 99).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 99);
         assert_eq!(img.height(), 99);
     }
@@ -884,7 +892,7 @@ mod grid_output_sizes {
         let img1 = make_solid_png(50, 50, 255, 0, 0);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 128).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 128);
         assert_eq!(img.height(), 128);
     }
@@ -894,7 +902,7 @@ mod grid_output_sizes {
         let img1 = make_solid_png(50, 50, 100, 100, 100);
         let images: Vec<&[u8]> = vec![&img1];
         let result = make_grid_thumbnail(&images, 500).unwrap();
-        let img = decode_png(&result);
+        let img = rgba_image(&result);
         assert_eq!(img.width(), 500);
         assert_eq!(img.height(), 500);
     }

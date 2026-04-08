@@ -147,8 +147,8 @@ pub enum Message {
     PlaylistTracksLoaded(Result<Vec<Track>, String>),
     /// Kick off background generation of 2×2 album-art grid thumbnails for all playlists
     GeneratePlaylistThumbnails,
-    /// A playlist's composite grid thumbnail has been generated (uuid, png_bytes)
-    PlaylistThumbnailGenerated(String, Vec<u8>),
+    /// A playlist's composite grid thumbnail has been generated (uuid, width, height, rgba_pixels)
+    PlaylistThumbnailGenerated(String, u32, u32, Vec<u8>),
 
     // Albums
     /// Load user albums
@@ -231,8 +231,8 @@ pub enum Message {
     ClearError,
 
     // Image loading
-    /// Image loaded (url, image_data)
-    ImageLoaded(String, Vec<u8>),
+    /// Image loaded (url, width, height, rgba_pixels)
+    ImageLoaded(String, u32, u32, Vec<u8>),
     /// Request to load an image (url)
     LoadImage(String),
 

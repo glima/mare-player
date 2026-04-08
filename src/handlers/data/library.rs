@@ -286,6 +286,7 @@ impl AppModel {
             Ok(tracks) => {
                 // Collect cover URLs to load
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
+                self.set_track_list(tracks.clone());
                 self.selected_playlist_tracks = tracks;
                 self.load_images_for_urls(urls)
             }
@@ -337,6 +338,7 @@ impl AppModel {
             Ok(tracks) => {
                 // Collect cover URLs to load
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
+                self.set_track_list(tracks.clone());
                 self.selected_album_tracks = tracks;
                 self.load_images_for_urls(urls)
             }
@@ -441,6 +443,7 @@ impl AppModel {
         match result {
             Ok(tracks) => {
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
+                self.set_track_list(tracks.clone());
                 self.selected_artist_top_tracks = tracks;
                 self.load_images_for_urls(urls)
             }
@@ -543,6 +546,7 @@ impl AppModel {
             Ok(tracks) => {
                 tracing::info!("Loaded {} mix tracks", tracks.len());
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
+                self.set_track_list(tracks.clone());
                 self.selected_mix_tracks = tracks;
                 self.load_images_for_urls(urls)
             }
@@ -564,6 +568,7 @@ impl AppModel {
             Ok(tracks) => {
                 tracing::info!("Loaded {} track radio tracks", tracks.len());
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
+                self.set_track_list(tracks.clone());
                 self.selected_radio_tracks = tracks;
                 self.load_images_for_urls(urls)
             }

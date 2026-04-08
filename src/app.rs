@@ -115,6 +115,8 @@ impl cosmic::Application for AppModel {
             popup: None,
             tidal_client: Arc::new(Mutex::new(client)),
             play_history,
+            track_list_content: Default::default(),
+            track_list_arc: Arc::from([]),
             history_filter_visible: false,
             history_filter_query: String::new(),
             favorite_tracks_filter_visible: false,
@@ -410,8 +412,8 @@ impl cosmic::Application for AppModel {
             | Message::Surface(_) => {}
             // Log image loads at trace level (too frequent, dumps huge byte arrays)
             Message::LoadImage(_)
-            | Message::ImageLoaded(_, _)
-            | Message::PlaylistThumbnailGenerated(_, _)
+            | Message::ImageLoaded(_, _, _, _)
+            | Message::PlaylistThumbnailGenerated(_, _, _, _)
             | Message::GeneratePlaylistThumbnails
             | Message::ScreenshotCaptured(_) => {
                 tracing::trace!("update() received: {:?}", message);
@@ -470,11 +472,13 @@ impl cosmic::Application for AppModel {
                     ))
                 } else {
                     self.history_filter_query.clear();
+                    self.rebuild_history_track_list();
                     Task::none()
                 }
             }
             Message::HistoryFilterChanged(query) => {
                 self.history_filter_query = query;
+                self.rebuild_history_track_list();
                 Task::none()
             }
             Message::ToggleFavoriteTracksFilter => {
@@ -485,11 +489,13 @@ impl cosmic::Application for AppModel {
                     ))
                 } else {
                     self.favorite_tracks_filter_query.clear();
+                    self.rebuild_favorites_track_list();
                     Task::none()
                 }
             }
             Message::FavoriteTracksFilterChanged(query) => {
                 self.favorite_tracks_filter_query = query;
+                self.rebuild_favorites_track_list();
                 Task::none()
             }
             Message::ShowMixes => self.handle_show_mixes(),
@@ -555,8 +561,8 @@ impl cosmic::Application for AppModel {
             Message::PlaylistsLoaded(result) => self.handle_playlists_loaded(result),
             Message::PlaylistTracksLoaded(result) => self.handle_playlist_tracks_loaded(result),
             Message::GeneratePlaylistThumbnails => self.handle_generate_playlist_thumbnails(),
-            Message::PlaylistThumbnailGenerated(uuid, data) => {
-                self.handle_playlist_thumbnail_generated(uuid, data);
+            Message::PlaylistThumbnailGenerated(uuid, width, height, pixels) => {
+                self.handle_playlist_thumbnail_generated(uuid, width, height, pixels);
                 Task::none()
             }
 
@@ -648,8 +654,8 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::LoadImage(url) => self.handle_load_image(url),
-            Message::ImageLoaded(url, data) => {
-                self.handle_image_loaded(url, data);
+            Message::ImageLoaded(url, width, height, pixels) => {
+                self.handle_image_loaded(url, width, height, pixels);
                 Task::none()
             }
 

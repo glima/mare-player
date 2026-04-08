@@ -7,14 +7,22 @@
 //! backed by the general-purpose [`DiskCache`],
 //! which handles size enforcement and LRU eviction.
 
-use image::{GenericImageView, ImageFormat};
+use image::GenericImageView;
 use std::collections::HashMap;
-use std::io::Cursor;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error};
 
 use crate::disk_cache::DiskCache;
+
+/// Decoded RGBA pixel data ready for direct use with `Handle::from_rgba`.
+/// Avoids the cost of re-encoding to PNG just to have iced decode it again.
+#[derive(Debug)]
+pub struct RgbaPixels {
+    pub width: u32,
+    pub height: u32,
+    pub pixels: Vec<u8>,
+}
 
 /// Cached image data
 #[derive(Clone)]
@@ -201,7 +209,7 @@ impl ImageCache {
 ///
 /// The result is a circular PNG at `output_size × output_size` pixels, suitable
 /// for use as a playlist thumbnail that mirrors the TIDAL 2×2 album art style.
-pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<Vec<u8>, String> {
+pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<RgbaPixels, String> {
     if images.is_empty() {
         return Err("No images provided for grid thumbnail".to_string());
     }
@@ -276,17 +284,16 @@ pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<Vec<u8>
         }
     }
 
-    let mut output = Vec::new();
-    let mut cursor = Cursor::new(&mut output);
-    canvas
-        .write_to(&mut cursor, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode grid thumbnail: {}", e))?;
-    Ok(output)
+    Ok(RgbaPixels {
+        width: output_size,
+        height: output_size,
+        pixels: canvas.into_raw(),
+    })
 }
 
 /// Make an image circular by applying an alpha mask.
-/// Takes raw image bytes (JPEG/PNG) and returns PNG bytes with circular transparency.
-pub fn make_circular(image_data: &[u8]) -> Result<Vec<u8>, String> {
+/// Takes raw image bytes (JPEG/PNG) and returns raw RGBA pixels with circular transparency.
+pub fn make_circular(image_data: &[u8]) -> Result<RgbaPixels, String> {
     // Decode the image
     let img = image::load_from_memory(image_data)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
@@ -323,13 +330,11 @@ pub fn make_circular(image_data: &[u8]) -> Result<Vec<u8>, String> {
         }
     }
 
-    // Encode as PNG (supports transparency)
-    let mut output = Vec::new();
-    let mut cursor = Cursor::new(&mut output);
-    rgba.write_to(&mut cursor, ImageFormat::Png)
-        .map_err(|e| format!("Failed to encode circular image: {}", e))?;
-
-    Ok(output)
+    Ok(RgbaPixels {
+        width: size,
+        height: size,
+        pixels: rgba.into_raw(),
+    })
 }
 
 #[cfg(test)]

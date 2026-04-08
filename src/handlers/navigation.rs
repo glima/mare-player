@@ -27,6 +27,53 @@ pub(crate) static SEARCH_INPUT_ID: LazyLock<cosmic::widget::Id> =
     LazyLock::new(|| cosmic::widget::Id::new("search-input"));
 
 impl AppModel {
+    /// Rebuild the virtual track list for the history view, applying the
+    /// current filter if active.
+    pub(crate) fn rebuild_history_track_list(&mut self) {
+        let all_tracks = self.play_history.tracks();
+        let tracks: Vec<_> = if self.history_filter_visible && !self.history_filter_query.is_empty()
+        {
+            let query = self.history_filter_query.to_lowercase();
+            all_tracks
+                .into_iter()
+                .filter(|t| {
+                    t.title.to_lowercase().contains(&query)
+                        || t.artist_name.to_lowercase().contains(&query)
+                        || t.album_name
+                            .as_deref()
+                            .is_some_and(|a| a.to_lowercase().contains(&query))
+                })
+                .collect()
+        } else {
+            all_tracks
+        };
+        self.set_track_list(tracks);
+    }
+
+    /// Rebuild the virtual track list for the favorite tracks view,
+    /// applying the current filter if active.
+    pub(crate) fn rebuild_favorites_track_list(&mut self) {
+        let all_tracks = self.user_favorite_tracks.clone();
+        let tracks: Vec<_> = if self.favorite_tracks_filter_visible
+            && !self.favorite_tracks_filter_query.is_empty()
+        {
+            let query = self.favorite_tracks_filter_query.to_lowercase();
+            all_tracks
+                .into_iter()
+                .filter(|t| {
+                    t.title.to_lowercase().contains(&query)
+                        || t.artist_name.to_lowercase().contains(&query)
+                        || t.album_name
+                            .as_deref()
+                            .is_some_and(|a| a.to_lowercase().contains(&query))
+                })
+                .collect()
+        } else {
+            all_tracks
+        };
+        self.set_track_list(tracks);
+    }
+
     // =========================================================================
     // Popup lifecycle (panel-applet) / window lifecycle (standalone)
     // =========================================================================
@@ -146,6 +193,7 @@ impl AppModel {
             self.is_loading = true;
             self.load_favorite_tracks()
         } else {
+            self.rebuild_favorites_track_list();
             Task::none()
         }
     }
@@ -167,12 +215,16 @@ impl AppModel {
         self.nav_stack.clear();
         self.view_state = ViewState::History;
 
+        // Populate virtual track list for this view
+        self.rebuild_history_track_list();
+
         // Pre-load cover images for history tracks
-        let urls: Vec<String> = self
-            .play_history
-            .tracks()
-            .iter()
-            .filter_map(|t| t.cover_url.clone())
+        let urls: Vec<String> = (0..self.track_list_content.len())
+            .filter_map(|i| {
+                self.track_list_content
+                    .get(i)
+                    .and_then(|t| t.cover_url.clone())
+            })
             .collect();
         if urls.is_empty() {
             Task::none()

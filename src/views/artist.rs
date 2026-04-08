@@ -16,6 +16,7 @@ use crate::fl;
 use crate::helpers::max_description_chars;
 use crate::messages::Message;
 use crate::state::AppModel;
+use crate::views::components::rows::build_track_row;
 use crate::views::components::{
     ARTIST_PICTURE_SIZE, TrackRowOptions, fading_header_title, fading_text_column,
     favorite_icon_handle, list_item, scrollable_list,
@@ -180,7 +181,6 @@ impl AppModel {
     fn view_artist_top_tracks_section(&self) -> Element<'_, Message> {
         let section_header = text(fl!("top-tracks")).size(15);
 
-        let all_tracks: Arc<[_]> = self.selected_artist_top_tracks.clone().into();
         let artist_name = self
             .selected_artist
             .as_ref()
@@ -188,30 +188,22 @@ impl AppModel {
             .unwrap_or_default();
         let context = Some(fl!("artist-top-tracks-context", artist = artist_name));
 
-        let track_items: Vec<Element<'_, Message>> = self
-            .selected_artist_top_tracks
-            .iter()
-            .enumerate()
-            .map(|(index, track)| {
-                self.track_row(
-                    track,
-                    index,
-                    &TrackRowOptions {
-                        tracks: Arc::clone(&all_tracks),
-                        context: context.clone(),
-                        ..Default::default()
-                    },
-                )
+        let loaded_images = &self.loaded_images;
+        let opts = TrackRowOptions {
+            tracks: Arc::clone(&self.track_list_arc),
+            context: context.clone(),
+            ..Default::default()
+        };
+
+        let track_list =
+            cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                build_track_row(loaded_images, track, index, &opts)
             })
-            .collect();
+            .spacing(2);
 
         widget::Column::new()
             .push(section_header)
-            .push(
-                widget::Column::with_children(track_items)
-                    .spacing(2)
-                    .width(Length::Fill),
-            )
+            .push(track_list)
             .spacing(6)
             .into()
     }
