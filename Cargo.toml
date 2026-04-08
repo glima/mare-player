@@ -19,6 +19,7 @@ default = ["panel-applet"]
 # renders in its own window instead of living in the panel.
 panel-applet = ["libcosmic/applet", "libcosmic/applet-token"]
 
+
 [dependencies]
 futures-util = "0.3.31"
 i18n-embed-fl = "0.10"
@@ -83,6 +84,13 @@ base64 = "0.22.1"
 
 # Parking lot for better mutexes
 parking_lot = "0.12.5"
+
+# On-demand profiling: automatically available in debug builds (cfg(debug_assertions)).
+# Send SIGUSR1 to the process → samples for 10 s → writes /tmp/mare-flamegraph.svg.
+# In release builds the code is gated out and LTO strips the deps.
+[target.'cfg(target_os = "linux")'.dependencies]
+pprof = { version = "0.14", default-features = false, features = ["flamegraph"] }
+signal-hook = "0.3"
 
 [dependencies.i18n-embed]
 version = "0.16"

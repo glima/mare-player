@@ -12,6 +12,17 @@ use cosmic::iced::core::layout::Limits;
 use std::fs::OpenOptions;
 use std::sync::Mutex;
 
+// On-demand profiling (debug builds only, Linux).
+//   cargo build              → profiler is embedded automatically
+//   kill -USR1 <pid>         → samples for 10 s
+//   open /tmp/mare-flamegraph.svg
+#[cfg(all(debug_assertions, target_os = "linux"))]
+use pprof::ProfilerGuard;
+#[cfg(all(debug_assertions, target_os = "linux"))]
+use signal_hook::{consts::SIGUSR1, iterator::Signals};
+#[cfg(all(debug_assertions, target_os = "linux"))]
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use cosmic_applet_mare::disk_cache;
 use cosmic_applet_mare::i18n;
 
@@ -20,6 +31,57 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 /// Maximum log file size in bytes (5 MB).
 const LOG_MAX_BYTES: u64 = 5 * 1024 * 1024;
+
+/// Start a background thread that waits for SIGUSR1, then samples for 10 s
+/// and writes a flamegraph SVG to `/tmp/mare-flamegraph.svg`.
+#[cfg(all(debug_assertions, target_os = "linux"))]
+fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
+    use std::fs::File;
+
+    let running = std::sync::Arc::new(AtomicBool::new(true));
+    let running_clone = running.clone();
+
+    std::thread::spawn(move || {
+        let mut signals = Signals::new([SIGUSR1]).expect("Failed to register SIGUSR1 handler");
+        for _ in signals.forever() {
+            if !running_clone.load(Ordering::SeqCst) {
+                break;
+            }
+            tracing::info!("SIGUSR1 received: starting 10 s pprof profile …");
+            // 100 Hz sampling rate
+            let guard = match ProfilerGuard::new(100) {
+                Ok(g) => g,
+                Err(e) => {
+                    tracing::warn!("Failed to start pprof profiler: {e}");
+                    continue;
+                }
+            };
+            std::thread::sleep(std::time::Duration::from_secs(10));
+            match guard.report().build() {
+                Ok(report) => {
+                    let path = "/tmp/mare-flamegraph.svg";
+                    match File::create(path) {
+                        Ok(mut file) => {
+                            if let Err(e) = report.flamegraph(&mut file) {
+                                tracing::warn!("Failed to write flamegraph: {e}");
+                            } else {
+                                tracing::info!("Flamegraph written to {path}");
+                            }
+                        }
+                        Err(e) => {
+                            tracing::warn!("Failed to create flamegraph file at {path}: {e}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to build pprof report: {e}");
+                }
+            }
+        }
+    });
+
+    running
+}
 
 fn main() -> cosmic::iced::Result {
     // Resolve log path under XDG cache dir (~/.cache/cosmic-applet-mare/logs/)
@@ -95,6 +157,11 @@ fn main() -> cosmic::iced::Result {
         .with(console_layer)
         .with(file_layer)
         .init();
+
+    // Start the on-demand pprof profiler (debug builds only, no-op in release).
+    // Send SIGUSR1 to the process to capture a 10 s flamegraph.
+    #[cfg(all(debug_assertions, target_os = "linux"))]
+    let _pprof_running = start_pprof_profiler();
 
     if file_opened_ok {
         tracing::info!(
