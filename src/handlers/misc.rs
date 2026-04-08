@@ -55,7 +55,17 @@ impl AppModel {
         Task::perform(
             async move {
                 if let Some(cached) = cache.get_or_load(&url_clone).await {
-                    Some((url_clone, cached.data.to_vec()))
+                    let raw = cached.data.to_vec();
+                    // Heavy image processing (decode + circular mask + PNG
+                    // re-encode) runs here, off the main thread.
+                    let circular = match make_circular(&raw) {
+                        Ok(c) => c,
+                        Err(e) => {
+                            tracing::warn!("Failed to make image circular: {}, using original", e);
+                            raw
+                        }
+                    };
+                    Some((url_clone, circular))
                 } else {
                     None
                 }
@@ -70,18 +80,10 @@ impl AppModel {
         )
     }
 
-    /// Handle image loaded
+    /// Handle image loaded (data is already circular-masked from the async task)
     pub fn handle_image_loaded(&mut self, url: String, data: Vec<u8>) {
         self.pending_image_loads.remove(&url);
-        // Make the image circular before creating the handle
-        let circular_data = match make_circular(&data) {
-            Ok(circular) => circular,
-            Err(e) => {
-                tracing::warn!("Failed to make image circular: {}, using original", e);
-                data
-            }
-        };
-        let handle = cosmic::widget::image::Handle::from_bytes(circular_data);
+        let handle = cosmic::widget::image::Handle::from_bytes(data);
         self.loaded_images.insert(url, handle);
     }
 
