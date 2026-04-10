@@ -132,9 +132,10 @@ features = [
 #   cosmic-config = { path = "../libcosmic/cosmic-config" }
 #   cosmic-theme = { path = "../libcosmic/cosmic-theme" }
 [patch.'https://github.com/pop-os/libcosmic']
-libcosmic = { path = "../libcosmic" }
-cosmic-config = { path = "../libcosmic/cosmic-config" }
-cosmic-theme = { path = "../libcosmic/cosmic-theme" }
+libcosmic = { git = "https://github.com/glima/libcosmic.git" }
+cosmic-config = { git = "https://github.com/glima/libcosmic.git" }
+cosmic-theme = { git = "https://github.com/glima/libcosmic.git" }
+
 
 # ── packaging ────────────────────────────────────────────────────────
 
