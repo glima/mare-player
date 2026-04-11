@@ -319,6 +319,35 @@ stats:
     fi
     tokei .
 
+# Fuzz-test parsing targets (requires nightly: rustup toolchain install nightly)
+# Usage: just fuzz              — run all targets for 60s each
+#        just fuzz dash_parse   — run a single target
+
+# just fuzz dash_parse 0 — run until interrupted (Ctrl-C)
+fuzz target="" duration="60":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v cargo-fuzz >/dev/null 2>&1; then
+        echo "Error: cargo-fuzz not found. Install with: cargo install cargo-fuzz"
+        exit 1
+    fi
+    if [ -n "{{ target }}" ]; then
+        echo "═══ Fuzzing: {{ target }} ═══"
+        if [ "{{ duration }}" = "0" ]; then
+            cargo +nightly fuzz run "fuzz_{{ target }}"
+        else
+            cargo +nightly fuzz run "fuzz_{{ target }}" -- -max_total_time="{{ duration }}"
+        fi
+    else
+        for t in $(cargo +nightly fuzz list 2>/dev/null); do
+            echo ""
+            echo "═══ Fuzzing: ${t} ({{ duration }}s) ═══"
+            cargo +nightly fuzz run "$t" -- -max_total_time="{{ duration }}"
+        done
+        echo ""
+        echo "All fuzz targets passed ✓"
+    fi
+
 # Bump cargo version, create git commit, and create tag (usage: just tag v0.1.0)
 tag version:
     #!/usr/bin/env sh

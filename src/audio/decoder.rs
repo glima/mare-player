@@ -902,7 +902,7 @@ impl AudioDecoder {
     ///
     /// Workaround: scan the binary data for `mdhd` atoms and set their duration to a non-zero
     /// value computed from the DASH manifest's known duration and sample rate.
-    fn patch_fmp4_duration(data: &mut [u8], duration_secs: f64, sample_rate: u32) {
+    pub fn patch_fmp4_duration(data: &mut [u8], duration_secs: f64, sample_rate: u32) {
         // mdhd atom type bytes: 'm' 'd' 'h' 'd'
         let mdhd_marker: [u8; 4] = [0x6D, 0x64, 0x68, 0x64];
 
