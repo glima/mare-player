@@ -180,7 +180,10 @@ impl ImageCache {
 
     /// Download an image from a URL
     async fn download_image(&self, url: &str) -> Result<Vec<u8>, String> {
-        if !url.starts_with("https://") {
+        if !url.starts_with("https://")
+            && !url.starts_with("http://127.0.0.1")
+            && !url.starts_with("http://localhost")
+        {
             return Err(format!("Refusing non-HTTPS image URL: {url}"));
         }
 
