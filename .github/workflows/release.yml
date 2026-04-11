@@ -64,7 +64,7 @@ jobs:
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
       - name: Install packaging tools
-        uses: cargo-bins/cargo-binstall@7eefb2120c193890ad0a44c3714f73a1f621b35a # v1.15.0
+        uses: cargo-bins/cargo-binstall@0b24824336e2b3800b0f89d9e08b2c08bfa3dcdd # v1.17.9
 
       - run: cargo binstall --no-confirm just cargo-deb cargo-generate-rpm
 
