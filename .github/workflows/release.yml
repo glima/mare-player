@@ -6,6 +6,8 @@ on:
       - "v[0-9]+.[0-9]+.[0-9]+"
   workflow_dispatch:
 
+permissions: read-all
+
 env:
   CARGO_TERM_COLOR: always
   APP_ID: io.github.cosmic-applet-mare
