@@ -964,7 +964,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-mare"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "base64",
  "chrono",
