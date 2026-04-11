@@ -348,8 +348,8 @@ fuzz target="" duration="60":
         echo "All fuzz targets passed ✓"
     fi
 
-# Bump cargo version, create git commit, and create tag (usage: just tag v0.1.0)
-tag version:
+# Bump cargo version, create git commit, and create tag (usage: just tag v0.1.0 "Ocean Breeze")
+tag version name="":
     #!/usr/bin/env sh
     set -eu
     cargo_version="{{ trim_start_match(version, "v") }}"
@@ -359,4 +359,21 @@ tag version:
     cargo clean
     git add Cargo.lock
     git commit -m "release: ${tag}"
-    git tag -a "${tag}" -m ''
+    git tag -a "${tag}" -m '{{ name }}'
+
+# Cut a release: bump version, tag, and push (usage: just release v0.1.7 "Ocean Breeze")
+release version name="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tag="v{{ trim_start_match(version, "v") }}"
+    if [ -n "{{ name }}" ]; then
+        echo "🌊 Release: ${tag} — {{ name }}"
+    else
+        echo "🌊 Release: ${tag}"
+    fi
+    echo ""
+    read -rp "Proceed? [y/N] " confirm
+    [[ "$confirm" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
+    just tag "{{ version }}" '{{ name }}'
+    git push origin main
+    git push origin "${tag}"
