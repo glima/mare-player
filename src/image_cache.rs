@@ -180,6 +180,10 @@ impl ImageCache {
 
     /// Download an image from a URL
     async fn download_image(&self, url: &str) -> Result<Vec<u8>, String> {
+        if !url.starts_with("https://") {
+            return Err(format!("Refusing non-HTTPS image URL: {url}"));
+        }
+
         let response = self
             .client
             .get(url)
