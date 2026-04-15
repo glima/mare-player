@@ -243,9 +243,36 @@ impl AppModel {
     ) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
-            Ok(true) => self.enter_main_view(),
-            Ok(false) | Err(_) => {
+            Ok(true) => {
+                self.error_message = None;
+                self.enter_main_view()
+            }
+            Ok(false) => {
                 self.view_state = ViewState::Login;
+                Task::none()
+            }
+            Err(ref e) if e.contains("Network error") && self.error_message.is_none() => {
+                // First network failure — likely resuming from suspend / lid-open.
+                // try_restore_session already retried internally with backoff;
+                // schedule one more attempt so we cover slower reconnects.
+                tracing::info!("Session restore hit a network error, scheduling retry in 5s");
+                self.error_message = Some("Network unavailable, retrying\u{2026}".into());
+                self.is_loading = true;
+                let client = self.tidal_client.clone();
+                let aq = self.config.audio_quality.to_tidlers();
+                Task::perform(
+                    async move {
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                        let mut c = client.lock().await;
+                        c.set_audio_quality(aq).await;
+                        c.try_restore_session().await.map_err(|e| e.to_string())
+                    },
+                    |r| cosmic::Action::App(Message::SessionRestored(r)),
+                )
+            }
+            Err(e) => {
+                self.view_state = ViewState::Login;
+                self.error_message = Some(e);
                 Task::none()
             }
         }

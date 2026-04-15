@@ -27,6 +27,31 @@ use crate::disk_cache::DiskCache;
 /// Safety margin before token expiry to trigger refresh (5 minutes)
 const TOKEN_REFRESH_MARGIN_SECS: u64 = 300;
 
+/// Format a duration in seconds for human-readable log output.
+/// Shows hours (e.g. "4.0h") when ≥ 60 min, otherwise minutes (e.g. "5min").
+fn format_duration(secs: u64) -> String {
+    let mins = secs / 60;
+    if mins >= 60 {
+        format!("{:.1}h", secs as f64 / 3600.0)
+    } else {
+        format!("{}min", mins)
+    }
+}
+
+/// Check if a tidlers error is a transient network error (DNS, connect, timeout)
+/// that should be retried rather than treated as an auth failure.
+fn is_tidlers_network_error(e: &tidlers::error::TidalError) -> bool {
+    let dbg = format!("{:?}", e);
+    dbg.contains("dns error")
+        || dbg.contains("name resolution")
+        || dbg.contains("ConnectError")
+        || dbg.contains("Timeout")
+        || dbg.contains("connection reset")
+        || dbg.contains("connection refused")
+        || dbg.contains("NetworkUnreachable")
+        || dbg.contains("No route to host")
+}
+
 /// Result of getting a playback URL - can be direct URL, DASH manifest, or cached file
 #[derive(Debug, Clone)]
 pub enum PlaybackUrl {
@@ -684,10 +709,11 @@ impl TidalAppClient {
                             let expires_at = last_refresh + expiry;
                             let remaining = expires_at.saturating_sub(now);
                             info!(
-                                "Token refreshed - expires_in: {}s, remaining: {}s (~{} minutes)",
+                                "Token refreshed - expires_in: {}s (~{}), remaining: {}s (~{})",
                                 expiry,
+                                format_duration(expiry),
                                 remaining,
-                                remaining / 60
+                                format_duration(remaining),
                             );
                         }
 
@@ -736,12 +762,15 @@ impl TidalAppClient {
                 return true;
             }
 
+            let elapsed = now.saturating_sub(last_refresh);
             debug!(
-                "Token still valid - expires_in: {}s, elapsed: {}s, remaining: {}s (~{} minutes)",
+                "Token still valid - expires_in: {}s (~{}), elapsed: {}s (~{}), remaining: {}s (~{})",
                 expiry,
-                now.saturating_sub(last_refresh),
+                format_duration(expiry),
+                elapsed,
+                format_duration(elapsed),
                 remaining,
-                remaining / 60
+                format_duration(remaining),
             );
 
             false
@@ -799,18 +828,37 @@ impl TidalAppClient {
                     let elapsed = now.saturating_sub(last_refresh);
                     let remaining = expires_at.saturating_sub(now);
                     info!(
-                        "Stored token state - expires_in: {}s (~{} min), elapsed since refresh: {}s (~{} min), remaining: {}s (~{} min)",
+                        "Stored token state - expires_in: {}s (~{}), elapsed since refresh: {}s (~{}), remaining: {}s (~{})",
                         expiry,
-                        expiry / 60,
+                        format_duration(expiry),
                         elapsed,
-                        elapsed / 60,
+                        format_duration(elapsed),
                         remaining,
-                        remaining / 60
+                        format_duration(remaining),
                     );
                 }
 
-                // Try to refresh the access token
-                match client.refresh_access_token(false).await {
+                // Try to refresh the access token, retrying on transient network
+                // errors (e.g. DNS not ready yet after lid-open / resume from suspend).
+                let refresh_result = {
+                    let mut result = client.refresh_access_token(false).await;
+                    for attempt in 1..=3u32 {
+                        match &result {
+                            Err(e) if is_tidlers_network_error(e) => {
+                                let delay = 2u64 << (attempt - 1); // 2s, 4s, 8s
+                                warn!(
+                                    "Network error on token refresh (attempt {}/4), retrying in {}s: {}",
+                                    attempt, delay, e
+                                );
+                                tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
+                                result = client.refresh_access_token(false).await;
+                            }
+                            _ => break,
+                        }
+                    }
+                    result
+                };
+                match refresh_result {
                     Ok(refreshed) => {
                         if refreshed {
                             info!("Successfully refreshed TIDAL access token");
@@ -874,9 +922,9 @@ impl TidalAppClient {
                             client.session.auth.last_refresh_time,
                         ) {
                             info!(
-                                "Token valid for {}s (~{} minutes) from last refresh",
+                                "Token valid for {}s (~{}) from last refresh",
                                 expiry,
-                                expiry / 60
+                                format_duration(expiry),
                             );
                             let now = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
@@ -884,9 +932,9 @@ impl TidalAppClient {
                                 .unwrap_or(0);
                             let remaining = (last_refresh + expiry).saturating_sub(now);
                             info!(
-                                "Token will expire in {}s (~{} minutes)",
+                                "Token will expire in {}s (~{})",
                                 remaining,
-                                remaining / 60
+                                format_duration(remaining),
                             );
                         }
 
@@ -901,11 +949,20 @@ impl TidalAppClient {
                         Ok(true)
                     }
                     Err(e) => {
-                        warn!("Failed to refresh access token: {:?}", e);
-                        // Clear invalid credentials
-                        let _ = AuthManager::delete_credentials();
-                        self.auth_manager.set_state(AuthState::NotAuthenticated);
-                        Err(TidalError::SessionExpired)
+                        if is_tidlers_network_error(&e) {
+                            // Network errors are transient — keep credentials for next attempt
+                            warn!(
+                                "Token refresh failed after retries (network error, credentials preserved): {}",
+                                e
+                            );
+                            Err(TidalError::NetworkError(format!("{}", e)))
+                        } else {
+                            // Auth / protocol error — credentials are likely invalid
+                            warn!("Failed to refresh access token: {:?}", e);
+                            let _ = AuthManager::delete_credentials();
+                            self.auth_manager.set_state(AuthState::NotAuthenticated);
+                            Err(TidalError::SessionExpired)
+                        }
                     }
                 }
             }
@@ -997,9 +1054,9 @@ impl TidalAppClient {
                     client.session.auth.last_refresh_time,
                 ) {
                     info!(
-                        "New OAuth token received - expires_in: {}s (~{} minutes)",
+                        "New OAuth token received - expires_in: {}s (~{})",
                         expiry,
-                        expiry / 60
+                        format_duration(expiry),
                     );
                     let now = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)
@@ -1007,9 +1064,9 @@ impl TidalAppClient {
                         .unwrap_or(0);
                     let remaining = (last_refresh + expiry).saturating_sub(now);
                     info!(
-                        "Token will expire in {}s (~{} minutes)",
+                        "Token will expire in {}s (~{})",
                         remaining,
-                        remaining / 60
+                        format_duration(remaining),
                     );
                 }
 
