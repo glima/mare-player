@@ -156,6 +156,7 @@ jobs:
             release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
+          bundle-path: release/attestation.sigstore.json
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
@@ -168,5 +169,6 @@ jobs:
             release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
+            release/attestation.sigstore.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
