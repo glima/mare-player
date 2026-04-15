@@ -1,6 +1,7 @@
 # <img src="resources/icon.svg" width="36" align="absmiddle" /> Maré Player
 
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/glima/mare-player/badge)](https://scorecard.dev/viewer/?uri=github.com/glima/mare-player)
+[![GitHub Release](https://img.shields.io/github/release/glima/mare-player.svg)](https://github.com/glima/mare-player/releases/latest)
 
 A COSMIC™ desktop application for the TIDAL music streaming service.
 Stream Hi-Res audio, browse your library, and control playback — with
