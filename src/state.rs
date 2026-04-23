@@ -20,7 +20,7 @@ use crate::image_cache::ImageCache;
 use crate::menu::TidalMenuAction;
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::TidalAppClient;
-use crate::tidal::models::{Album, Artist, Mix, Playlist, SearchResults, Track};
+use crate::tidal::models::{Album, Artist, FeedActivity, Mix, Playlist, SearchResults, Track};
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
 use crate::tidal::player::{NowPlaying, PlaybackState, Player};
@@ -58,6 +58,8 @@ pub struct AppModel {
     pub(crate) user_mixes: Vec<Mix>,
     /// User's followed artists (profiles)
     pub(crate) user_followed_artists: Vec<Artist>,
+    /// Feed activities (new releases from followed artists)
+    pub(crate) feed_activities: Vec<FeedActivity>,
     /// Tracks for the currently selected mix
     pub(crate) selected_mix_tracks: Vec<Track>,
     /// Name of the currently selected mix
@@ -217,6 +219,8 @@ pub enum ViewState {
     TrackDetail,
     /// Favorite tracks view
     FavoriteTracks,
+    /// Feed view (new releases from followed artists)
+    Feed,
     /// Play history view (locally tracked recently played tracks)
     History,
     /// Followed artists (Profiles) view

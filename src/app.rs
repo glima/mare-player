@@ -131,6 +131,7 @@ impl cosmic::Application for AppModel {
             user_favorite_tracks: Vec::new(),
             user_mixes: Vec::new(),
             user_followed_artists: Vec::new(),
+            feed_activities: Vec::new(),
             selected_mix_tracks: Vec::new(),
             selected_mix_name: None,
             selected_radio_tracks: Vec::new(),
@@ -435,6 +436,7 @@ impl cosmic::Application for AppModel {
             | Message::TrackDetailRelatedArtistsLoaded(_)
             | Message::TrackDetailRelatedAlbumsLoaded(_)
             | Message::ProfilesLoaded(_)
+            | Message::FeedLoaded(_)
             | Message::FollowArtistToggled(_) => {
                 tracing::debug!("update() received: {:?}", message);
             }
@@ -499,6 +501,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::ShowMixes => self.handle_show_mixes(),
+            Message::ShowFeed => self.handle_show_feed(),
             Message::ShowPlaylists => self.handle_show_playlists(),
             Message::ShowAlbums => self.handle_show_albums(),
             Message::ShowFavoriteTracks => self.handle_show_favorite_tracks(),
@@ -547,6 +550,10 @@ impl cosmic::Application for AppModel {
             // Data handlers - profiles
             Message::LoadProfiles => self.handle_load_profiles(),
             Message::ProfilesLoaded(result) => self.handle_profiles_loaded(result),
+
+            // Data handlers - feed
+            Message::LoadFeed => self.handle_load_feed(),
+            Message::FeedLoaded(result) => self.handle_feed_loaded(result),
 
             // Data handlers - search
             Message::SearchQueryChanged(query) => self.handle_search_query_changed(query),
@@ -720,6 +727,25 @@ impl cosmic::Application for AppModel {
             Message::TakeScreenshot => self.handle_take_screenshot(),
             Message::ScreenshotCaptured(screenshot) => {
                 self.handle_screenshot_captured(screenshot);
+                Task::none()
+            }
+
+            // Debug / API discovery
+            Message::ProbeFeedPage => {
+                tracing::debug!(
+                    "ProbeFeedPage message received but probe_feed_page is not implemented"
+                );
+                Task::none()
+            }
+            Message::FeedProbeResult(result) => {
+                match &result {
+                    Ok(json) => {
+                        tracing::info!("=== FEED PROBE RESULT ===\n{}", json);
+                    }
+                    Err(e) => {
+                        tracing::error!("Feed probe failed: {}", e);
+                    }
+                }
                 Task::none()
             }
 

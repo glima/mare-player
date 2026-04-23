@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use crate::config::{AudioQuality, Config};
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::PlaybackUrl;
-use crate::tidal::models::{Album, Artist, Mix, Playlist, SearchResults, Track};
+use crate::tidal::models::{Album, Artist, FeedActivity, Mix, Playlist, SearchResults, Track};
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 
 /// Result type for MPRIS service initialization.
@@ -77,6 +77,8 @@ pub enum Message {
     FavoriteTracksFilterChanged(String),
     /// Show the mixes & radio view
     ShowMixes,
+    /// Show the feed view (new releases from followed artists)
+    ShowFeed,
     /// Show the playlists list
     ShowPlaylists,
     /// Show the albums list
@@ -97,6 +99,12 @@ pub enum Message {
     ShowArtistDetail(String),
     /// Navigate back by popping the navigation stack
     NavigateBack,
+
+    // Feed (new releases from followed artists)
+    /// Load feed activities
+    LoadFeed,
+    /// Feed activities loaded
+    FeedLoaded(Result<Vec<FeedActivity>, String>),
 
     // Mixes & Radio
     /// Load user mixes from home feed
@@ -279,6 +287,12 @@ pub enum Message {
     TakeScreenshot,
     /// A screenshot has been captured; encode it to PNG and save to disk.
     ScreenshotCaptured(Screenshot),
+
+    // Debug / API discovery
+    /// Probe the TIDAL Feed page endpoint and dump the raw JSON structure.
+    ProbeFeedPage,
+    /// Result of the feed page probe.
+    FeedProbeResult(Result<String, String>),
 
     // Wayland surface actions (used by responsive_menu_bar for popup menus)
     /// Forward a surface action to the COSMIC runtime (menu popups on Wayland).

@@ -25,6 +25,7 @@ pub mod albums;
 pub mod artist;
 pub mod auth;
 pub mod components;
+pub mod feed;
 pub mod history;
 pub mod main;
 pub mod mixes;

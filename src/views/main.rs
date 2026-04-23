@@ -128,9 +128,16 @@ impl AppModel {
             Message::ShowHistory,
         );
 
+        let feed_btn = AppModel::menu_row(
+            "preferences-system-notifications-symbolic",
+            fl!("feed"),
+            Message::ShowFeed,
+        );
+
         let collection_section = widget::Column::new()
             .push(text(fl!("collection")).size(12))
             .push(albums_btn)
+            .push(feed_btn)
             .push(history_btn)
             .push(mixes_btn)
             .push(playlists_btn)

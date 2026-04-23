@@ -49,7 +49,13 @@ not-signed-in = Not signed in
 # Main view
 collection = Collection
 history = History
+feed = Feed
 mixes-and-radio = Mixes & Radio
+no-feed = No feed activities
+feed-new-updates = New Updates
+feed-last-week = Last Week
+feed-last-month = Last Month
+feed-older = Older
 
 # Section headers
 albums = Albums

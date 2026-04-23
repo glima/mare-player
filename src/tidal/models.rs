@@ -405,6 +405,31 @@ impl SearchResults {
     }
 }
 
+/// A single activity from the TIDAL Feed (new releases from followed artists).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeedActivity {
+    /// The feed item (album release or history mix).
+    pub item: FeedItem,
+    /// ISO 8601 timestamp when the activity occurred.
+    pub occurred_at: String,
+    /// Whether the user has already seen this activity.
+    pub seen: bool,
+}
+
+/// The content of a feed activity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FeedItem {
+    /// A new album or single released by a followed artist.
+    AlbumRelease(Album),
+    /// A monthly listening history mix.
+    HistoryMix {
+        id: String,
+        title: String,
+        subtitle: String,
+        image_url: Option<String>,
+    },
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

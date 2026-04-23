@@ -245,6 +245,18 @@ impl AppModel {
         }
     }
 
+    /// Handle show feed view (new releases from followed artists)
+    pub fn handle_show_feed(&mut self) -> Task<cosmic::Action<Message>> {
+        self.nav_stack.clear();
+        self.view_state = ViewState::Feed;
+        if self.feed_activities.is_empty() {
+            self.is_loading = true;
+            self.load_feed()
+        } else {
+            Task::none()
+        }
+    }
+
     // =========================================================================
     // List-level views (push parent onto the stack)
     // =========================================================================
