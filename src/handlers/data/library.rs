@@ -668,7 +668,7 @@ impl AppModel {
         match result {
             Ok(mut artists) => {
                 tracing::info!("Loaded {} followed artists", artists.len());
-                artists.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+                artists.sort_by_key(|a| a.name.to_lowercase());
                 self.followed_artist_ids = artists.iter().map(|a| a.id.clone()).collect();
                 self.user_followed_artists = artists;
                 self.load_images_for_profiles()
