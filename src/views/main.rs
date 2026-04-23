@@ -71,13 +71,19 @@ impl AppModel {
             format!(" ({})", self.user_favorite_tracks.len())
         };
 
+        let mixes_count = if self.user_mixes.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", self.user_mixes.len())
+        };
+
         let mixes_btn = {
             use crate::views::components::RADIO_SVG;
             let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
             radio_icon.symbolic = true;
             let row = widget::Row::new()
                 .push(widget::icon(radio_icon).size(24))
-                .push(text(fl!("mixes-and-radio")).size(14))
+                .push(text(format!("{}{}", fl!("mixes-and-radio"), mixes_count)).size(14))
                 .push(widget::space::horizontal())
                 .push(widget::icon::from_name("go-next-symbolic").size(16))
                 .spacing(12)
@@ -128,9 +134,15 @@ impl AppModel {
             Message::ShowHistory,
         );
 
+        let feed_count = if self.feed_activities.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", self.feed_activities.len())
+        };
+
         let feed_btn = AppModel::menu_row(
             "preferences-system-notifications-symbolic",
-            fl!("feed"),
+            format!("{}{}", fl!("feed"), feed_count),
             Message::ShowFeed,
         );
 
