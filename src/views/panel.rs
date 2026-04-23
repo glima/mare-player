@@ -11,6 +11,7 @@ use cosmic::iced::gradient;
 
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Background, Border, Color, Length, Radians};
+use cosmic::widget::button::Catalog;
 use cosmic::widget::{self, autosize, button, container};
 
 use crate::messages::Message;
@@ -121,9 +122,28 @@ impl AppModel {
                 content = content.push(self.build_volume_bar());
             }
 
+            // Use a custom button class that delegates to AppletIcon for
+            // every state except pressed, which reuses the hovered style.
+            // This ensures the FadingClip gradient (which uses the hover
+            // colour) matches the button background on press too.
+            let class = cosmic::theme::Button::Custom {
+                active: Box::new(|focused, theme| {
+                    Catalog::active(theme, focused, false, &cosmic::theme::Button::AppletIcon)
+                }),
+                disabled: Box::new(|theme| {
+                    Catalog::disabled(theme, &cosmic::theme::Button::AppletIcon)
+                }),
+                hovered: Box::new(|focused, theme| {
+                    Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)
+                }),
+                pressed: Box::new(|focused, theme| {
+                    Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)
+                }),
+            };
+
             let btn = button::custom(content)
                 .on_press_down(Message::TogglePopup)
-                .class(cosmic::theme::Button::AppletIcon);
+                .class(class);
 
             // Wrap in mouse_area for right-click and scroll
             let interactive = widget::mouse_area(btn)

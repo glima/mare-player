@@ -14,6 +14,8 @@ use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, container, text};
 
+use cosmic::widget::button::Catalog;
+
 use crate::messages::Message;
 use std::sync::Arc;
 
@@ -92,11 +94,29 @@ pub fn list_item<'a>(
     on_press: Message,
     padding: u16,
 ) -> Element<'a, Message> {
+    // Use a custom button class that delegates to MenuItem for every state
+    // except pressed, which reuses the hovered style.  This ensures the
+    // FadingClip gradient (which uses the hover colour) matches the button
+    // background in ALL interactive states — base, hover, AND press —
+    // without needing fragile pressed-state tracking in the widget tree.
+    let class = cosmic::theme::Button::Custom {
+        active: Box::new(|focused, theme| {
+            Catalog::active(theme, focused, false, &cosmic::theme::Button::MenuItem)
+        }),
+        disabled: Box::new(|theme| Catalog::disabled(theme, &cosmic::theme::Button::MenuItem)),
+        hovered: Box::new(|focused, theme| {
+            Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)
+        }),
+        pressed: Box::new(|focused, theme| {
+            Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)
+        }),
+    };
+
     button::custom(content)
         .on_press(on_press)
         .width(Length::Fill)
         .padding(padding)
-        .class(cosmic::theme::Button::MenuItem)
+        .class(class)
         .into()
 }
 

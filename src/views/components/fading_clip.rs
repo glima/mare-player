@@ -1,91 +1,93 @@
 // SPDX-License-Identifier: MIT
 
-//! Custom [`FadingClip`] widget that GPU-clips its child and draws a
-//! hover-aware gradient fade overlay on the right edge.
+//! A clipping widget with a gradient fade-out overlay.
 //!
-//! This is a self-contained iced widget used by the various `fading_*`
-//! helpers in [`super::list_helpers`].
+//! [`FadingClip`] GPU-clips its child content and draws a horizontal gradient
+//! strip on the right edge that fades from transparent to the enclosing
+//! container's background colour.  This gives long text (track titles, artist
+//! names) a smooth fade instead of a harsh clip edge.
+//!
+//! The gradient colour is resolved per-frame from the current cosmic theme so
+//! it adapts automatically to dark/light mode and hover/pressed button states.
 
+use cosmic::iced::{Radians, Rectangle};
 use std::f32::consts::FRAC_PI_2;
 
-use cosmic::iced::{Length, Radians, Rectangle, Size, Vector};
-
-/// Extra pixels added to the right of the gradient fade strip.
-///
-/// Sub-pixel text rendering (e.g. ClearType / FreeType LCD filtering) can
-/// produce colour fringes that extend a pixel or two past the nominal glyph
-/// bounds.  Because the GPU scissor rectangle in step 1 is axis-aligned to
-/// the widget bounds, these fringes sometimes survive the clip and appear as
-/// tiny coloured dots at the right edge.  Extending the fully-opaque tail of
-/// the gradient by this many pixels ensures they are painted over.
+/// Extra pixels added to the right edge of the gradient strip so the
+/// fully-opaque tail covers any sub-pixel text artifacts that leak past the
+/// GPU scissor boundary.
 const FADE_BLEED: f32 = 2.0;
 
 // =============================================================================
-// FadingClip Widget
+// Public API
 // =============================================================================
 
-/// A widget that GPU-clips its child and draws a hover-aware gradient fade
-/// overlay on the right edge.
+/// A widget that clips its child and draws a gradient fade on the right edge.
 ///
-/// 1. Clips content with `renderer.with_layer()` (real GPU scissor — the
-///    current cosmic/iced fork's `Container.clip` only narrows a viewport
-///    *hint* that text rendering ignores).
-/// 2. Draws a gradient strip whose opaque colour matches the **current**
-///    button background (normal vs hovered), computed on every frame from
-///    cursor position and the cosmic theme.
+/// # Type parameters
+///
+/// * `'a` — lifetime of the child element.
+/// * `Msg` — application message type.
+///
+/// # Layout
+///
+/// `FadingClip` behaves like a transparent wrapper: it measures its child
+/// normally, caps the child width to the available space, and reserves no
+/// extra space of its own.  The gradient is drawn as an overlay inside the
+/// child bounds.
 pub(crate) struct FadingClip<'a, Msg> {
-    /// The inner element to render with clipping and a fade overlay.
-    /// Typically a row of text labels that may overflow horizontally.
+    /// The wrapped child element.
     child: cosmic::Element<'a, Msg>,
-    /// Horizontal sizing hint forwarded to the iced layout engine via
-    /// [`Widget::size`] and [`iced_core::layout::contained`].
+
+    /// Explicit width override (default: `Length::Shrink`).
     ///
-    /// Defaults to [`Length::Shrink`], which means:
+    /// Callers typically set this to `Length::Fill` so the fade column
+    /// expands to fill the remaining space after fixed-width siblings
+    /// (thumbnails, duration labels, etc.).
     ///
-    /// - The widget asks for *only as much width as its child naturally
-    ///   needs* (i.e. the full unconstrained text width), clamped to the
-    ///   parent's maximum.  If the child fits, the widget is exactly that
-    ///   wide and no clipping or fade occurs.  If the child's natural
-    ///   width exceeds the parent's maximum, `contained` caps the node at
-    ///   that maximum, the child overflows, and the gradient fade kicks
-    ///   in.
+    /// # Why `Length::Shrink` is the default
     ///
-    /// - Because `Shrink` never *expands* to fill remaining space, the
-    ///   widget leaves room for siblings in a `Row`.  This is the correct
-    ///   behaviour for the panel button ([`fading_panel_text`]), where the
-    ///   text should hug its content and sit beside an icon without
-    ///   pushing it away or consuming the full button width.
+    /// A `Shrink` default means that short strings that fit entirely
+    /// inside their parent receive exactly the width they need — no
+    /// gradient is drawn, no padding is wasted.  When callers want the
+    /// column to absorb leftover space they `.width(Length::Fill)` it,
+    /// which still triggers the gradient only when the child content
+    /// overflows.
     ///
-    /// Most popup-side callers override this to [`Length::Fill`] via the
-    /// [`width`](Self::width) builder method, which makes the widget
-    /// greedily consume all remaining horizontal space in a `Row`.  That
-    /// is the correct behaviour for list-item rows where the text column
-    /// should stretch to fill whatever space the thumbnail and trailing
-    /// icons leave behind — the constrained `Fill` width becomes the
-    /// clip boundary, and any text beyond it fades out.
-    width: Length,
-    /// Vertical sizing hint forwarded to the iced layout engine.
-    /// Defaults to [`Length::Shrink`] so the widget is only as tall as
-    /// its child content.
-    height: Length,
-    /// Width in logical pixels of the gradient fade strip drawn along the
-    /// right edge of the clipped area.  A larger value gives a more
-    /// gradual fade-out; a smaller value makes the cut-off more abrupt.
+    /// In theory `Length::Fill` would also work as a default but it would
+    /// unnecessarily stretch every single text element even when there
+    /// are no siblings competing for space (e.g. a standalone label in a
+    /// `Column`), producing a wider-than-necessary layout and a phantom
+    /// gradient at the far right that serves no visual purpose.
+    width: cosmic::iced::Length,
+
+    /// Explicit height override (default: `Length::Shrink`).
+    height: cosmic::iced::Length,
+
+    /// Width (in pixels) of the gradient fade strip.
     ///
-    /// The actual rendered strip is [`FADE_BLEED`] pixels wider than this
-    /// value — the extra fully-opaque margin covers sub-pixel text
-    /// rendering artifacts that can otherwise escape the GPU scissor
-    /// boundary at the right edge of the clip region.
+    /// This is measured inward from the right edge of the widget.  A
+    /// larger value gives a gentler fade at the cost of hiding more text.
+    /// The caller passes this in at construction time — the default in
+    /// [`super::list_helpers`] is 32 px.
+    ///
+    /// The gradient always starts fully transparent on the left and ends
+    /// fully opaque (background colour) on the right.  An additional
+    /// [`FADE_BLEED`] strip of the opaque colour extends past the nominal
+    /// width to cover sub-pixel text rendering artifacts.
     fade_width: f32,
-    /// Controls which background colour the gradient fades into.
-    /// Different parent surfaces (button, card, popup, panel) have
-    /// different background colours, so the fade must match whichever
-    /// surface this widget sits on.  See [`FadeTarget`] for details.
+
+    /// Which background colour family the gradient should fade *to*.
+    /// See [`FadeTarget`] for the available options.
     fade_target: FadeTarget,
 }
 
-/// Which background the [`FadingClip`] gradient should match.
-#[derive(Debug, Clone, Copy, Default)]
+/// Determines which theme colour the gradient fades into.
+///
+/// Each variant corresponds to a different visual context — the right
+/// one must be chosen so the gradient's opaque end blends seamlessly
+/// with whatever sits behind the text.
+#[derive(Default)]
 enum FadeTarget {
     /// Fade matches the enclosing `list_item` button background, reacting
     /// to hover and pressed states.  This is the default for track/album/
@@ -97,27 +99,21 @@ enum FadeTarget {
     /// header titles.
     Surface,
     /// Fade to the card/component colour (`background.component.base`
-    /// composited over `background.base`).  Use for elements inside a
-    /// `Container::Card`, such as the now-playing bar.
+    /// composited over the surface).  For content inside a
+    /// `Container::Card`.
     Card,
-    /// Fade for the system panel applet button (`Button::AppletIcon`).
-    /// Normal state uses raw `background.base` (the button is transparent),
-    /// hover/pressed composites the component highlight over the surface,
-    /// matching how `AppletIcon` draws its background.
+    /// Fade for the panel button label.  Uses `text_button.hover`
+    /// composited over the surface on hover, raw surface otherwise.
     Panel,
-    /// Fade matches a `Button::Suggested` (accent) button background.
-    /// Uses `cosmic.accent_button.{base,hover,pressed}`.
+    /// Fade for text inside a `Button::Suggested` (accent) button.
     Suggested,
-    /// Fade matches a `Button::Standard` button background.
-    /// Uses `cosmic.button.{base,hover,pressed}`.
+    /// Fade for text inside a `Button::Standard` button.
     Standard,
 }
 
-/// Tracks whether the mouse button is currently held down so we can
-/// distinguish hovered vs pressed button state.
+/// Tracks layout state for the fade overlay.
 #[derive(Debug, Clone, Default)]
 struct FadingClipState {
-    mouse_pressed: bool,
     /// `true` when the child's natural (unconstrained) width exceeds the
     /// available layout width — i.e. the text is being clipped and needs
     /// the gradient fade overlay.
@@ -128,57 +124,113 @@ impl<'a, Msg> FadingClip<'a, Msg> {
     pub(crate) fn new(child: impl Into<cosmic::Element<'a, Msg>>, fade_width: f32) -> Self {
         Self {
             child: child.into(),
-            width: Length::Shrink,
-            height: Length::Shrink,
+            width: cosmic::iced::Length::Shrink,
+            height: cosmic::iced::Length::Shrink,
             fade_width,
-            fade_target: FadeTarget::Button,
+            fade_target: FadeTarget::default(),
         }
     }
 
-    /// Use the popup surface colour for the gradient instead of the
-    /// button background.  Skips hover/pressed detection entirely.
+    /// Fade to the popup surface colour (no button background).
     pub(crate) fn surface_only(mut self) -> Self {
         self.fade_target = FadeTarget::Surface;
         self
     }
 
-    /// Use the card/component background colour for the gradient.
-    /// For elements inside a `Container::Card` (e.g. now-playing bar).
+    /// Fade to the card/component background.
     pub(crate) fn card(mut self) -> Self {
         self.fade_target = FadeTarget::Card;
         self
     }
 
-    /// Use the panel applet button background for the gradient.
-    /// Transparent when idle, composited highlight on hover/press.
+    /// Fade to the panel text-button background.
     pub(crate) fn panel(mut self) -> Self {
         self.fade_target = FadeTarget::Panel;
         self
     }
 
-    /// Use the suggested (accent) button background for the gradient.
-    /// For text inside a `Button::Suggested`.
+    /// Fade to the `Button::Suggested` (accent) background.
     pub(crate) fn suggested(mut self) -> Self {
         self.fade_target = FadeTarget::Suggested;
         self
     }
 
-    /// Use the standard button background for the gradient.
-    /// For text inside a `Button::Standard`.
+    /// Fade to the `Button::Standard` background.
     pub(crate) fn standard(mut self) -> Self {
         self.fade_target = FadeTarget::Standard;
         self
     }
 
-    pub(crate) fn width(mut self, w: Length) -> Self {
-        self.width = w;
+    pub(crate) fn width(mut self, width: cosmic::iced::Length) -> Self {
+        self.width = width;
         self
     }
 }
 
-/// Alpha-composite `fg` over `bg` (both assumed straight-alpha) and return
-/// a fully opaque colour.
+// =============================================================================
+// Colour helpers
+// =============================================================================
+
+/// sRGB component → linear component.
+///
+/// Uses the standard IEC 61966-2-1 transfer function, the same one that
+/// `iced::Color::into_linear` uses and that GPU hardware applies when
+/// reading/writing `*Srgb` texture formats.
+fn srgb_to_linear(u: f32) -> f32 {
+    if u < 0.04045 {
+        u / 12.92
+    } else {
+        ((u + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// Linear component → sRGB component.
+fn linear_to_srgb(u: f32) -> f32 {
+    if u <= 0.0031308 {
+        u * 12.92
+    } else {
+        1.055 * u.powf(1.0 / 2.4) - 0.055
+    }
+}
+
+/// Alpha-over composite of `fg` on top of a **fully-opaque** `bg`,
+/// blended in **linear RGB** space to match the GPU pipeline.
+///
+/// iced packs colours via `Color::into_linear()` and uses an sRGB
+/// framebuffer with `PREMULTIPLIED_ALPHA_BLENDING`.  The hardware
+/// therefore blends in linear space.  Doing the same here ensures
+/// the gradient's opaque end is pixel-identical to the button
+/// background rendered by the GPU.
+///
+/// Use [`composite_srgb`] instead for elements composited by the
+/// desktop compositor (e.g. the panel bar) which may blend in sRGB.
 fn composite(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::Color {
+    let a = fg.a;
+
+    // Convert to linear
+    let fg_r = srgb_to_linear(fg.r);
+    let fg_g = srgb_to_linear(fg.g);
+    let fg_b = srgb_to_linear(fg.b);
+    let bg_r = srgb_to_linear(bg.r);
+    let bg_g = srgb_to_linear(bg.g);
+    let bg_b = srgb_to_linear(bg.b);
+
+    // Blend in linear space
+    cosmic::iced::Color::from_rgba(
+        linear_to_srgb(fg_r * a + bg_r * (1.0 - a)),
+        linear_to_srgb(fg_g * a + bg_g * (1.0 - a)),
+        linear_to_srgb(fg_b * a + bg_b * (1.0 - a)),
+        1.0,
+    )
+}
+
+/// Alpha-over composite in **sRGB** space (no gamma conversion).
+///
+/// The COSMIC panel bar is rendered by the Wayland compositor, which
+/// may blend in sRGB rather than linear.  Using sRGB here matches the
+/// compositor's pipeline so the gradient's opaque end is invisible
+/// against the panel surface.
+fn composite_srgb(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::Color {
     let a = fg.a;
     cosmic::iced::Color::from_rgba(
         fg.r * a + bg.r * (1.0 - a),
@@ -195,8 +247,8 @@ fn composite(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::
 impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
     for FadingClip<'_, Msg>
 {
-    fn size(&self) -> Size<Length> {
-        Size::new(self.width, self.height)
+    fn size(&self) -> cosmic::iced::Size<cosmic::iced::Length> {
+        cosmic::iced::Size::new(self.width, self.height)
     }
 
     fn tag(&self) -> cosmic::iced::core::widget::tree::Tag {
@@ -222,8 +274,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         limits: &cosmic::iced::core::layout::Limits,
     ) -> cosmic::iced::core::layout::Node {
         // First pass: measure the child with unbounded width to learn its
-        // natural (unconstrained) width.  For single-line `Wrapping::None`
-        // text this is cheap — just one paragraph layout.
+        // natural (unconstrained) width.
         let unbounded = cosmic::iced::core::layout::Limits::NONE.max_height(limits.max().height);
         let natural =
             self.child
@@ -232,7 +283,6 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         let natural_width = natural.bounds().width;
 
         // Second pass: real layout with the actual (constrained) limits.
-        // This overwrites any child-tree state set by the first pass.
         let node =
             cosmic::iced::core::layout::contained(limits, self.width, self.height, |limits| {
                 self.child
@@ -240,10 +290,11 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
                     .layout(&mut tree.children[0], renderer, limits)
             });
 
-        // If the natural width exceeds the constrained width the content
-        // is being clipped and we need the gradient fade overlay.
-        let state = tree.state.downcast_mut::<FadingClipState>();
-        state.content_overflows = natural_width > node.bounds().width + 1.0;
+        // Record whether the child overflows so draw() can skip the
+        // gradient when it would be invisible.
+        tree.state
+            .downcast_mut::<FadingClipState>()
+            .content_overflows = natural_width > node.bounds().width + 1.0;
 
         node
     }
@@ -310,11 +361,8 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             }
             FadeTarget::Button => {
                 let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-                let state = tree.state.downcast_ref::<FadingClipState>();
 
-                let btn_bg: Color = if is_mouse_over && state.mouse_pressed {
-                    cosmic_theme.background.component.pressed.into()
-                } else if is_mouse_over {
+                let btn_bg: Color = if is_mouse_over {
                     cosmic_theme.background.component.hover.into()
                 } else {
                     cosmic_theme.background.component.base.into()
@@ -323,27 +371,19 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             }
             FadeTarget::Panel => {
                 let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-                let state = tree.state.downcast_ref::<FadingClipState>();
 
-                // AppletIcon uses `cosmic.text_button` — not `background.component`.
-                let text_btn = &cosmic_theme.text_button;
-                if is_mouse_over && state.mouse_pressed {
-                    composite(text_btn.pressed.into(), surface)
-                } else if is_mouse_over {
-                    composite(text_btn.hover.into(), surface)
+                if is_mouse_over {
+                    let text_btn = &cosmic_theme.text_button;
+                    composite_srgb(text_btn.hover.into(), surface)
                 } else {
-                    // AppletIcon base is transparent → raw surface
-                    composite(text_btn.base.into(), surface)
+                    surface
                 }
             }
             FadeTarget::Suggested => {
                 let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-                let state = tree.state.downcast_ref::<FadingClipState>();
 
                 let comp = &cosmic_theme.accent_button;
-                let bg: Color = if is_mouse_over && state.mouse_pressed {
-                    comp.pressed.into()
-                } else if is_mouse_over {
+                let bg: Color = if is_mouse_over {
                     comp.hover.into()
                 } else {
                     comp.base.into()
@@ -352,12 +392,9 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             }
             FadeTarget::Standard => {
                 let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-                let state = tree.state.downcast_ref::<FadingClipState>();
 
                 let comp = &cosmic_theme.button;
-                let bg: Color = if is_mouse_over && state.mouse_pressed {
-                    comp.pressed.into()
-                } else if is_mouse_over {
+                let bg: Color = if is_mouse_over {
                     comp.hover.into()
                 } else {
                     comp.base.into()
@@ -408,21 +445,6 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         shell: &mut cosmic::iced::core::Shell<'_, Msg>,
         viewport: &Rectangle,
     ) {
-        // Track mouse-button state so draw() can match the pressed
-        // background colour of the parent button.
-        if let cosmic::iced::core::Event::Mouse(mouse_ev) = event {
-            use cosmic::iced::core::mouse::{Button, Event as ME};
-            match mouse_ev {
-                ME::ButtonPressed(Button::Left) => {
-                    tree.state.downcast_mut::<FadingClipState>().mouse_pressed = true;
-                }
-                ME::ButtonReleased(Button::Left) => {
-                    tree.state.downcast_mut::<FadingClipState>().mouse_pressed = false;
-                }
-                _ => {}
-            }
-        }
-
         self.child.as_widget_mut().update(
             &mut tree.children[0],
             event,
@@ -458,7 +480,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         layout: cosmic::iced::core::Layout<'b>,
         renderer: &cosmic::Renderer,
         viewport: &Rectangle,
-        translation: Vector,
+        translation: cosmic::iced::Vector,
     ) -> Option<cosmic::iced::core::overlay::Element<'b, Msg, cosmic::Theme, cosmic::Renderer>>
     {
         self.child.as_widget_mut().overlay(
