@@ -56,8 +56,8 @@ impl HandleCache {
     /// Insert a handle, evicting the oldest entry if at capacity.
     pub(crate) fn insert(&mut self, key: String, value: cosmic::widget::image::Handle) {
         // If already present just update the value in place.
-        if self.map.contains_key(&key) {
-            self.map.insert(key, value);
+        if let std::collections::hash_map::Entry::Occupied(mut e) = self.map.entry(key.clone()) {
+            e.insert(value);
             return;
         }
         // Evict oldest entries until there is room.
