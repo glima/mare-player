@@ -163,7 +163,7 @@ impl cosmic::Application for AppModel {
             loop_status: crate::tidal::mpris::LoopStatus::None,
             playback_context: None,
             image_cache: ImageCache::new(image_cache_max_mb),
-            loaded_images: HashMap::new(),
+            loaded_images: crate::state::HandleCache::new(512),
             pending_image_loads: HashSet::new(),
             favorite_track_ids: HashSet::new(),
             mpris_handle: None,

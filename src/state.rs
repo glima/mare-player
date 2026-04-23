@@ -4,7 +4,7 @@
 //!
 //! This module defines the main application model and view state types.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -26,6 +26,57 @@ use crate::tidal::play_history::PlayHistory;
 use crate::tidal::player::{NowPlaying, PlaybackState, Player};
 use crate::views::visualizer::VisualizerState;
 use cosmic::widget::image::Handle;
+
+/// Fixed-capacity FIFO cache for decoded RGBA image handles.
+///
+/// Wraps a [`HashMap`] and a [`VecDeque`] that tracks insertion order.
+/// When the cache is full the oldest entry is evicted.  Evicted images
+/// are cheap to re-decode from the on-disk [`ImageCache`], so the user
+/// never notices.
+///
+/// [`Deref`] delegates to the inner `HashMap` so read-only access
+/// (`.get()`, `.contains_key()`, iteration, borrowing as
+/// `&HashMap<…>`) works transparently in view code.
+pub(crate) struct HandleCache {
+    map: HashMap<String, cosmic::widget::image::Handle>,
+    order: VecDeque<String>,
+    capacity: usize,
+}
+
+impl HandleCache {
+    /// Create a new cache that holds at most `capacity` entries.
+    pub(crate) fn new(capacity: usize) -> Self {
+        Self {
+            map: HashMap::with_capacity(capacity),
+            order: VecDeque::with_capacity(capacity),
+            capacity,
+        }
+    }
+
+    /// Insert a handle, evicting the oldest entry if at capacity.
+    pub(crate) fn insert(&mut self, key: String, value: cosmic::widget::image::Handle) {
+        // If already present just update the value in place.
+        if self.map.contains_key(&key) {
+            self.map.insert(key, value);
+            return;
+        }
+        // Evict oldest entries until there is room.
+        while self.order.len() >= self.capacity {
+            if let Some(oldest) = self.order.pop_front() {
+                self.map.remove(&oldest);
+            }
+        }
+        self.order.push_back(key.clone());
+        self.map.insert(key, value);
+    }
+}
+
+impl std::ops::Deref for HandleCache {
+    type Target = HashMap<String, cosmic::widget::image::Handle>;
+    fn deref(&self) -> &Self::Target {
+        &self.map
+    }
+}
 
 /// Main application model holding all state
 pub struct AppModel {
@@ -122,8 +173,8 @@ pub struct AppModel {
     pub(crate) playback_context: Option<String>,
     /// Image cache for album art
     pub(crate) image_cache: ImageCache,
-    /// Loaded images (URL -> image handle)
-    pub(crate) loaded_images: HashMap<String, cosmic::widget::image::Handle>,
+    /// Decoded RGBA image handles, FIFO-evicted at 512 entries.
+    pub(crate) loaded_images: HandleCache,
     /// URLs currently being loaded (to avoid duplicate requests)
     pub(crate) pending_image_loads: HashSet<String>,
     /// Set of track IDs that are in user's favorites

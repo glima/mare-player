@@ -59,7 +59,7 @@ mod circular_basic {
     #[test]
     fn produces_rgba_output() {
         let input = make_solid_png(100, 100, 255, 0, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         assert_eq!(result.width, 100);
         assert_eq!(result.height, 100);
         assert_eq!(
@@ -72,7 +72,7 @@ mod circular_basic {
     #[test]
     fn output_is_square() {
         let input = make_solid_png(100, 100, 0, 255, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), img.height(), "output should be square");
     }
@@ -80,7 +80,7 @@ mod circular_basic {
     #[test]
     fn square_input_preserves_size() {
         let input = make_solid_png(64, 64, 0, 0, 255);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 64);
         assert_eq!(img.height(), 64);
@@ -90,7 +90,7 @@ mod circular_basic {
     fn rectangular_input_crops_to_square() {
         // Landscape: 200x100 → should crop to 100x100
         let input = make_solid_png(200, 100, 128, 128, 128);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
@@ -100,7 +100,7 @@ mod circular_basic {
     fn portrait_input_crops_to_square() {
         // Portrait: 100x200 → should crop to 100x100
         let input = make_solid_png(100, 200, 64, 64, 64);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 100);
         assert_eq!(img.height(), 100);
@@ -109,7 +109,7 @@ mod circular_basic {
     #[test]
     fn corners_are_transparent() {
         let input = make_solid_png(100, 100, 255, 0, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
 
         // The four corners should be fully transparent (alpha = 0)
@@ -127,7 +127,7 @@ mod circular_basic {
     #[test]
     fn center_is_opaque() {
         let input = make_solid_png(100, 100, 255, 0, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
 
         // The center should be fully opaque
@@ -140,7 +140,7 @@ mod circular_basic {
     #[test]
     fn center_preserves_colour() {
         let input = make_solid_png(100, 100, 42, 128, 200);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         let pixel = img.get_pixel(50, 50);
         assert_eq!(pixel[0], 42);
@@ -160,7 +160,7 @@ mod circular_formats {
     #[test]
     fn accepts_jpeg_input() {
         let input = make_solid_jpeg(80, 80, 255, 128, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 80);
         assert_eq!(img.height(), 80);
@@ -169,7 +169,7 @@ mod circular_formats {
     #[test]
     fn accepts_png_input() {
         let input = make_solid_png(60, 60, 0, 255, 128);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 60);
         assert_eq!(img.height(), 60);
@@ -186,7 +186,7 @@ mod circular_edge_cases {
     #[test]
     fn single_pixel_image() {
         let input = make_solid_png(1, 1, 255, 0, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 1);
         assert_eq!(img.height(), 1);
@@ -195,7 +195,7 @@ mod circular_edge_cases {
     #[test]
     fn two_by_two_image() {
         let input = make_solid_png(2, 2, 0, 255, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 2);
         assert_eq!(img.height(), 2);
@@ -204,7 +204,7 @@ mod circular_edge_cases {
     #[test]
     fn large_image() {
         let input = make_solid_png(1000, 1000, 100, 100, 100);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 1000).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 1000);
         assert_eq!(img.height(), 1000);
@@ -221,7 +221,7 @@ mod circular_edge_cases {
     #[test]
     fn very_wide_rectangle() {
         let input = make_solid_png(500, 10, 200, 50, 50);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         // Should be cropped to the smaller dimension
         assert_eq!(img.width(), 10);
@@ -231,7 +231,7 @@ mod circular_edge_cases {
     #[test]
     fn very_tall_rectangle() {
         let input = make_solid_png(10, 500, 50, 200, 50);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 10);
         assert_eq!(img.height(), 10);
@@ -240,7 +240,7 @@ mod circular_edge_cases {
     #[test]
     fn odd_dimensions() {
         let input = make_solid_png(77, 77, 128, 128, 128);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
         assert_eq!(img.width(), 77);
         assert_eq!(img.height(), 77);
@@ -256,13 +256,13 @@ mod circular_errors {
 
     #[test]
     fn empty_data_returns_error() {
-        let result = make_circular(b"");
+        let result = make_circular(b"", 320);
         assert!(result.is_err());
     }
 
     #[test]
     fn garbage_data_returns_error() {
-        let result = make_circular(b"this is not an image at all");
+        let result = make_circular(b"this is not an image at all", 320);
         assert!(result.is_err());
     }
 
@@ -270,13 +270,13 @@ mod circular_errors {
     fn truncated_png_returns_error() {
         let full = make_solid_png(50, 50, 255, 0, 0);
         let truncated = &full[..full.len() / 2];
-        let result = make_circular(truncated);
+        let result = make_circular(truncated, 320);
         assert!(result.is_err());
     }
 
     #[test]
     fn error_message_is_descriptive() {
-        let result = make_circular(b"not an image");
+        let result = make_circular(b"not an image", 320);
         let err = result.unwrap_err();
         assert!(
             err.contains("decode") || err.contains("Failed"),
@@ -299,7 +299,7 @@ mod circular_mask {
     fn mask_inside_outside() {
         let size = 100u32;
         let input = make_solid_png(size, size, 255, 128, 0);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;
@@ -337,7 +337,7 @@ mod circular_mask {
     fn has_antialiased_edge() {
         let size = 200u32;
         let input = make_solid_png(size, size, 200, 200, 200);
-        let result = make_circular(&input).unwrap();
+        let result = make_circular(&input, 320).unwrap();
         let img = rgba_image(&result);
 
         let center = size as f32 / 2.0;

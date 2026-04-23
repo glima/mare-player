@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use crate::config::{AudioQuality, Config};
-use crate::image_cache::make_circular;
+use crate::image_cache::{IMAGE_RENDER_MAX_PX, make_circular};
 use crate::messages::{Message, MprisStartResult};
 use crate::state::{AppModel, ViewState};
 use crate::tidal::mpris::{
@@ -58,7 +58,7 @@ impl AppModel {
                     let raw = cached.data.to_vec();
                     // Heavy image processing (decode + circular mask + PNG
                     // re-encode) runs here, off the main thread.
-                    match make_circular(&raw) {
+                    match make_circular(&raw, IMAGE_RENDER_MAX_PX) {
                         Ok(rgba) => Some((url_clone, rgba.width, rgba.height, rgba.pixels)),
                         Err(e) => {
                             tracing::warn!("Failed to make image circular: {}, using original", e);

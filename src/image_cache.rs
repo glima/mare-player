@@ -44,6 +44,15 @@ pub struct ImageCache {
     disk: DiskCache,
 }
 
+/// Maximum pixel dimension for decoded image handles.
+///
+/// Source artwork is 320×320 from the TIDAL CDN.  The largest on-screen
+/// usage is 96 px (album/artist detail); on a 2× HiDPI display that
+/// requires 192 real pixels.  160 px is a good middle ground — sharp
+/// enough for detail views while cutting per-image RGBA memory by 4×
+/// compared to the full 320 px source.
+pub const IMAGE_RENDER_MAX_PX: u32 = 160;
+
 impl Default for ImageCache {
     fn default() -> Self {
         Self::new(200) // 200 MB on disk
@@ -300,7 +309,7 @@ pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<RgbaPix
 
 /// Make an image circular by applying an alpha mask.
 /// Takes raw image bytes (JPEG/PNG) and returns raw RGBA pixels with circular transparency.
-pub fn make_circular(image_data: &[u8]) -> Result<RgbaPixels, String> {
+pub fn make_circular(image_data: &[u8], max_size: u32) -> Result<RgbaPixels, String> {
     // Decode the image
     let img = image::load_from_memory(image_data)
         .map_err(|e| format!("Failed to decode image: {}", e))?;
@@ -312,6 +321,14 @@ pub fn make_circular(image_data: &[u8]) -> Result<RgbaPixels, String> {
     let x_offset = (width - size) / 2;
     let y_offset = (height - size) / 2;
     let cropped = img.crop_imm(x_offset, y_offset, size, size);
+
+    // Downscale to save memory (320×320 RGBA = 400 KB → 160×160 = 100 KB)
+    let cropped = if size > max_size {
+        cropped.resize_exact(max_size, max_size, image::imageops::FilterType::Lanczos3)
+    } else {
+        cropped
+    };
+    let size = cropped.width();
 
     // Create RGBA image with circular mask
     let mut rgba = cropped.to_rgba8();
