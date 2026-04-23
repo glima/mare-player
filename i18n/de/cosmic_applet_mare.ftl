@@ -49,7 +49,13 @@ not-signed-in = Nicht angemeldet
 # Hauptansicht
 collection = Sammlung
 history = Verlauf
+feed = Feed
 mixes-and-radio = Mixes & Radio
+no-feed = Keine Feed-Aktivitäten
+feed-new-updates = Neue Updates
+feed-last-week = Letzte Woche
+feed-last-month = Letzter Monat
+feed-older = Älter
 
 # Abschnittsüberschriften
 albums = Alben

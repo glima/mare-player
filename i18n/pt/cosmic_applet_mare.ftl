@@ -49,7 +49,13 @@ not-signed-in = Não conectado
 # Tela principal
 collection = Coleção
 history = Histórico
+feed = Feed
 mixes-and-radio = Mixes e Rádio
+no-feed = Sem atividades no feed
+feed-new-updates = Novas atualizações
+feed-last-week = Última semana
+feed-last-month = Último mês
+feed-older = Mais antigo
 
 # Cabeçalhos de seção
 albums = Álbuns

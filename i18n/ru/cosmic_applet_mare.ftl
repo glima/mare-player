@@ -49,7 +49,13 @@ not-signed-in = Вход не выполнен
 # Главный экран
 collection = Коллекция
 history = История
+feed = Лента
 mixes-and-radio = Миксы и Радио
+no-feed = Нет активности в ленте
+feed-new-updates = Новые обновления
+feed-last-week = На прошлой неделе
+feed-last-month = В прошлом месяце
+feed-older = Ранее
 
 # Заголовки разделов
 albums = Альбомы

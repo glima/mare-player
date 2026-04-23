@@ -49,7 +49,13 @@ not-signed-in = لم يتم تسجيل الدخول
 # Main view
 collection = المجموعة
 history = السجل
+feed = موجز
 mixes-and-radio = المزيجات والراديو
+no-feed = لا توجد أنشطة في الموجز
+feed-new-updates = تحديثات جديدة
+feed-last-week = الأسبوع الماضي
+feed-last-month = الشهر الماضي
+feed-older = أقدم
 
 # Section headers
 albums = الألبومات

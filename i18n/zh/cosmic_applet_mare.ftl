@@ -49,7 +49,13 @@ not-signed-in = 未登录
 # 主视图
 collection = 收藏库
 history = 历史记录
+feed = 动态
 mixes-and-radio = 混音与电台
+no-feed = 暂无动态
+feed-new-updates = 最新动态
+feed-last-week = 上周
+feed-last-month = 上月
+feed-older = 更早
 
 # 区域标题
 albums = 专辑

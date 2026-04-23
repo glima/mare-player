@@ -49,7 +49,13 @@ not-signed-in = Inte inloggad
 # Huvudvy
 collection = Samling
 history = Historik
+feed = Flöde
 mixes-and-radio = Mixar & radio
+no-feed = Inga flödesaktiviteter
+feed-new-updates = Nya uppdateringar
+feed-last-week = Förra veckan
+feed-last-month = Förra månaden
+feed-older = Äldre
 
 # Avsnittsrubriker
 albums = Album

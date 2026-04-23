@@ -49,7 +49,13 @@ not-signed-in = 로그인되지 않음
 # Main view
 collection = 컬렉션
 history = 기록
+feed = 피드
 mixes-and-radio = 믹스 & 라디오
+no-feed = 피드 활동이 없습니다
+feed-new-updates = 새 업데이트
+feed-last-week = 지난주
+feed-last-month = 지난달
+feed-older = 이전
 
 # Section headers
 albums = 앨범

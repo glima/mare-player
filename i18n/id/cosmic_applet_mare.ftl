@@ -49,7 +49,13 @@ not-signed-in = Belum masuk
 # Tampilan utama
 collection = Koleksi
 history = Riwayat
+feed = Feed
 mixes-and-radio = Campuran & Radio
+no-feed = Tidak ada aktivitas feed
+feed-new-updates = Pembaruan Baru
+feed-last-week = Minggu Lalu
+feed-last-month = Bulan Lalu
+feed-older = Lebih Lama
 
 # Judul bagian
 albums = Album

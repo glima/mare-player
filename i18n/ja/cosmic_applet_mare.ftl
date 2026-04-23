@@ -49,7 +49,13 @@ not-signed-in = サインインしていません
 # メインビュー
 collection = コレクション
 history = 履歴
+feed = フィード
 mixes-and-radio = ミックス＆ラジオ
+no-feed = フィードのアクティビティはありません
+feed-new-updates = 新着
+feed-last-week = 先週
+feed-last-month = 先月
+feed-older = それ以前
 
 # セクションヘッダー
 albums = アルバム

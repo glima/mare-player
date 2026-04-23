@@ -49,7 +49,13 @@ not-signed-in = Giriş yapılmadı
 # Ana görünüm
 collection = Koleksiyon
 history = Geçmiş
+feed = Akış
 mixes-and-radio = Karışımlar ve Radyo
+no-feed = Akışta etkinlik yok
+feed-new-updates = Yeni Güncellemeler
+feed-last-week = Geçen Hafta
+feed-last-month = Geçen Ay
+feed-older = Daha Eski
 
 # Bölüm başlıkları
 albums = Albümler

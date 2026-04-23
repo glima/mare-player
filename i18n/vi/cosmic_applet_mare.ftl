@@ -49,7 +49,13 @@ not-signed-in = Chưa đăng nhập
 # Giao diện chính
 collection = Bộ sưu tập
 history = Lịch sử
+feed = Bảng tin
 mixes-and-radio = Bản phối & Radio
+no-feed = Không có hoạt động nào
+feed-new-updates = Cập nhật mới
+feed-last-week = Tuần trước
+feed-last-month = Tháng trước
+feed-older = Cũ hơn
 
 # Tiêu đề mục
 albums = Album

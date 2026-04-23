@@ -49,7 +49,13 @@ not-signed-in = Niet ingelogd
 # Hoofdweergave
 collection = Collectie
 history = Geschiedenis
+feed = Feed
 mixes-and-radio = Mixen & Radio
+no-feed = Geen feedactiviteiten
+feed-new-updates = Nieuwe updates
+feed-last-week = Vorige week
+feed-last-month = Vorige maand
+feed-older = Ouder
 
 # Sectiekoppen
 albums = Albums

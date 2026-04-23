@@ -49,7 +49,13 @@ not-signed-in = সাইন ইন করা হয়নি
 # প্রধান দৃশ্য
 collection = সংগ্রহ
 history = ইতিহাস
+feed = ফিড
 mixes-and-radio = মিক্স ও রেডিও
+no-feed = কোনো ফিড কার্যকলাপ নেই
+feed-new-updates = নতুন আপডেট
+feed-last-week = গত সপ্তাহ
+feed-last-month = গত মাস
+feed-older = পুরানো
 
 # বিভাগ শিরোনাম
 albums = অ্যালবাম

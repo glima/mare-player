@@ -90,6 +90,8 @@ check *args:
     else
         echo "cargo-audit not found, skipping security audit (install with: cargo install cargo-audit)"
     fi
+    echo "Checking i18n locale completeness..."
+    just i18n-check
 
 # Run tests (override features via: just features='--no-default-features' test)
 test *args:
@@ -262,6 +264,40 @@ install-standalone-debug: (_install-standalone 'debug')
 # Uninstalls installed files
 uninstall:
     rm -f {{ bin-dst }} {{ standalone-bin-dst }} {{ desktop-dst }} {{ icon-dst }} {{ icon-symbolic-dst }} {{ icon-scalable-symbolic-dst }}
+
+# Check that all locale .ftl files have the same keys as the English reference
+i18n-check:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ref="i18n/en/cosmic_applet_mare.ftl"
+    en_keys=$(grep -oP '^[a-z][-a-z0-9]*' "$ref" | sort)
+    en_count=$(echo "$en_keys" | wc -l)
+    echo "Reference: en ($en_count keys)"
+    echo ""
+    fail=0
+    for dir in i18n/*/; do
+        lang=$(basename "$dir")
+        [ "$lang" = "en" ] && continue
+        ftl="$dir/cosmic_applet_mare.ftl"
+        lang_keys=$(grep -oP '^[a-z][-a-z0-9]*' "$ftl" | sort)
+        missing=$(comm -23 <(echo "$en_keys") <(echo "$lang_keys"))
+        extra=$(comm -13 <(echo "$en_keys") <(echo "$lang_keys"))
+        m=$(echo "$missing" | grep -c . || true)
+        e=$(echo "$extra"   | grep -c . || true)
+        if [ "$m" -gt 0 ] || [ "$e" -gt 0 ]; then
+            echo "$lang: missing=$m extra=$e"
+            [ "$m" -gt 0 ] && echo "  missing: $missing" | tr '\n' ' ' && echo
+            [ "$e" -gt 0 ] && echo "  extra:   $extra"   | tr '\n' ' ' && echo
+            fail=1
+        fi
+    done
+    if [ "$fail" -eq 0 ]; then
+        echo "All locales up to date ✓"
+    else
+        echo ""
+        echo "Some locales are out of sync ✗"
+        exit 1
+    fi
 
 # Vendor dependencies locally
 vendor:

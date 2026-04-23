@@ -49,7 +49,13 @@ not-signed-in = Ви не увійшли
 # Головний вигляд
 collection = Колекція
 history = Історія
+feed = Стрічка
 mixes-and-radio = Мікси та радіо
+no-feed = Немає активності у стрічці
+feed-new-updates = Нові оновлення
+feed-last-week = Минулий тиждень
+feed-last-month = Минулий місяць
+feed-older = Раніше
 
 # Заголовки розділів
 albums = Альбоми

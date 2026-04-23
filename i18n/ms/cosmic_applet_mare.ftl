@@ -49,7 +49,13 @@ not-signed-in = Belum log masuk
 # Paparan utama
 collection = Koleksi
 history = Sejarah
+feed = Suapan
 mixes-and-radio = Campuran & Radio
+no-feed = Tiada aktiviti suapan
+feed-new-updates = Kemas Kini Baharu
+feed-last-week = Minggu Lepas
+feed-last-month = Bulan Lepas
+feed-older = Lebih Lama
 
 # Pengepala bahagian
 albums = Album

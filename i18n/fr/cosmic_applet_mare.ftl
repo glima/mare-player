@@ -49,7 +49,13 @@ not-signed-in = Non connecté
 # Vue principale
 collection = Collection
 history = Historique
+feed = Fil d'actualité
 mixes-and-radio = Mix et radio
+no-feed = Aucune activité dans le fil
+feed-new-updates = Nouvelles mises à jour
+feed-last-week = Semaine dernière
+feed-last-month = Mois dernier
+feed-older = Plus ancien
 
 # En-têtes de section
 albums = Albums

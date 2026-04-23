@@ -49,7 +49,13 @@ not-signed-in = साइन इन नहीं है
 # Main view
 collection = संग्रह
 history = इतिहास
+feed = फ़ीड
 mixes-and-radio = मिक्स और रेडियो
+no-feed = कोई फ़ीड गतिविधि नहीं
+feed-new-updates = नए अपडेट
+feed-last-week = पिछला सप्ताह
+feed-last-month = पिछला महीना
+feed-older = पुराने
 
 # Section headers
 albums = एल्बम
