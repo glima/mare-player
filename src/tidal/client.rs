@@ -18,7 +18,11 @@ use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tidlers::{TidalClient, auth::TidalAuth, client::models::playback::AudioQuality};
+use tidlers::{
+    TidalClient,
+    auth::TidalAuth,
+    client::models::{collection::favorites::FavoriteResourceType, playback::AudioQuality},
+};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
@@ -357,111 +361,42 @@ impl TidalAppClient {
         })
     }
 
-    // ── Favorites add/remove helpers ────────────────────────────────────
-
-    /// POST to `/v1/users/{userId}/favorites/{resource}` with a form body.
-    ///
-    /// `resource` is `"tracks"`, `"albums"`, or `"artists"`.
-    /// `id_param` is `"trackIds"`, `"albumIds"`, or `"artistIds"`.
+    /// Add `resource_id` to the user's favorites via tidlers.
     async fn add_to_favorites(
         &self,
-        resource: &str,
-        id_param: &str,
+        resource: FavoriteResourceType,
         resource_id: &str,
     ) -> TidalResult<()> {
         self.ensure_valid_token().await?;
+        let id: u32 = resource_id
+            .parse()
+            .map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
 
-        let ctx = self.auth_context_with_user().await?;
-
-        let url = format!(
-            "https://api.tidal.com/v1/users/{}/favorites/{}?countryCode={}",
-            ctx.user_id, resource, ctx.country_code
-        );
-
-        let http_client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", ctx.access_token))
-                .map_err(|e| TidalError::RequestFailed(format!("Invalid auth header: {}", e)))?,
-        );
-        headers.insert(
-            reqwest::header::CONTENT_TYPE,
-            HeaderValue::from_static("application/x-www-form-urlencoded"),
-        );
-
-        let body = format!("{}={}", id_param, resource_id);
-
-        match http_client
-            .post(&url)
-            .headers(headers)
-            .body(body)
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        client
+            .add_to_favorites(resource, id)
             .await
-        {
-            Ok(response) => {
-                if response.status().is_success() || response.status().as_u16() == 201 {
-                    info!("{} {} added to favorites", resource, resource_id);
-                    Ok(())
-                } else {
-                    let status = response.status();
-                    let body = response.text().await.unwrap_or_default();
-                    error!("Failed to add {} favorite: {} - {}", resource, status, body);
-                    Err(TidalError::RequestFailed(format!(
-                        "HTTP {}: {}",
-                        status, body
-                    )))
-                }
-            }
-            Err(e) => {
-                error!("Failed to add favorite {}: {:?}", resource, e);
-                Err(TidalError::NetworkError(format!("{:?}", e)))
-            }
-        }
+            .map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
-    /// DELETE `/v1/users/{userId}/favorites/{resource}/{resourceId}`.
-    async fn remove_from_favorites(&self, resource: &str, resource_id: &str) -> TidalResult<()> {
+    /// Remove `resource_id` from the user's favorites via tidlers.
+    async fn remove_from_favorites(
+        &self,
+        resource: FavoriteResourceType,
+        resource_id: &str,
+    ) -> TidalResult<()> {
         self.ensure_valid_token().await?;
+        let id: u32 = resource_id
+            .parse()
+            .map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
 
-        let ctx = self.auth_context_with_user().await?;
-
-        let url = format!(
-            "https://api.tidal.com/v1/users/{}/favorites/{}/{}?countryCode={}",
-            ctx.user_id, resource, resource_id, ctx.country_code
-        );
-
-        let http_client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", ctx.access_token))
-                .map_err(|e| TidalError::RequestFailed(format!("Invalid auth header: {}", e)))?,
-        );
-
-        match http_client.delete(&url).headers(headers).send().await {
-            Ok(response) => {
-                if response.status().is_success() || response.status().as_u16() == 204 {
-                    info!("{} {} removed from favorites", resource, resource_id);
-                    Ok(())
-                } else {
-                    let status = response.status();
-                    let body = response.text().await.unwrap_or_default();
-                    error!(
-                        "Failed to remove {} favorite: {} - {}",
-                        resource, status, body
-                    );
-                    Err(TidalError::RequestFailed(format!(
-                        "HTTP {}: {}",
-                        status, body
-                    )))
-                }
-            }
-            Err(e) => {
-                error!("Failed to remove favorite {}: {:?}", resource, e);
-                Err(TidalError::NetworkError(format!("{:?}", e)))
-            }
-        }
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        client
+            .remove_from_favorites(resource, id)
+            .await
+            .map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
     /// Create a new TidalAppClient
@@ -1451,67 +1386,38 @@ impl TidalAppClient {
         Ok(all_albums)
     }
 
-    /// Get playlist items (tracks)
-    /// Uses custom lenient parsing to handle playlists where artist name may be null
+    /// Get playlist items (tracks).
+    ///
+    /// Calls tidlers' `get_playlist_items()` repeatedly to paginate through the
+    /// full playlist. `limit` is the page size (capped at 100 by tidlers);
+    /// `_offset` is ignored (we always start from 0 and walk to the end).
     pub async fn get_playlist_tracks(
         &self,
         playlist_uuid: &str,
         limit: Option<u32>,
         _offset: Option<u32>,
     ) -> TidalResult<Vec<Track>> {
-        // Note: playlist_uuid is used as part of the cache key below
         self.ensure_valid_token().await?;
-
-        let ctx = self.auth_context().await?;
-
         debug!("Getting playlist tracks for: {}", playlist_uuid);
 
-        let http_client = reqwest::Client::new();
-        let page_size: u32 = limit.unwrap_or(100);
-        let mut offset: u32 = 0;
+        let page_size: u64 = limit.unwrap_or(100).min(100) as u64;
+        let mut offset: u64 = 0;
         let mut all_tracks: Vec<Track> = Vec::new();
 
         loop {
-            let url = format!(
-                "https://api.tidal.com/v1/playlists/{}/items?countryCode={}&limit={}&offset={}",
-                playlist_uuid, ctx.country_code, page_size, offset
-            );
+            let response = {
+                let client_guard = self.client.lock().await;
+                let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+                client
+                    .get_playlist_items(playlist_uuid, Some(page_size), Some(offset), None, None)
+                    .await
+                    .map_err(|e| TidalError::RequestFailed(format!("playlist items: {e:?}")))?
+            };
 
-            let response = http_client
-                .get(&url)
-                .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-                .send()
-                .await
-                .map_err(|e| TidalError::RequestFailed(format!("HTTP request failed: {}", e)))?;
+            let total = response.total_number_of_items;
+            let page_items = response.items.len() as u64;
 
-            if !response.status().is_success() {
-                let status = response.status();
-                let body = response.text().await.unwrap_or_default();
-                error!("Playlist tracks request failed: {} - {}", status, body);
-                return Err(TidalError::RequestFailed(format!(
-                    "HTTP {}: {}",
-                    status, body
-                )));
-            }
-
-            let body = response.text().await.map_err(|e| {
-                TidalError::RequestFailed(format!("Failed to read response: {}", e))
-            })?;
-
-            let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
-                serde_json::from_str(&body)
-                    .map_err(|e| TidalError::ParseError(format!("JSON parse error: {}", e)))?;
-
-            let total = parsed.total_number_of_items as u32;
-            let page_items = parsed.items.len() as u32;
-
-            all_tracks.extend(
-                parsed
-                    .items
-                    .into_iter()
-                    .filter_map(|w| w.item)
-                    .map(Track::from),
-            );
+            all_tracks.extend(response.items.into_iter().map(|p| Track::from(p.item)));
 
             offset += page_items;
             info!(
@@ -1757,13 +1663,15 @@ impl TidalAppClient {
     /// Add a track to user's favorites
     pub async fn add_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Adding track {} to favorites", track_id);
-        self.add_to_favorites("tracks", "trackIds", track_id).await
+        self.add_to_favorites(FavoriteResourceType::Tracks, track_id)
+            .await
     }
 
     /// Remove a track from user's favorites
     pub async fn remove_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Removing track {} from favorites", track_id);
-        self.remove_from_favorites("tracks", track_id).await
+        self.remove_from_favorites(FavoriteResourceType::Tracks, track_id)
+            .await
     }
 
     // =========================================================================
@@ -1970,13 +1878,15 @@ impl TidalAppClient {
     /// Add an album to user's favorites
     pub async fn add_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Adding album {} to favorites", album_id);
-        self.add_to_favorites("albums", "albumIds", album_id).await
+        self.add_to_favorites(FavoriteResourceType::Albums, album_id)
+            .await
     }
 
     /// Remove an album from user's favorites
     pub async fn remove_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Removing album {} from favorites", album_id);
-        self.remove_from_favorites("albums", album_id).await
+        self.remove_from_favorites(FavoriteResourceType::Albums, album_id)
+            .await
     }
     /// Fetch the user's subscription plan.
     ///
@@ -2188,6 +2098,9 @@ impl TidalAppClient {
     /// 2. `GET /v2/profiles/{id}` — returns `name`, `handle`, and a nested
     ///    `picture.url` UUID.
     ///
+    /// Calls tidlers' `get_user_v1` (firstName / lastName) and `get_user_v2`
+    /// (display name + picture URL).
+    ///
     /// Returns `(picture_url, display_name, first_name, last_name)` — each
     /// `Option` so callers can merge into the existing profile.
     async fn get_user_profile_extras(
@@ -2200,111 +2113,71 @@ impl TidalAppClient {
     )> {
         self.ensure_valid_token().await?;
 
-        let (user_id, access_token) = {
+        let user_id = {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-            let uid = match client.session.auth.user_id {
+            match client.session.auth.user_id {
                 Some(id) => id,
                 None => return Ok((None, None, None, None)),
-            };
-            let token = match client.session.auth.access_token.as_ref() {
-                Some(t) => t.clone(),
-                None => return Ok((None, None, None, None)),
-            };
-            (uid, token)
+            }
         };
-
-        let http_client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", access_token))
-                .map_err(|e| TidalError::RequestFailed(format!("Invalid auth header: {}", e)))?,
-        );
 
         let mut picture_url: Option<String> = None;
         let mut display_name: Option<String> = None;
         let mut first_name: Option<String> = None;
         let mut last_name: Option<String> = None;
 
-        // --- Attempt 1: GET /v1/users/{id} --------------------------------
-        // Returns firstName, lastName, and sometimes a picture UUID.
-        let url_v1 = format!("https://api.tidal.com/v1/users/{}?countryCode=US", user_id);
-        if let Ok(response) = http_client
-            .get(&url_v1)
-            .headers(headers.clone())
-            .send()
-            .await
-            && response.status().is_success()
-            && let Ok(body) = response.text().await
+        // --- v1 ---------------------------------------------------------
+        // tidlers' UserV1Response only exposes id / firstName / lastName.
+        // (The v1 endpoint also returns a `picture` UUID, but tidlers
+        // doesn't deserialize it; v2 below is the primary source.)
         {
-            debug!("User v1 response: {}", body);
-            if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
-                // Extract firstName / lastName (trim whitespace — TIDAL
-                // sometimes returns trailing spaces)
-                if let Some(f) = v.get("firstName").and_then(|x| x.as_str()) {
-                    let f = f.trim().to_string();
-                    if !f.is_empty() {
-                        info!("v1 firstName: {:?}", f);
-                        first_name = Some(f);
+            let client_guard = self.client.lock().await;
+            let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+            match client.get_user_v1(user_id.to_string()).await {
+                Ok(v1) => {
+                    if let Some(f) = v1.first_name {
+                        let f = f.trim().to_string();
+                        if !f.is_empty() {
+                            info!("v1 firstName: {:?}", f);
+                            first_name = Some(f);
+                        }
+                    }
+                    if let Some(l) = v1.last_name {
+                        let l = l.trim().to_string();
+                        if !l.is_empty() {
+                            info!("v1 lastName: {:?}", l);
+                            last_name = Some(l);
+                        }
                     }
                 }
-                if let Some(l) = v.get("lastName").and_then(|x| x.as_str()) {
-                    let l = l.trim().to_string();
-                    if !l.is_empty() {
-                        info!("v1 lastName: {:?}", l);
-                        last_name = Some(l);
-                    }
-                }
-
-                // Picture UUID (direct string, e.g. "abcd-1234-...")
-                if let Some(pic_id) = v.get("picture").and_then(|p| p.as_str())
-                    && !pic_id.is_empty()
-                {
-                    let url = Self::uuid_to_cdn_url(pic_id);
-                    info!("User profile picture from v1: {}", url);
-                    picture_url = Some(url);
-                }
+                Err(e) => debug!("get_user_v1 failed: {e:?}"),
             }
         }
 
-        // --- Attempt 2: GET /v2/profiles/{id} -----------------------------
-        // Returns name, handle, and picture: { url: "uuid" }.
-        let url_v2 = format!("https://api.tidal.com/v2/profiles/{}", user_id);
-        if let Ok(response) = http_client
-            .get(&url_v2)
-            .headers(headers.clone())
-            .send()
-            .await
+        // --- v2 ---------------------------------------------------------
+        // Display name + profile picture URL.
         {
-            let status = response.status();
-            if status.is_success() {
-                if let Ok(body) = response.text().await {
-                    debug!("User v2 profile response: {}", body);
-                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&body) {
-                        // Display name — v2 "name" is the user-chosen profile
-                        // name (e.g. "Gustavo")
-                        if display_name.is_none()
-                            && let Some(name) = v.get("name").and_then(|n| n.as_str())
-                        {
-                            let name = name.trim().to_string();
-                            if !name.is_empty() {
-                                info!("v2 profile name: {:?}", name);
-                                display_name = Some(name);
-                            }
+            let client_guard = self.client.lock().await;
+            let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+            match client.get_user_v2(user_id.to_string()).await {
+                Ok(v2) => {
+                    if let Some(name) = v2.name {
+                        let name = name.trim().to_string();
+                        if !name.is_empty() {
+                            info!("v2 profile name: {:?}", name);
+                            display_name = Some(name);
                         }
-
-                        // Picture — can be various shapes:
-                        //   string UUID: "abcd-1234-..."
-                        //   object:      { "url": "abcd-1234-..." }
-                        //   object:      { "320x320": "https://..." }
-                        if picture_url.is_none() {
-                            picture_url = Self::extract_picture_url_from_json(&v);
+                    }
+                    if let Some(pic) = v2.picture {
+                        if pic.url.starts_with("http") {
+                            picture_url = Some(pic.url);
+                        } else if !pic.url.is_empty() {
+                            picture_url = Some(Self::uuid_to_cdn_url(&pic.url));
                         }
                     }
                 }
-            } else {
-                debug!("v2 profile endpoint returned HTTP {}", status);
+                Err(e) => debug!("get_user_v2 failed: {e:?}"),
             }
         }
 
@@ -2618,50 +2491,20 @@ impl TidalAppClient {
 
     /// Fetch the tracks for a specific mix by its ID.
     ///
-    /// Uses the TIDAL v1 API endpoint `GET /v1/mixes/{mix_id}/items`.
+    /// Uses the TIDAL v1 API endpoint `GET /v1/mixes/{mix_id}/items` via tidlers.
     pub async fn get_mix_tracks(&self, mix_id: &str) -> TidalResult<Vec<Track>> {
         self.ensure_valid_token().await?;
-
-        let ctx = self.auth_context().await?;
-
         info!("Fetching tracks for mix: {}", mix_id);
 
-        let url = format!(
-            "https://api.tidal.com/v1/mixes/{}/items?countryCode={}&limit=100",
-            mix_id, ctx.country_code
-        );
-
-        let http_client = reqwest::Client::new();
-        let response = http_client
-            .get(&url)
-            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        let response = client
+            .get_mix_tracks(mix_id.to_string(), None, None)
             .await
-            .map_err(|e| TidalError::NetworkError(format!("mix tracks request failed: {}", e)))?;
+            .map_err(|e| TidalError::RequestFailed(format!("mix tracks: {e:?}")))?;
+        drop(client_guard);
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            error!("Mix tracks request failed: HTTP {} — {}", status, body);
-            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
-        }
-
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading mix body: {}", e)))?;
-
-        let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
-            serde_json::from_str(&body)
-                .map_err(|e| TidalError::ParseError(format!("parsing mix tracks: {}", e)))?;
-
-        let tracks: Vec<Track> = parsed
-            .items
-            .into_iter()
-            .filter_map(|w| w.item)
-            .map(Track::from)
-            .collect();
-
+        let tracks: Vec<Track> = response.items.into_iter().map(Track::from).collect();
         info!("Loaded {} tracks for mix {}", tracks.len(), mix_id);
         Ok(tracks)
     }
@@ -2672,7 +2515,7 @@ impl TidalAppClient {
 
     /// Fetch a "radio" playlist generated from a specific track.
     ///
-    /// Uses the TIDAL v1 API endpoint `GET /v1/tracks/{track_id}/radio`.
+    /// Uses the TIDAL v1 API endpoint `GET /v1/tracks/{track_id}/radio` via tidlers.
     /// Returns a list of recommended tracks similar to the seed track.
     pub async fn get_track_radio(
         &self,
@@ -2680,47 +2523,21 @@ impl TidalAppClient {
         limit: Option<u32>,
     ) -> TidalResult<Vec<Track>> {
         self.ensure_valid_token().await?;
-
-        let ctx = self.auth_context().await?;
-
         let limit_param = limit.unwrap_or(100);
         info!(
             "Fetching track radio for track {} (limit {})",
             track_id, limit_param
         );
 
-        let url = format!(
-            "https://api.tidal.com/v1/tracks/{}/radio?countryCode={}&limit={}",
-            track_id, ctx.country_code, limit_param
-        );
-
-        let http_client = reqwest::Client::new();
-        let response = http_client
-            .get(&url)
-            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        let response = client
+            .get_track_radio(track_id, Some(limit_param), None)
             .await
-            .map_err(|e| TidalError::NetworkError(format!("track radio request failed: {}", e)))?;
+            .map_err(|e| TidalError::RequestFailed(format!("track radio: {e:?}")))?;
+        drop(client_guard);
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            error!("Track radio request failed: HTTP {} — {}", status, body);
-            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
-        }
-
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading radio body: {}", e)))?;
-
-        // The response is a paginated wrapper: { limit, offset, totalNumberOfItems, items: [...] }
-        // Each item is a track object directly (no extra "item" wrapper like mixes).
-        let parsed: ApiPaginatedResponse<ApiTrackData> = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("parsing track radio: {}", e)))?;
-
-        let tracks: Vec<Track> = parsed.items.into_iter().map(Track::from).collect();
-
+        let tracks: Vec<Track> = response.items.into_iter().map(Track::from).collect();
         info!(
             "Loaded {} radio tracks for track {}",
             tracks.len(),
@@ -2734,92 +2551,32 @@ impl TidalAppClient {
     // =========================================================================
 
     /// Fetch artists similar to the given artist from TIDAL's recommendation
-    /// engine (`/v1/artists/{id}/similar`).
+    /// engine (`/v1/artists/{id}/similar`) via tidlers.
     ///
-    /// Returns up to `limit` (default 20) [`Artist`] entries.  The endpoint
-    /// is not exposed by `tidlers`, so we hit the REST API directly — same
-    /// pattern as [`Self::get_track_radio`].
+    /// Returns up to `limit` (default 20) [`Artist`] entries. Note: the
+    /// `popularity` and `roles` fields are not populated because tidlers'
+    /// embedded `Artist` model doesn't expose them.
     pub async fn get_similar_artists(
         &self,
         artist_id: &str,
         limit: Option<u32>,
     ) -> TidalResult<Vec<Artist>> {
         self.ensure_valid_token().await?;
-
-        let ctx = self.auth_context().await?;
-
         let limit_param = limit.unwrap_or(20);
         info!(
             "Fetching similar artists for artist {} (limit {})",
             artist_id, limit_param
         );
 
-        let url = format!(
-            "https://api.tidal.com/v1/artists/{}/similar?countryCode={}&limit={}",
-            artist_id, ctx.country_code, limit_param
-        );
-
-        let http_client = reqwest::Client::new();
-        let response = http_client
-            .get(&url)
-            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        let response = client
+            .get_similar_artists(artist_id, Some(limit_param))
             .await
-            .map_err(|e| {
-                TidalError::NetworkError(format!("similar artists request failed: {}", e))
-            })?;
+            .map_err(|e| TidalError::RequestFailed(format!("similar artists: {e:?}")))?;
+        drop(client_guard);
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            error!("Similar artists request failed: HTTP {} — {}", status, body);
-            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
-        }
-
-        let body = response.text().await.map_err(|e| {
-            TidalError::NetworkError(format!("reading similar artists body: {}", e))
-        })?;
-
-        #[derive(Deserialize)]
-        struct SimilarResponse {
-            items: Vec<SimilarArtist>,
-        }
-        #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct SimilarArtist {
-            id: u64,
-            name: String,
-            picture: Option<String>,
-            popularity: Option<u32>,
-            artist_roles: Option<Vec<SimilarArtistRole>>,
-        }
-        #[derive(Deserialize)]
-        struct SimilarArtistRole {
-            category: String,
-        }
-
-        let parsed: SimilarResponse = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("parsing similar artists: {}", e)))?;
-
-        let artists: Vec<Artist> = parsed
-            .items
-            .into_iter()
-            .map(|a| Artist {
-                id: a.id.to_string(),
-                name: a.name,
-                picture_url: a.picture.map(|p| Self::uuid_to_cdn_url(&p)),
-                bio: None,
-                popularity: a.popularity,
-                roles: a
-                    .artist_roles
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(|r| r.category)
-                    .collect(),
-                url: None,
-            })
-            .collect();
-
+        let artists: Vec<Artist> = response.items.into_iter().map(Artist::from).collect();
         info!(
             "Loaded {} similar artists for artist {}",
             artists.len(),
@@ -2998,7 +2755,7 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `PUT /v1/users/{userId}/favorites/artists`.
     pub async fn follow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Following artist {}", artist_id);
-        self.add_to_favorites("artists", "artistIds", artist_id)
+        self.add_to_favorites(FavoriteResourceType::Artists, artist_id)
             .await
     }
 
@@ -3007,192 +2764,93 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `DELETE /v1/users/{userId}/favorites/artists/{artistId}`.
     pub async fn unfollow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Unfollowing artist {}", artist_id);
-        self.remove_from_favorites("artists", artist_id).await
+        self.remove_from_favorites(FavoriteResourceType::Artists, artist_id)
+            .await
     }
 
     /// Fetch the user's feed (new releases from followed artists).
     ///
-    /// Calls `GET /v2/feed/activities` and returns a list of activities
-    /// sorted newest-first by `occurredAt`.
+    /// Calls `GET /v2/feed/activities` (via tidlers) and returns a list of
+    /// activities sorted newest-first by `occurredAt`.
     pub async fn get_feed(&self) -> TidalResult<Vec<FeedActivity>> {
         self.ensure_valid_token().await?;
-        let ctx = self.auth_context().await?;
-
         debug!("Fetching feed activities");
 
-        let http_client = reqwest::Client::new();
-        let url = format!(
-            "https://api.tidal.com/v2/feed/activities?countryCode={}&locale=en_US",
-            ctx.country_code
-        );
-
-        let response = http_client
-            .get(&url)
-            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        let raw = client
+            .get_activity_feed()
             .await
-            .map_err(|e| TidalError::NetworkError(format!("feed request failed: {}", e)))?;
+            .map_err(|e| TidalError::RequestFailed(format!("feed: {e:?}")))?;
+        drop(client_guard);
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            error!("Feed request failed: HTTP {} — {}", status, body);
-            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
-        }
-
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading feed body: {}", e)))?;
-
-        let json: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("parsing feed JSON: {}", e)))?;
-
-        let mut activities = Vec::new();
-
-        if let Some(items) = json.get("activities").and_then(|v| v.as_array()) {
-            for item in items {
-                let activity = item.get("followableActivity");
-                let seen = item.get("seen").and_then(|v| v.as_bool()).unwrap_or(false);
-
-                if let Some(activity) = activity {
-                    let activity_type = activity
-                        .get("activityType")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("");
-
-                    let occurred_at = activity
-                        .get("occurredAt")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("")
-                        .to_string();
-
-                    let feed_item = match activity_type {
-                        "NEW_ALBUM_RELEASE" => {
-                            activity.get("album").and_then(|album_json| {
-                                let id = album_json.get("id")?.as_u64()?.to_string();
-                                let title = album_json.get("title")?.as_str()?.to_string();
-                                let cover = album_json
-                                    .get("cover")
-                                    .and_then(|v| v.as_str())
-                                    .map(Self::uuid_to_cdn_url);
-                                let explicit = album_json
-                                    .get("explicit")
-                                    .and_then(|v| v.as_bool())
-                                    .unwrap_or(false);
-                                let release_date = album_json
-                                    .get("releaseDate")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string());
-                                let audio_quality = album_json
-                                    .get("audioQuality")
-                                    .and_then(|v| v.as_str())
-                                    .map(|s| s.to_string());
-                                let num_tracks = album_json
-                                    .get("numberOfTracks")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0)
-                                    as u32;
-                                let duration = album_json
-                                    .get("duration")
-                                    .and_then(|v| v.as_u64())
-                                    .unwrap_or(0)
-                                    as u32;
-
-                                // Extract artist info
-                                let (artist_name, artist_id) = album_json
-                                    .get("artists")
-                                    .and_then(|v| v.as_array())
-                                    .and_then(|artists| {
-                                        // Join all main artist names
-                                        let names: Vec<String> = artists
-                                            .iter()
-                                            .filter(|a| {
-                                                a.get("main")
-                                                    .and_then(|v| v.as_bool())
-                                                    .unwrap_or(true)
-                                            })
-                                            .filter_map(|a| {
-                                                a.get("name")
-                                                    .and_then(|v| v.as_str())
-                                                    .map(String::from)
-                                            })
-                                            .collect();
-                                        let first_id = artists.first().and_then(|a| {
-                                            a.get("id")
-                                                .and_then(|v| v.as_u64())
-                                                .map(|id| id.to_string())
-                                        });
-                                        if names.is_empty() {
-                                            None
-                                        } else {
-                                            Some((names.join(", "), first_id))
-                                        }
-                                    })
-                                    .unwrap_or_else(|| ("Unknown Artist".to_string(), None));
-
-                                Some(FeedItem::AlbumRelease(Album {
-                                    id,
-                                    title,
-                                    artist_name,
-                                    artist_id,
-                                    num_tracks,
-                                    duration,
-                                    release_date,
-                                    cover_url: cover,
-                                    explicit,
-                                    audio_quality,
-                                    review: None,
-                                }))
-                            })
-                        }
-                        "NEW_HISTORY_MIX" => activity.get("historyMix").and_then(|mix_json| {
-                            let id = mix_json.get("id")?.as_str()?.to_string();
-                            let title = mix_json
-                                .get("titleTextInfo")
-                                .and_then(|v| v.get("text"))
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("History Mix")
-                                .to_string();
-                            let subtitle = mix_json
-                                .get("subTitleTextInfo")
-                                .and_then(|v| v.get("text"))
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let image_url = mix_json
-                                .get("images")
-                                .and_then(|v| v.get("SMALL"))
-                                .and_then(|v| v.get("url"))
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string());
-
-                            Some(FeedItem::HistoryMix {
-                                id,
-                                title,
-                                subtitle,
-                                image_url,
-                            })
-                        }),
-                        _ => {
-                            debug!("Unknown feed activity type: {}", activity_type);
-                            None
-                        }
-                    };
-
-                    if let Some(feed_item) = feed_item {
-                        activities.push(FeedActivity {
-                            item: feed_item,
-                            occurred_at,
-                            seen,
-                        });
-                    }
-                }
-            }
-        }
+        let activities: Vec<FeedActivity> =
+            raw.into_iter().map(Self::from_tidlers_activity).collect();
 
         info!("Feed: loaded {} activities", activities.len());
         self.cache_api_response("user_feed", &activities);
         Ok(activities)
+    }
+
+    /// Repair a `cover_url` built by tidlers' broken `uuid_to_cdn_url`.
+    ///
+    /// Tidlers builds `https://resources.tidal.com/images/<UUID_NO_HYPHENS>/640x640`,
+    /// but TIDAL's CDN actually serves
+    /// `https://resources.tidal.com/images/<UUID-slash-segmented>/<size>.jpg`.
+    /// Re-insert the slashes and append `.jpg`.
+    fn repair_tidlers_cover_url(url: String) -> String {
+        const PREFIX: &str = "https://resources.tidal.com/images/";
+        let Some(tail) = url.strip_prefix(PREFIX) else {
+            return url;
+        };
+        // tail looks like "<uuid>/<size>" e.g. "370eaac5737e4862b0cd31e53b24283e/640x640"
+        let Some((uuid, size)) = tail.split_once('/') else {
+            return url;
+        };
+        // Only repair if uuid is a 32-char hex string with no slashes already.
+        if uuid.len() != 32 || !uuid.chars().all(|c| c.is_ascii_hexdigit()) {
+            return url;
+        }
+        // Split into 8-4-4-4-12 segments, joined by '/'.
+        let slashed = format!(
+            "{}/{}/{}/{}/{}",
+            &uuid[0..8],
+            &uuid[8..12],
+            &uuid[12..16],
+            &uuid[16..20],
+            &uuid[20..32],
+        );
+        format!("{PREFIX}{slashed}/{size}.jpg")
+    }
+
+    /// Convert a tidlers `FeedActivity` into mare-player's `FeedActivity`.
+    fn from_tidlers_activity(a: tidlers::client::models::feed::FeedActivity) -> FeedActivity {
+        use tidlers::client::models::feed::FeedItem as TItem;
+        let item = match a.item {
+            TItem::AlbumRelease(album) => FeedItem::AlbumRelease(Album {
+                id: album.id,
+                title: album.title,
+                artist_name: album.artist_name,
+                artist_id: album.artist_id,
+                num_tracks: album.num_tracks,
+                duration: album.duration,
+                release_date: album.release_date,
+                cover_url: album.cover_url.map(Self::repair_tidlers_cover_url),
+                explicit: album.explicit,
+                audio_quality: album.audio_quality,
+                review: None,
+            }),
+            TItem::HistoryMix(mix) => FeedItem::HistoryMix {
+                id: mix.id,
+                title: mix.title,
+                subtitle: mix.subtitle,
+                image_url: mix.image_url,
+            },
+        };
+        FeedActivity {
+            item,
+            occurred_at: a.occurred_at,
+            seen: a.seen,
+        }
     }
 }
