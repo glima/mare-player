@@ -165,6 +165,7 @@ impl cosmic::Application for AppModel {
             image_cache: ImageCache::new(image_cache_max_mb),
             loaded_images: crate::state::HandleCache::new(1024),
             pending_image_loads: HashSet::new(),
+            thumbnail_request_rx: None,
             favorite_track_ids: HashSet::new(),
             mpris_handle: None,
             mpris_command_rx: None,
@@ -182,6 +183,13 @@ impl cosmic::Application for AppModel {
             #[cfg(not(feature = "panel-applet"))]
             menu_key_binds: HashMap::new(),
         };
+
+        // Wire up the lazy thumbnail-request channel: renderers ping the
+        // sender on cache miss (via `HandleCache::get_or_request`), and a
+        // subscription drains the receiver, dispatching `LoadImage` per URL.
+        let (thumb_tx, thumb_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+        app.loaded_images.set_request_tx(thumb_tx);
+        app.thumbnail_request_rx = Some(Arc::new(Mutex::new(thumb_rx)));
 
         // In standalone mode, set the Wayland/compositor window title so the
         // SSD header bar displays "Maré Player".
@@ -368,6 +376,36 @@ impl cosmic::Application for AppModel {
                         let mut rx = rx.lock().await;
                         while let Some(cmd) = rx.recv().await {
                             if channel.send(Message::MprisCommand(cmd)).await.is_err() {
+                                break;
+                            }
+                        }
+                        futures_util::future::pending().await
+                    })
+                },
+            ));
+        }
+
+        // Lazy thumbnail-load subscription: drain the channel populated by
+        // `HandleCache::get_or_request` and dispatch `LoadImage` per URL.
+        // `handle_load_image` already dedupes against `pending_image_loads`
+        // and `loaded_images`, so flooding from re-renders is harmless.
+        if let Some(rx) = &self.thumbnail_request_rx {
+            struct ThumbRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>);
+
+            impl std::hash::Hash for ThumbRx {
+                fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                    Arc::as_ptr(&self.0).hash(state);
+                }
+            }
+
+            subs.push(Subscription::run_with(
+                ThumbRx(rx.clone()),
+                |data: &ThumbRx| {
+                    let rx = data.0.clone();
+                    cosmic::iced::stream::channel(64, async move |mut channel| {
+                        let mut rx = rx.lock().await;
+                        while let Some(url) = rx.recv().await {
+                            if channel.send(Message::LoadImage(url)).await.is_err() {
                                 break;
                             }
                         }

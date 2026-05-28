@@ -49,6 +49,11 @@ pub(crate) struct HandleCache {
     capacity: usize,
     /// Monotonic access counter, bumped on every `get` and `insert`.
     counter: Cell<u64>,
+    /// Outgoing channel used by [`get_or_request`] to ask the app to fetch
+    /// a missing thumbnail.  Set late (after the channel is created in
+    /// `AppModel::init`).  When `None`, [`get_or_request`] behaves exactly
+    /// like [`get`].
+    request_tx: Option<tokio::sync::mpsc::UnboundedSender<String>>,
 }
 
 impl HandleCache {
@@ -58,7 +63,14 @@ impl HandleCache {
             map: HashMap::with_capacity(capacity),
             capacity,
             counter: Cell::new(0),
+            request_tx: None,
         }
+    }
+
+    /// Install the channel that [`get_or_request`] uses to request lazy
+    /// loads of missing thumbnails.  Called once at app init.
+    pub(crate) fn set_request_tx(&mut self, tx: tokio::sync::mpsc::UnboundedSender<String>) {
+        self.request_tx = Some(tx);
     }
 
     /// Number of cached entries.
@@ -77,6 +89,27 @@ impl HandleCache {
         self.counter.set(new);
         entry.1.set(new);
         Some(&entry.0)
+    }
+
+    /// Like [`get`], but on a cache miss with a non-empty `key`, fire off
+    /// a lazy load request through the channel installed by
+    /// [`set_request_tx`].
+    ///
+    /// Renderers should call this instead of [`get`] for any thumbnail
+    /// they want lazy-loaded; the request is deduplicated at the
+    /// `handle_load_image` level so flooding from re-renders is harmless.
+    pub(crate) fn get_or_request(&self, key: &str) -> Option<&cosmic::widget::image::Handle> {
+        if let Some(handle) = self.get(key) {
+            return Some(handle);
+        }
+        if !key.is_empty()
+            && let Some(tx) = &self.request_tx
+        {
+            // Channel is unbounded; send only fails if the receiver was
+            // dropped (shouldn't happen during normal operation).  Ignore.
+            let _ = tx.send(key.to_string());
+        }
+        None
     }
 
     /// Check whether a URL is cached, without affecting LRU order.
@@ -215,6 +248,12 @@ pub struct AppModel {
     pub(crate) loaded_images: HandleCache,
     /// URLs currently being loaded (to avoid duplicate requests)
     pub(crate) pending_image_loads: HashSet<String>,
+    /// Receiver half of the lazy-thumbnail-request channel.  Renderers call
+    /// [`HandleCache::get_or_request`] which pushes onto the sender side;
+    /// the subscription drains this receiver and dispatches
+    /// [`Message::LoadImage`] for each URL.
+    pub(crate) thumbnail_request_rx:
+        Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
     /// Set of track IDs that are in user's favorites
     pub(crate) favorite_track_ids: HashSet<String>,
     /// MPRIS D-Bus handle for external media control

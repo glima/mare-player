@@ -43,7 +43,7 @@ pub(crate) fn build_thumbnail<'a>(
     fallback_icon: &'static str,
 ) -> Element<'a, Message> {
     if let Some(url) = url
-        && let Some(handle) = loaded_images.get(url)
+        && let Some(handle) = loaded_images.get_or_request(url)
     {
         return cosmic::widget::image(handle.clone())
             .width(THUMBNAIL_SIZE)

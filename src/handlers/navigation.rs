@@ -218,8 +218,14 @@ impl AppModel {
         // Populate virtual track list for this view
         self.rebuild_history_track_list();
 
-        // Pre-load cover images for history tracks
-        let urls: Vec<String> = (0..self.track_list_content.len())
+        // Eager-preload covers for the first ~30 history entries (enough to
+        // populate the initial viewport without a network round-trip per
+        // visible row).  Beyond that, `HandleCache::get_or_request` lazy-loads
+        // covers as rows scroll into view — critical for users whose history
+        // has accumulated hundreds or thousands of entries, where eager-
+        // preloading everything would saturate the CDN and the LRU cache.
+        const HISTORY_EAGER_PRELOAD: usize = 30;
+        let urls: Vec<String> = (0..self.track_list_content.len().min(HISTORY_EAGER_PRELOAD))
             .filter_map(|i| {
                 self.track_list_content
                     .get(i)
