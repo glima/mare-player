@@ -198,6 +198,7 @@ impl AppModel {
                 info_col = info_col.push(text(email.clone()).size(11).class(
                     cosmic::theme::Text::Custom(|theme| cosmic::iced::widget::text::Style {
                         color: Some(theme.cosmic().palette.neutral_7.into()),
+                        ..Default::default()
                     }),
                 ));
             }

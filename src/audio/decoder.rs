@@ -865,7 +865,7 @@ impl AudioDecoder {
             };
 
             // Skip packets from other tracks
-            if packet.track_id() != self.track_id {
+            if packet.track_id != self.track_id {
                 continue;
             }
 

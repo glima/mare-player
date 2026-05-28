@@ -29,6 +29,7 @@ impl AppModel {
             title_row = title_row.push(text(fl!("debug-unoptimized")).size(12).class(
                 cosmic::theme::Text::Custom(|_theme| cosmic::iced::widget::text::Style {
                     color: Some(cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2)),
+                    ..Default::default()
                 }),
             ));
         }
