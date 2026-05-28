@@ -20,6 +20,7 @@ use std::path::PathBuf;
 
 use cosmic_applet_mare::tidal::auth::AuthState;
 use cosmic_applet_mare::tidal::client::{PlaybackUrl, TidalAppClient, TidalError};
+use cosmic_applet_mare::tidal::models::tidal_cover_url;
 
 // ===========================================================================
 // PlaybackUrl — as_url
@@ -691,7 +692,7 @@ mod title_case {
 }
 
 // ===========================================================================
-// TidalAppClient::uuid_to_cdn_url
+// tidal_cover_url
 // ===========================================================================
 
 mod uuid_to_cdn_url {
@@ -699,7 +700,7 @@ mod uuid_to_cdn_url {
 
     #[test]
     fn standard_uuid_converts_correctly() {
-        let url = TidalAppClient::uuid_to_cdn_url("7e58f111-5b1a-492a-aaf1-88fb55ce8a44");
+        let url = tidal_cover_url("7e58f111-5b1a-492a-aaf1-88fb55ce8a44");
         assert_eq!(
             url,
             "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
@@ -708,7 +709,7 @@ mod uuid_to_cdn_url {
 
     #[test]
     fn uuid_with_no_dashes_unchanged() {
-        let url = TidalAppClient::uuid_to_cdn_url("abcdef1234567890");
+        let url = tidal_cover_url("abcdef1234567890");
         assert_eq!(
             url,
             "https://resources.tidal.com/images/abcdef1234567890/320x320.jpg"
@@ -717,25 +718,25 @@ mod uuid_to_cdn_url {
 
     #[test]
     fn empty_uuid() {
-        let url = TidalAppClient::uuid_to_cdn_url("");
+        let url = tidal_cover_url("");
         assert_eq!(url, "https://resources.tidal.com/images//320x320.jpg");
     }
 
     #[test]
     fn uuid_result_ends_with_jpg() {
-        let url = TidalAppClient::uuid_to_cdn_url("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+        let url = tidal_cover_url("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
         assert!(url.ends_with("/320x320.jpg"));
     }
 
     #[test]
     fn uuid_result_starts_with_tidal_cdn() {
-        let url = TidalAppClient::uuid_to_cdn_url("test");
+        let url = tidal_cover_url("test");
         assert!(url.starts_with("https://resources.tidal.com/images/"));
     }
 
     #[test]
     fn dashes_are_replaced_with_slashes() {
-        let url = TidalAppClient::uuid_to_cdn_url("a-b-c");
+        let url = tidal_cover_url("a-b-c");
         assert_eq!(url, "https://resources.tidal.com/images/a/b/c/320x320.jpg");
     }
 }
