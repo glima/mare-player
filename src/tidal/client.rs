@@ -12,7 +12,10 @@
 //! - HiRes/DASH streaming support
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
-use super::models::{Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track};
+use super::models::{
+    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track,
+    repair_tidlers_cover_url, tidal_cover_url,
+};
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
@@ -167,7 +170,7 @@ impl From<ApiTrackData> for Track {
             artist_id: Some(t.artist.id.to_string()),
             album_name: Some(t.album.title),
             album_id: Some(t.album.id.to_string()),
-            cover_url: t.album.cover.map(|c| TidalAppClient::uuid_to_cdn_url(&c)),
+            cover_url: t.album.cover.map(|c| tidal_cover_url(&c)),
             explicit: t.explicit,
             audio_quality: t.audio_quality,
         }
@@ -206,7 +209,7 @@ impl From<ApiAlbumData> for Album {
             num_tracks: a.number_of_tracks,
             duration: a.duration as u32,
             release_date: a.release_date,
-            cover_url: Some(TidalAppClient::uuid_to_cdn_url(&a.cover)),
+            cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: a.audio_quality,
             review: None,
@@ -2173,7 +2176,7 @@ impl TidalAppClient {
                         if pic.url.starts_with("http") {
                             picture_url = Some(pic.url);
                         } else if !pic.url.is_empty() {
-                            picture_url = Some(Self::uuid_to_cdn_url(&pic.url));
+                            picture_url = Some(tidal_cover_url(&pic.url));
                         }
                     }
                 }
@@ -2188,15 +2191,6 @@ impl TidalAppClient {
         }
 
         Ok((picture_url, display_name, first_name, last_name))
-    }
-
-    /// Convert a TIDAL image UUID (e.g. "7e58f111-5b1a-492a-aaf1-88fb55ce8a44")
-    /// to a CDN URL.
-    pub fn uuid_to_cdn_url(uuid: &str) -> String {
-        format!(
-            "https://resources.tidal.com/images/{}/320x320.jpg",
-            uuid.replace('-', "/")
-        )
     }
 
     /// Try to extract a picture URL from a JSON value that might contain
@@ -2217,7 +2211,7 @@ impl TidalAppClient {
                         return Some(url_str.to_string());
                     }
                     // Treat as UUID
-                    return Some(Self::uuid_to_cdn_url(url_str));
+                    return Some(tidal_cover_url(url_str));
                 }
 
                 // Nested object — e.g. { "url": "uuid" } or { "320x320": "https://..." }
@@ -2230,7 +2224,7 @@ impl TidalAppClient {
                             return Some(url_val.to_string());
                         }
                         // Treat as UUID
-                        return Some(Self::uuid_to_cdn_url(url_val));
+                        return Some(tidal_cover_url(url_val));
                     }
                     // Then try size keys
                     for size_key in &["320x320", "640x640", "750x750", "medium", "large", "small"] {
@@ -2240,7 +2234,7 @@ impl TidalAppClient {
                             if url_str.starts_with("http") {
                                 return Some(url_str.to_string());
                             }
-                            return Some(Self::uuid_to_cdn_url(url_str));
+                            return Some(tidal_cover_url(url_str));
                         }
                     }
                 }
@@ -2687,7 +2681,7 @@ impl TidalAppClient {
                             .get("picture")
                             .and_then(|v| v.as_str())
                             .filter(|p| !p.is_empty())
-                            .map(Self::uuid_to_cdn_url);
+                            .map(tidal_cover_url);
 
                         let popularity = data
                             .get("popularity")
@@ -2792,37 +2786,6 @@ impl TidalAppClient {
         Ok(activities)
     }
 
-    /// Repair a `cover_url` built by tidlers' broken `uuid_to_cdn_url`.
-    ///
-    /// Tidlers builds `https://resources.tidal.com/images/<UUID_NO_HYPHENS>/640x640`,
-    /// but TIDAL's CDN actually serves
-    /// `https://resources.tidal.com/images/<UUID-slash-segmented>/<size>.jpg`.
-    /// Re-insert the slashes and append `.jpg`.
-    fn repair_tidlers_cover_url(url: String) -> String {
-        const PREFIX: &str = "https://resources.tidal.com/images/";
-        let Some(tail) = url.strip_prefix(PREFIX) else {
-            return url;
-        };
-        // tail looks like "<uuid>/<size>" e.g. "370eaac5737e4862b0cd31e53b24283e/640x640"
-        let Some((uuid, size)) = tail.split_once('/') else {
-            return url;
-        };
-        // Only repair if uuid is a 32-char hex string with no slashes already.
-        if uuid.len() != 32 || !uuid.chars().all(|c| c.is_ascii_hexdigit()) {
-            return url;
-        }
-        // Split into 8-4-4-4-12 segments, joined by '/'.
-        let slashed = format!(
-            "{}/{}/{}/{}/{}",
-            &uuid[0..8],
-            &uuid[8..12],
-            &uuid[12..16],
-            &uuid[16..20],
-            &uuid[20..32],
-        );
-        format!("{PREFIX}{slashed}/{size}.jpg")
-    }
-
     /// Convert a tidlers `FeedActivity` into mare-player's `FeedActivity`.
     fn from_tidlers_activity(a: tidlers::client::models::feed::FeedActivity) -> FeedActivity {
         use tidlers::client::models::feed::FeedItem as TItem;
@@ -2835,7 +2798,7 @@ impl TidalAppClient {
                 num_tracks: album.num_tracks,
                 duration: album.duration,
                 release_date: album.release_date,
-                cover_url: album.cover_url.map(Self::repair_tidlers_cover_url),
+                cover_url: album.cover_url.map(repair_tidlers_cover_url),
                 explicit: album.explicit,
                 audio_quality: album.audio_quality,
                 review: None,

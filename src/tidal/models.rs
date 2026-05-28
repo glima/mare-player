@@ -7,6 +7,68 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── CDN URL helpers ────────────────────────────────────────────────────
+
+/// Default cover size requested from TIDAL's resource CDN.
+///
+/// 320 px square is enough for list rows and search hits and is what almost
+/// every call site wants.  Use [`tidal_cover_url_sized`] when you need a
+/// different size (e.g. 750 for the artist detail hero).
+pub const DEFAULT_COVER_SIZE_PX: u32 = 320;
+
+/// Build a TIDAL CDN URL for an image UUID at the default size.
+///
+/// TIDAL's CDN expects the UUID's hyphen-separated segments to be joined by
+/// `/` rather than `-`, followed by `<size>x<size>.jpg`.  Example:
+///
+/// ```text
+/// uuid:  "7e58f111-5b1a-492a-aaf1-88fb55ce8a44"
+/// url:   "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
+/// ```
+pub fn tidal_cover_url(uuid: &str) -> String {
+    tidal_cover_url_sized(uuid, DEFAULT_COVER_SIZE_PX)
+}
+
+/// Build a TIDAL CDN URL for an image UUID at a specific square size.
+pub fn tidal_cover_url_sized(uuid: &str, size_px: u32) -> String {
+    format!(
+        "https://resources.tidal.com/images/{}/{size_px}x{size_px}.jpg",
+        uuid.replace('-', "/")
+    )
+}
+
+/// Repair a `cover_url` built by tidlers' broken `uuid_to_cdn_url`.
+///
+/// Tidlers 0.4.0 builds `https://resources.tidal.com/images/<UUID_NO_HYPHENS>/640x640`,
+/// but TIDAL's CDN actually serves
+/// `https://resources.tidal.com/images/<UUID-slash-segmented>/<size>.jpg`.
+/// Re-insert the slashes and append `.jpg`.  This is a no-op once tidlers
+/// fixes its formatter upstream.
+pub fn repair_tidlers_cover_url(url: String) -> String {
+    const PREFIX: &str = "https://resources.tidal.com/images/";
+    let Some(tail) = url.strip_prefix(PREFIX) else {
+        return url;
+    };
+    // tail looks like "<uuid>/<size>" e.g. "370eaac5737e4862b0cd31e53b24283e/640x640"
+    let Some((uuid, size)) = tail.split_once('/') else {
+        return url;
+    };
+    // Only repair if uuid is a 32-char hex string (tidlers' broken format).
+    if uuid.len() != 32 || !uuid.chars().all(|c| c.is_ascii_hexdigit()) {
+        return url;
+    }
+    // Split into 8-4-4-4-12 segments, joined by '/'.
+    let slashed = format!(
+        "{}/{}/{}/{}/{}",
+        &uuid[0..8],
+        &uuid[8..12],
+        &uuid[12..16],
+        &uuid[16..20],
+        &uuid[20..32],
+    );
+    format!("{PREFIX}{slashed}/{size}.jpg")
+}
+
 /// A music track
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Track {
@@ -55,12 +117,7 @@ impl From<tidlers::client::models::track::Track> for Track {
             artist_id: Some(t.artist.id.to_string()),
             album_name: Some(t.album.title.clone()),
             album_id: Some(t.album.id.to_string()),
-            cover_url: t.album.cover.as_ref().map(|c| {
-                format!(
-                    "https://resources.tidal.com/images/{}/320x320.jpg",
-                    c.replace('-', "/")
-                )
-            }),
+            cover_url: t.album.cover.as_deref().map(tidal_cover_url),
             explicit: t.explicit,
             audio_quality: Some(t.audio_quality),
         }
@@ -89,10 +146,7 @@ impl From<tidlers::client::models::search::SearchTrackHit> for Track {
             artist_id,
             album_name: Some(t.album.title),
             album_id: Some(t.album.id.to_string()),
-            cover_url: Some(format!(
-                "https://resources.tidal.com/images/{}/320x320.jpg",
-                t.album.cover.replace('-', "/")
-            )),
+            cover_url: Some(tidal_cover_url(&t.album.cover)),
             explicit: t.explicit,
             audio_quality: t.audio_quality,
         }
@@ -137,10 +191,7 @@ impl From<tidlers::client::models::album::AlbumResponse> for Album {
             num_tracks: a.number_of_tracks,
             duration: a.duration as u32,
             release_date: Some(a.release_date),
-            cover_url: Some(format!(
-                "https://resources.tidal.com/images/{}/320x320.jpg",
-                a.cover.replace('-', "/")
-            )),
+            cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: Some(a.audio_quality),
             review: None,
@@ -169,12 +220,7 @@ impl From<tidlers::client::models::search::SearchAlbumHit> for Album {
             num_tracks: a.number_of_tracks.unwrap_or(0),
             duration: a.duration.unwrap_or(0) as u32,
             release_date: a.release_date,
-            cover_url: a.cover.map(|c| {
-                format!(
-                    "https://resources.tidal.com/images/{}/320x320.jpg",
-                    c.replace('-', "/")
-                )
-            }),
+            cover_url: a.cover.as_deref().map(tidal_cover_url),
             explicit: a.explicit.unwrap_or(false),
             audio_quality: a.audio_quality,
             review: None,
@@ -207,12 +253,7 @@ impl From<tidlers::client::models::artist::Artist> for Artist {
         Self {
             id: a.id.to_string(),
             name: a.name,
-            picture_url: a.picture.map(|p| {
-                format!(
-                    "https://resources.tidal.com/images/{}/320x320.jpg",
-                    p.replace('-', "/")
-                )
-            }),
+            picture_url: a.picture.as_deref().map(tidal_cover_url),
             bio: None,
             popularity: None,
             roles: Vec::new(),
@@ -227,12 +268,7 @@ impl From<tidlers::client::models::artist::ArtistResponse> for Artist {
         Self {
             id: a.id.to_string(),
             name: a.name,
-            picture_url: a.picture.map(|p| {
-                format!(
-                    "https://resources.tidal.com/images/{}/750x750.jpg",
-                    p.replace('-', "/")
-                )
-            }),
+            picture_url: a.picture.as_deref().map(|p| tidal_cover_url_sized(p, 750)),
             bio: None,
             popularity: Some(a.popularity),
             roles: a.artist_roles.into_iter().map(|r| r.category).collect(),
@@ -247,12 +283,7 @@ impl From<tidlers::client::models::search::SearchArtistHit> for Artist {
         Self {
             id: a.id.to_string(),
             name: a.name,
-            picture_url: a.picture.map(|p| {
-                format!(
-                    "https://resources.tidal.com/images/{}/320x320.jpg",
-                    p.replace('-', "/")
-                )
-            }),
+            picture_url: a.picture.as_deref().map(tidal_cover_url),
             bio: None,
             popularity: None,
             roles: Vec::new(),
@@ -272,10 +303,7 @@ impl From<tidlers::client::models::album::ArtistAlbum> for Album {
             num_tracks: a.number_of_tracks,
             duration: a.duration as u32,
             release_date: Some(a.release_date),
-            cover_url: Some(format!(
-                "https://resources.tidal.com/images/{}/320x320.jpg",
-                a.cover.replace('-', "/")
-            )),
+            cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: Some(a.audio_quality),
             review: None,
@@ -331,10 +359,7 @@ impl From<tidlers::client::models::playlist::PlaylistResponse> for Playlist {
             num_tracks: p.number_of_tracks as u32,
             duration: p.duration as u32,
             last_updated: Some(p.last_updated),
-            image_url: Some(format!(
-                "https://resources.tidal.com/images/{}/320x320.jpg",
-                p.image.replace('-', "/")
-            )),
+            image_url: Some(tidal_cover_url(&p.image)),
             is_user_playlist: true,
         }
     }
@@ -353,12 +378,7 @@ impl From<tidlers::client::models::search::SearchPlaylistHit> for Playlist {
             num_tracks: p.number_of_tracks.unwrap_or(0),
             duration: p.duration.unwrap_or(0) as u32,
             last_updated: p.last_updated,
-            image_url: image_id.map(|img| {
-                format!(
-                    "https://resources.tidal.com/images/{}/320x320.jpg",
-                    img.replace('-', "/")
-                )
-            }),
+            image_url: image_id.as_deref().map(tidal_cover_url),
             is_user_playlist: false,
         }
     }
