@@ -604,6 +604,18 @@ impl TidalAppClient {
         self.auth_manager.state()
     }
 
+    /// Snapshot the current TIDAL access token, if any.
+    ///
+    /// Used by `play_reporter` to stamp playback events.  Calls
+    /// `try_lock` on the inner client so callers can grab the token
+    /// from a sync (iced update) context without risking a deadlock
+    /// against an in-flight async API request — if the lock is
+    /// contended, returns `None` and the caller skips reporting.
+    pub fn current_access_token(&self) -> Option<String> {
+        let guard = self.client.try_lock().ok()?;
+        guard.as_ref()?.session.auth.access_token.clone()
+    }
+
     /// Set the audio quality for playback
     pub async fn set_audio_quality(&mut self, quality: AudioQuality) {
         info!("Setting audio quality to: {:?}", quality);

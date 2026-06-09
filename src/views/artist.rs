@@ -181,17 +181,17 @@ impl AppModel {
     fn view_artist_top_tracks_section(&self) -> Element<'_, Message> {
         let section_header = text(fl!("top-tracks")).size(15);
 
-        let artist_name = self
-            .selected_artist
-            .as_ref()
-            .map(|a| a.name.clone())
-            .unwrap_or_default();
-        let context = Some(fl!("artist-top-tracks-context", artist = artist_name));
+        let source = self.selected_artist.as_ref().map(|a| {
+            crate::tidal::models::PlaybackSource::artist(
+                a.id.clone(),
+                fl!("artist-top-tracks-context", artist = a.name.clone()),
+            )
+        });
 
         let loaded_images = &self.loaded_images;
         let opts = TrackRowOptions {
             tracks: Arc::clone(&self.track_list_arc),
-            context: context.clone(),
+            source,
             ..Default::default()
         };
 

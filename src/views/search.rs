@@ -70,7 +70,9 @@ impl AppModel {
                             index,
                             &TrackRowOptions {
                                 tracks: Arc::clone(&search_tracks),
-                                context: Some(fl!("context-search")),
+                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
+                                    "context-search"
+                                ))),
                                 ..Default::default()
                             },
                         ));

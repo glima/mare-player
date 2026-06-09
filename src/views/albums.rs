@@ -108,7 +108,12 @@ impl AppModel {
                 } else {
                     Some(Message::ShufflePlay(
                         Arc::clone(&self.track_list_arc),
-                        self.selected_album.as_ref().map(|a| a.title.clone()),
+                        self.selected_album.as_ref().map(|a| {
+                            crate::tidal::models::PlaybackSource::album(
+                                a.id.clone(),
+                                a.title.clone(),
+                            )
+                        }),
                     ))
                 })
                 .padding(4),
@@ -131,11 +136,13 @@ impl AppModel {
             } else if self.selected_album_tracks.is_empty() {
                 text(fl!("no-tracks-album")).size(14).into()
             } else {
-                let context = self.selected_album.as_ref().map(|a| a.title.clone());
+                let source = self.selected_album.as_ref().map(|a| {
+                    crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone())
+                });
                 let loaded_images = &self.loaded_images;
                 let opts = TrackRowOptions {
                     tracks: Arc::clone(&self.track_list_arc),
-                    context: context.clone(),
+                    source,
                     ..Default::default()
                 };
                 let track_list = cosmic::iced::widget::list::List::new(

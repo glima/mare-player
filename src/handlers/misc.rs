@@ -413,7 +413,9 @@ impl AppModel {
                         Ok(track) => cosmic::Action::App(Message::PlayTrackList(
                             Arc::from(vec![track]),
                             0,
-                            Some("MPRIS OpenUri".to_string()),
+                            Some(crate::tidal::models::PlaybackSource::ad_hoc(
+                                "MPRIS OpenUri".to_string(),
+                            )),
                         )),
                         Err(e) => {
                             tracing::error!("MPRIS OpenUri: failed to fetch track: {}", e);

@@ -106,9 +106,9 @@ mod track_row_options_default {
     }
 
     #[test]
-    fn default_context_is_none() {
+    fn default_source_is_none() {
         let opts = TrackRowOptions::default();
-        assert!(opts.context.is_none());
+        assert!(opts.source.is_none());
     }
 
     #[test]
@@ -148,14 +148,18 @@ mod track_row_options_fields {
     use super::*;
 
     #[test]
-    fn can_set_context() {
+    fn can_set_source() {
+        use cosmic_applet_mare::tidal::models::{PlaybackSource, PlaybackSourceKind};
         let tracks: Vec<Track> = vec![];
         let opts = TrackRowOptions {
-            context: Some("My Playlist".to_string()),
+            source: Some(PlaybackSource::playlist("uuid-123", "My Playlist")),
             tracks: tracks.into(),
             ..Default::default()
         };
-        assert_eq!(opts.context, Some("My Playlist".to_string()));
+        let s = opts.source.as_ref().expect("source set");
+        assert_eq!(s.kind, PlaybackSourceKind::Playlist);
+        assert_eq!(s.id, "uuid-123");
+        assert_eq!(s.display_name, "My Playlist");
     }
 
     #[test]

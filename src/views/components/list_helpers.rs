@@ -39,8 +39,10 @@ const MAX_PANEL_TEXT_WIDTH: f32 = 300.0;
 pub struct TrackRowOptions {
     /// The full track list for queue context when clicked.
     pub tracks: Arc<[Track]>,
-    /// Optional playback context label (e.g. album/playlist name).
-    pub context: Option<String>,
+    /// Container source for the track list (album / playlist / mix / etc.).
+    /// Threaded into `PlayTrackList` so TIDAL play attribution and the
+    /// now-playing bar label both see the right container.
+    pub source: Option<crate::tidal::models::PlaybackSource>,
     /// Fallback icon name when cover art is not cached.
     pub fallback_icon: &'static str,
     /// Whether to show the "Go to track radio" button. Default `true`.
@@ -52,7 +54,7 @@ impl Default for TrackRowOptions {
     fn default() -> Self {
         Self {
             tracks: Arc::from([]),
-            context: None,
+            source: None,
             fallback_icon: "audio-x-generic-symbolic",
             show_radio_button: true,
         }

@@ -275,6 +275,7 @@ impl AppModel {
     ) -> Task<cosmic::Action<Message>> {
         self.nav_stack.push(self.view_state.clone());
         self.selected_playlist_name = Some(name);
+        self.selected_playlist_uuid = Some(uuid.clone());
         self.selected_playlist_tracks.clear();
         self.view_state = ViewState::PlaylistDetail;
         self.load_playlist_tracks(uuid)
@@ -288,6 +289,7 @@ impl AppModel {
     ) -> Task<cosmic::Action<Message>> {
         self.nav_stack.push(self.view_state.clone());
         self.selected_mix_name = Some(mix_name);
+        self.selected_mix_id = Some(mix_id.clone());
         self.selected_mix_tracks.clear();
         self.is_loading = true;
         self.view_state = ViewState::MixDetail;

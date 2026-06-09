@@ -124,11 +124,11 @@ pub(crate) fn build_track_row<'a>(
         .width(Length::Fill);
 
     let tracks_arc = Arc::clone(&opts.tracks);
-    let context_clone = opts.context.clone();
+    let source_clone = opts.source.clone();
 
     list_item(
         row,
-        Message::PlayTrackList(tracks_arc, index, context_clone),
+        Message::PlayTrackList(tracks_arc, index, source_clone),
         0,
     )
 }

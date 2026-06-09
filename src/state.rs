@@ -24,6 +24,7 @@ use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{Album, Artist, FeedActivity, Mix, Playlist, SearchResults, Track};
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
+use crate::tidal::play_reporter::{InProgressPlay, PlayReporter};
 use crate::tidal::player::{NowPlaying, PlaybackState, Player};
 use crate::views::visualizer::VisualizerState;
 use cosmic::widget::image::Handle;
@@ -185,6 +186,8 @@ pub struct AppModel {
     pub(crate) selected_mix_tracks: Vec<Track>,
     /// Name of the currently selected mix
     pub(crate) selected_mix_name: Option<String>,
+    /// TIDAL id of the currently selected mix (for play attribution).
+    pub(crate) selected_mix_id: Option<String>,
     /// Tracks for the currently selected track radio
     pub(crate) selected_radio_tracks: Vec<Track>,
     /// The seed track that the radio is based on
@@ -203,6 +206,8 @@ pub struct AppModel {
     pub(crate) selected_album_tracks: Vec<Track>,
     /// Selected playlist name
     pub(crate) selected_playlist_name: Option<String>,
+    /// TIDAL uuid of the currently selected playlist (for play attribution).
+    pub(crate) selected_playlist_uuid: Option<String>,
     /// Selected album info
     pub(crate) selected_album: Option<Album>,
     /// Selected artist info (for artist detail view)
@@ -239,8 +244,11 @@ pub struct AppModel {
     pub(crate) shuffle_enabled: bool,
     /// Loop/repeat mode (None, Track, Playlist)
     pub(crate) loop_status: crate::tidal::mpris::LoopStatus,
-    /// Current playback context (playlist name, album name, or "Favorites", etc.)
-    pub(crate) playback_context: Option<String>,
+    /// Container that started the current playback session.  Threaded
+    /// from the view that initiated playback (album detail → Album,
+    /// playlist detail → Playlist, etc.); fed to both the now-playing
+    /// bar's display label and `play_reporter` for TIDAL attribution.
+    pub(crate) playback_source: Option<crate::tidal::models::PlaybackSource>,
     /// Image cache for album art
     pub(crate) image_cache: ImageCache,
     /// Decoded RGBA image handles, LRU-evicted at 1024 entries.
@@ -297,6 +305,15 @@ pub struct AppModel {
     /// Current window width in logical pixels (updated on resize).
     /// Used to scale text truncation limits proportionally.
     pub(crate) window_width: f32,
+    /// Background worker that POSTs `playback_session` events to TIDAL's
+    /// Event Producer so plays show up in Recently Played / count for
+    /// recommendations + royalties.  Shared `Arc` so the playback handler
+    /// can fire `record()` cheaply without holding any other lock.
+    pub(crate) play_reporter: Arc<PlayReporter>,
+    /// Bookkeeping for the currently-playing track's TIDAL play session.
+    /// Opened when a track starts, updated on every tick, finalised and
+    /// sent to `play_reporter` when the track ends or is replaced.
+    pub(crate) current_play: Option<InProgressPlay>,
     /// Keyboard shortcut bindings for the header menu bar (standalone mode only).
     #[cfg(not(feature = "panel-applet"))]
     pub(crate) menu_key_binds: HashMap<KeyBind, TidalMenuAction>,

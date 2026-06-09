@@ -94,7 +94,15 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            self.selected_mix_name.clone(),
+                            match (&self.selected_mix_id, &self.selected_mix_name) {
+                                (Some(id), Some(name)) => {
+                                    Some(crate::tidal::models::PlaybackSource::mix(
+                                        id.clone(),
+                                        name.clone(),
+                                    ))
+                                }
+                                _ => None,
+                            },
                         ))
                     })
                     .padding(4),
@@ -108,10 +116,16 @@ impl AppModel {
             text(fl!("no-tracks-mix")).size(14).into()
         } else {
             let loaded_images = &self.loaded_images;
-            let context = self.selected_mix_name.clone();
+            let source = match (&self.selected_mix_id, &self.selected_mix_name) {
+                (Some(id), Some(name)) => Some(crate::tidal::models::PlaybackSource::mix(
+                    id.clone(),
+                    name.clone(),
+                )),
+                _ => None,
+            };
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                context: context.clone(),
+                source,
                 ..Default::default()
             };
 

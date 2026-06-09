@@ -83,7 +83,15 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            self.selected_playlist_name.clone(),
+                            match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
+                                (Some(uuid), Some(name)) => {
+                                    Some(crate::tidal::models::PlaybackSource::playlist(
+                                        uuid.clone(),
+                                        name.clone(),
+                                    ))
+                                }
+                                _ => None,
+                            },
                         ))
                     })
                     .padding(4),
@@ -97,10 +105,16 @@ impl AppModel {
             text(fl!("no-tracks-playlist")).size(14).into()
         } else {
             let loaded_images = &self.loaded_images;
-            let context = self.selected_playlist_name.clone();
+            let source = match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
+                (Some(uuid), Some(name)) => Some(crate::tidal::models::PlaybackSource::playlist(
+                    uuid.clone(),
+                    name.clone(),
+                )),
+                _ => None,
+            };
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                context: context.clone(),
+                source,
                 ..Default::default()
             };
 

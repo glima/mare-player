@@ -14,4 +14,5 @@ pub mod client;
 pub mod models;
 pub mod mpris;
 pub mod play_history;
+pub mod play_reporter;
 pub mod player;

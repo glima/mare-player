@@ -84,6 +84,8 @@ base64 = "0.22.1"
 
 # Parking lot for better mutexes
 parking_lot = "0.12.5"
+uuid = { version = "1.23.2", features = ["v4"] }
+serde_urlencoded = "0.7.1"
 
 # On-demand profiling: automatically available in debug builds (cfg(debug_assertions)).
 # Send SIGUSR1 to the process → samples for 10 s → writes /tmp/mare-flamegraph.svg.

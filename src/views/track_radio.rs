@@ -31,6 +31,18 @@ impl AppModel {
 
         let tracks: Arc<[_]> = self.selected_radio_tracks.clone().into();
 
+        // PROBE: try sourceType=TRACK_RADIO with the seed track id so
+        // these plays surface in TIDAL's Recently Played as a radio
+        // station rather than as bare TRACK events.  Falls back to
+        // ad_hoc(title) when there's no seed track (shouldn't happen
+        // in practice but defensive).
+        let radio_source = match &self.selected_radio_source_track {
+            Some(seed) => {
+                crate::tidal::models::PlaybackSource::track_radio(seed.id.clone(), title.clone())
+            }
+            None => crate::tidal::models::PlaybackSource::ad_hoc(title.clone()),
+        };
+
         let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
@@ -46,7 +58,7 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&tracks),
-                            Some(title.clone()),
+                            Some(radio_source.clone()),
                         ))
                     })
                     .padding(4),
@@ -60,10 +72,9 @@ impl AppModel {
             text(fl!("no-radio-tracks")).size(14).into()
         } else {
             let loaded_images = &self.loaded_images;
-            let context = Some(title);
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                context: context.clone(),
+                source: Some(radio_source),
                 show_radio_button: false,
                 ..Default::default()
             };

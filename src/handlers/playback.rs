@@ -73,16 +73,15 @@ impl AppModel {
     pub fn handle_play_track(
         &mut self,
         track: Track,
-        context: Option<String>,
+        source: Option<crate::tidal::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
-            "Play single track requested: {} - {} (context: {:?})",
+            "Play single track requested: {} - {} (source: {:?})",
             track.artist_name,
             track.title,
-            context
+            source.as_ref().map(|s| (&s.kind, &s.id))
         );
-        // Set playback context
-        self.playback_context = context;
+        self.playback_source = source;
         // Clear queue and play just this track
         self.playback_queue = vec![track.clone()];
         self.playback_queue_index = 0;
@@ -100,16 +99,15 @@ impl AppModel {
         &mut self,
         tracks: Arc<[Track]>,
         start_index: usize,
-        context: Option<String>,
+        source: Option<crate::tidal::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
-            "Play track list requested: {} tracks, starting at index {} (context: {:?})",
+            "Play track list requested: {} tracks, starting at index {} (source: {:?})",
             tracks.len(),
             start_index,
-            context
+            source.as_ref().map(|s| (&s.kind, &s.id))
         );
-        // Set playback context
-        self.playback_context = context;
+        self.playback_source = source;
         self.playback_queue = tracks.to_vec();
         self.playback_queue_index = start_index;
         self.shuffle_enabled = false;
@@ -126,15 +124,14 @@ impl AppModel {
     pub fn handle_shuffle_play(
         &mut self,
         tracks: Arc<[Track]>,
-        context: Option<String>,
+        source: Option<crate::tidal::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
-            "Shuffle play requested: {} tracks (context: {:?})",
+            "Shuffle play requested: {} tracks (source: {:?})",
             tracks.len(),
-            context
+            source.as_ref().map(|s| (&s.kind, &s.id))
         );
-        // Set playback context
-        self.playback_context = context;
+        self.playback_source = source;
         use rand::seq::SliceRandom;
         let mut rng = rand::rng();
         let mut shuffled = tracks.to_vec();
@@ -240,7 +237,10 @@ impl AppModel {
                         album: track.album_name.clone(),
                         cover_url: track.cover_url.clone(),
                         duration: track.duration as f64,
-                        playlist_name: self.playback_context.clone(),
+                        playlist_name: self
+                            .playback_source
+                            .as_ref()
+                            .map(|s| s.display_name.clone()),
                     };
 
                     let replay_gain_db = playback_url.replay_gain_db();
@@ -334,6 +334,12 @@ impl AppModel {
                             let client = self.tidal_client.blocking_lock();
                             self.play_history.save(client.api_cache());
                         }
+
+                        // Open a TIDAL play-attribution session for this
+                        // track.  Finalises the previous session (if any),
+                        // so quick skips still report the prior listen if
+                        // it met the threshold.
+                        self.open_play_session(&track);
 
                         // Update MPRIS state
                         let mpris_task = self.update_mpris_state();
@@ -442,6 +448,10 @@ impl AppModel {
 
     /// Handle stop playback
     pub fn handle_stop_playback(&mut self) -> Task<cosmic::Action<Message>> {
+        // Finalise the in-progress TIDAL play-attribution session, if any,
+        // before tearing down playback state.  Reports the listen if it
+        // crossed the threshold.
+        self.finalize_and_report_play_session();
         if let Some(player) = &mut self.player {
             let _ = player.stop();
             self.playback_state = PlaybackState::Stopped;
@@ -471,6 +481,13 @@ impl AppModel {
                 && let Some(pos) = player.get_position()
             {
                 self.playback_position = pos;
+                // Keep the TIDAL play-attribution session's high-water-mark
+                // position fresh; cheap when no session is open.  Inlined
+                // because the surrounding `let Some(player) = &self.player`
+                // borrow prevents calling `&mut self` methods on `self`.
+                if let Some(p) = &mut self.current_play {
+                    p.observe_position(pos);
+                }
             }
 
             // Process player events
@@ -557,6 +574,11 @@ impl AppModel {
                                 let client = self.tidal_client.blocking_lock();
                                 self.play_history.save(client.api_cache());
                             }
+
+                            // Open a TIDAL play-attribution session for the
+                            // gaplessly-transitioned new track (finalises the
+                            // previous track's session as part of the open).
+                            self.open_play_session(&track);
 
                             // Preload the *next* next track + update MPRIS
                             let preload_task =
@@ -799,5 +821,101 @@ impl AppModel {
     pub fn handle_gapless_transition(&mut self) -> Task<cosmic::Action<Message>> {
         tracing::info!("Gapless transition acknowledged");
         self.update_mpris_state()
+    }
+
+    // ═══ TIDAL play attribution helpers ════════════════════════════════════
+
+    /// Open a new in-progress play session for `track`.
+    ///
+    /// Closes the previous session first (if any) so a quick track switch
+    /// still finalizes the prior listen — a play that crossed the 30s /
+    /// 50% threshold gets reported even if the user skips to the next one.
+    pub(crate) fn open_play_session(&mut self, track: &Track) {
+        // Finalize whatever was playing before (skip/replace case).
+        self.finalize_and_report_play_session();
+
+        // Map the user's configured quality preference to the TIDAL
+        // string the event-producer expects.  TIDAL's modern hi-res tier
+        // is wire-named HI_RES_LOSSLESS even though tidlers' Display
+        // emits the older HI_RES; the latter is no longer accepted in
+        // playback_session events.
+        let quality = match self.config.audio_quality {
+            crate::config::AudioQuality::Low => "LOW",
+            crate::config::AudioQuality::High => "HIGH",
+            crate::config::AudioQuality::Lossless => "LOSSLESS",
+            crate::config::AudioQuality::HiRes => "HI_RES_LOSSLESS",
+        };
+
+        // Use the threaded container source (ALBUM / PLAYLIST / MIX /
+        // ARTIST) when available so TIDAL's play_log consumer surfaces
+        // the play in Recently Played.  Falls back to TRACK/track_id
+        // for ad-hoc plays (favorites list, history view, MPRIS OpenUri
+        // single-track playback) — those still credit royalties and
+        // count toward 'Most Listened' aggregates but won't appear in
+        // Recently Played per the SDK source.
+        let (source_type, source_id) = match &self.playback_source {
+            Some(s) => {
+                // For Track-kind ad-hoc sources, prefer the live track's id
+                // so each listen attributes individually; the source.id is
+                // a placeholder in that case.
+                let id = if matches!(s.kind, crate::tidal::models::PlaybackSourceKind::Track) {
+                    track.id.clone()
+                } else {
+                    s.id.clone()
+                };
+                (Some(s.kind.as_tidal_str().to_string()), Some(id))
+            }
+            None => (Some("TRACK".to_string()), Some(track.id.clone())),
+        };
+
+        self.current_play = Some(crate::tidal::play_reporter::InProgressPlay::open(
+            track.id.clone(),
+            quality.to_string(),
+            source_type,
+            source_id,
+            0.0,
+            track.duration as f64,
+        ));
+    }
+
+    /// Finalize the current in-progress session and dispatch to the
+    /// reporter if the listen exceeded the threshold (30s OR 50%).
+    ///
+    /// Safe to call when no session is open (no-op).  Drops the session
+    /// either way, so callers should `open_play_session` before the next
+    /// listen if they want it tracked.
+    pub(crate) fn finalize_and_report_play_session(&mut self) {
+        let Some(in_progress) = self.current_play.take() else {
+            return;
+        };
+        if !in_progress.meets_threshold() {
+            tracing::debug!(
+                track = %in_progress.track_id,
+                listened = in_progress.last_position_s - in_progress.start_position_s,
+                duration = in_progress.duration_s,
+                "play below threshold; skipping report",
+            );
+            return;
+        }
+        // Snapshot the access token from the TIDAL client.  Uses
+        // `try_lock` internally; if the client lock is contended we
+        // skip reporting this one play rather than block the UI thread.
+        let token = {
+            let client = self.tidal_client.blocking_lock();
+            client.current_access_token()
+        };
+        let Some(token) = token else {
+            tracing::debug!(
+                track = %in_progress.track_id,
+                "no access token available; skipping report",
+            );
+            return;
+        };
+        let end_ts_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        self.play_reporter
+            .record(in_progress.finalize(end_ts_ms, token));
     }
 }

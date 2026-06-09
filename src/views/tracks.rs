@@ -55,7 +55,9 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            Some(fl!("context-favorites")),
+                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
+                                "context-favorites"
+                            ))),
                         ))
                     })
                     .padding(4),
@@ -101,7 +103,9 @@ impl AppModel {
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                context: Some(fl!("context-favorites")),
+                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
+                    "context-favorites"
+                ))),
                 fallback_icon: "emblem-favorite-symbolic",
                 ..Default::default()
             };

@@ -380,6 +380,129 @@ pub struct SearchResults {
     pub playlists: Vec<Playlist>,
 }
 
+// ── Playback source ──────────────────────────────────────────────────
+
+/// The TIDAL container that started a playback session.
+///
+/// Maps directly onto TIDAL's `sourceType` enum in playback_session
+/// events.  Threaded from the view that initiated playback (album detail,
+/// playlist detail, mix detail, etc.) into `play_reporter` so plays
+/// surface in Recently Played and credit the right container in the
+/// TIDAL recommendations engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlaybackSourceKind {
+    Album,
+    Playlist,
+    Mix,
+    Artist,
+    /// Track-seeded radio (TIDAL's "Radio" feature: pick a track, get a
+    /// generated station of similar tracks).  Emits `TRACK_RADIO` as the
+    /// `sourceType`; consistent with TIDAL's `ARTIST_RADIO` pattern.
+    /// **Probe**: this string is inferred, not confirmed from a captured
+    /// official-client play.  If TIDAL ignores it, plays fall back to
+    /// the same not-in-Recently-Played behaviour as `Track`.
+    TrackRadio,
+    /// Catch-all for ad-hoc / local-only contexts (favorites list,
+    /// history view, single-track plays).  Reports as `TRACK` to TIDAL,
+    /// which counts toward 'Most Listened' aggregates but doesn't
+    /// surface in Recently Played.
+    Track,
+}
+
+impl PlaybackSourceKind {
+    /// String the TIDAL Event Producer expects for `sourceType`.
+    pub fn as_tidal_str(&self) -> &'static str {
+        match self {
+            Self::Album => "ALBUM",
+            Self::Playlist => "PLAYLIST",
+            Self::Mix => "MIX",
+            Self::Artist => "ARTIST",
+            Self::TrackRadio => "TRACK_RADIO",
+            Self::Track => "TRACK",
+        }
+    }
+}
+
+/// Resolved source for a playback session: the kind of container, its
+/// TIDAL id, and a human-readable name for UI display.
+#[derive(Debug, Clone)]
+pub struct PlaybackSource {
+    pub kind: PlaybackSourceKind,
+    /// TIDAL id appropriate to `kind`.  For `Track` contexts this is
+    /// typically the track id itself — the play still attributes
+    /// somewhere, just not as a container play.
+    pub id: String,
+    /// Human-readable name shown in the now-playing bar (album title,
+    /// playlist name, mix title, etc.).
+    pub display_name: String,
+}
+
+impl PlaybackSource {
+    /// Convenience constructor for an album-rooted session.
+    pub fn album(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Album,
+            id: id.into(),
+            display_name: name.into(),
+        }
+    }
+    pub fn playlist(uuid: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Playlist,
+            id: uuid.into(),
+            display_name: name.into(),
+        }
+    }
+    pub fn mix(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Mix,
+            id: id.into(),
+            display_name: name.into(),
+        }
+    }
+    pub fn artist(id: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Artist,
+            id: id.into(),
+            display_name: name.into(),
+        }
+    }
+    /// Track-seeded radio station: pick a track, TIDAL generates a
+    /// station of similar tracks.  Tries `sourceType=TRACK_RADIO` — see
+    /// [`PlaybackSourceKind::TrackRadio`] for the probe caveat.
+    pub fn track_radio(seed_track_id: impl Into<String>, display_name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::TrackRadio,
+            id: seed_track_id.into(),
+            display_name: display_name.into(),
+        }
+    }
+
+    /// Catch-all fallback: a play without a real container context
+    /// (e.g. from the favorites list, the history view, or a single
+    /// MPRIS OpenUri).  TIDAL won't surface these in Recently Played.
+    pub fn track(id: impl Into<String>, display_name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Track,
+            id: id.into(),
+            display_name: display_name.into(),
+        }
+    }
+
+    /// Ad-hoc playback context with only a display label — used for
+    /// the favorites list, the history view, etc., where there is no
+    /// real TIDAL container.  The source id is left empty; `open_play_session`
+    /// substitutes the per-listen track id when sending the play_log
+    /// event, so attribution still credits the right track.
+    pub fn ad_hoc(display_name: impl Into<String>) -> Self {
+        Self {
+            kind: PlaybackSourceKind::Track,
+            id: String::new(),
+            display_name: display_name.into(),
+        }
+    }
+}
+
 impl SearchResults {
     /// Check if the search returned any results
     pub fn is_empty(&self) -> bool {

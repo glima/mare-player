@@ -14,7 +14,9 @@ use tokio::sync::Mutex;
 use crate::config::{AudioQuality, Config};
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::PlaybackUrl;
-use crate::tidal::models::{Album, Artist, FeedActivity, Mix, Playlist, SearchResults, Track};
+use crate::tidal::models::{
+    Album, Artist, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
+};
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 
 /// Result type for MPRIS service initialization.
@@ -197,10 +199,12 @@ pub enum Message {
     FollowArtistToggled(Result<(Artist, bool), String>),
 
     // Track actions
-    /// Play a list of tracks starting from a specific index, with optional context (playlist/album name)
-    PlayTrackList(Arc<[Track]>, usize, Option<String>),
-    /// Shuffle and play a list of tracks, with optional context (playlist/album name)
-    ShufflePlay(Arc<[Track]>, Option<String>),
+    /// Play a list of tracks starting from a specific index, with optional
+    /// container source (album/playlist/mix/etc.).  The source feeds both
+    /// the now-playing bar's display label and TIDAL play attribution.
+    PlayTrackList(Arc<[Track]>, usize, Option<PlaybackSource>),
+    /// Shuffle and play a list of tracks, with optional container source.
+    ShufflePlay(Arc<[Track]>, Option<PlaybackSource>),
     /// Play next track in queue
     NextTrack,
     /// Play previous track in queue
