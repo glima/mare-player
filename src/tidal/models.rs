@@ -37,38 +37,6 @@ pub fn tidal_cover_url_sized(uuid: &str, size_px: u32) -> String {
     )
 }
 
-/// Repair a `cover_url` built by tidlers' broken `uuid_to_cdn_url`.
-///
-/// Tidlers 0.4.0 builds `https://resources.tidal.com/images/<UUID_NO_HYPHENS>/640x640`,
-/// but TIDAL's CDN actually serves
-/// `https://resources.tidal.com/images/<UUID-slash-segmented>/<size>.jpg`.
-/// Re-insert the slashes and append `.jpg`.  This is a no-op once tidlers
-/// fixes its formatter upstream.
-pub fn repair_tidlers_cover_url(url: String) -> String {
-    const PREFIX: &str = "https://resources.tidal.com/images/";
-    let Some(tail) = url.strip_prefix(PREFIX) else {
-        return url;
-    };
-    // tail looks like "<uuid>/<size>" e.g. "370eaac5737e4862b0cd31e53b24283e/640x640"
-    let Some((uuid, size)) = tail.split_once('/') else {
-        return url;
-    };
-    // Only repair if uuid is a 32-char hex string (tidlers' broken format).
-    if uuid.len() != 32 || !uuid.chars().all(|c| c.is_ascii_hexdigit()) {
-        return url;
-    }
-    // Split into 8-4-4-4-12 segments, joined by '/'.
-    let slashed = format!(
-        "{}/{}/{}/{}/{}",
-        &uuid[0..8],
-        &uuid[8..12],
-        &uuid[12..16],
-        &uuid[16..20],
-        &uuid[20..32],
-    );
-    format!("{PREFIX}{slashed}/{size}.jpg")
-}
-
 /// A music track
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Track {

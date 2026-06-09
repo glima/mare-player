@@ -13,8 +13,7 @@
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
-    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track,
-    repair_tidlers_cover_url, tidal_cover_url,
+    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track, tidal_cover_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
@@ -2798,7 +2797,7 @@ impl TidalAppClient {
                 num_tracks: album.num_tracks,
                 duration: album.duration,
                 release_date: album.release_date,
-                cover_url: album.cover_url.map(repair_tidlers_cover_url),
+                cover_url: album.cover.as_deref().map(tidal_cover_url),
                 explicit: album.explicit,
                 audio_quality: album.audio_quality,
                 review: None,
