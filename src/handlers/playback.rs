@@ -488,6 +488,25 @@ impl AppModel {
                 if let Some(p) = &mut self.current_play {
                     p.observe_position(pos);
                 }
+                // Drive the karaoke-style highlight in the lyrics view.
+                // Only relevant when the lyrics view is open for the
+                // currently-playing track and we have synced lines;
+                // cheap O(log n) lookup otherwise.
+                if matches!(self.view_state, crate::state::ViewState::Lyrics)
+                    && let (Some(track), Some(lyrics)) = (
+                        self.playback_queue.get(self.playback_queue_index),
+                        self.selected_track_lyrics.as_ref(),
+                    )
+                    && self
+                        .selected_lyrics_track
+                        .as_ref()
+                        .is_some_and(|t| t.id == track.id)
+                {
+                    let next = lyrics.line_index_at(pos);
+                    if next != self.current_lyric_index {
+                        self.current_lyric_index = next;
+                    }
+                }
             }
 
             // Process player events

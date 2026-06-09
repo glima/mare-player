@@ -543,6 +543,176 @@ pub enum FeedItem {
     },
 }
 
+// ── Lyrics ────────────────────────────────────────────────────────────────────────
+
+/// A single time-stamped lyric line parsed from an LRC subtitle string.
+///
+/// Time offsets are stored in milliseconds; the timestamp is the moment
+/// the line should *start* being highlighted during playback.  The end
+/// time is implicit (the start of the next line, or end of track).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LrcLine {
+    /// Start time in milliseconds from the beginning of the track.
+    pub time_ms: u64,
+    /// Lyric text for this line (already trimmed of the timestamp prefix).
+    pub text: String,
+}
+
+/// Lyrics for a single track, as returned by TIDAL.
+///
+/// TIDAL serves two parallel representations: a flat `plain_text` for
+/// non-synced display and an `lrc_lines` vector parsed from the
+/// timestamped `subtitles` field.  Either may be empty depending on the
+/// provider's data — instrumental tracks tend to have neither; older
+/// catalog entries often have plain text but no LRC sync.
+#[derive(Debug, Clone, Default)]
+pub struct TrackLyrics {
+    /// Provider attribution string (e.g. "MusixMatch", "TIDAL").
+    pub provider: Option<String>,
+    /// Plain-text lyrics with original line breaks preserved.
+    pub plain_text: Option<String>,
+    /// Time-synced lines parsed from the LRC subtitles, sorted by
+    /// `time_ms` ascending.  Empty when TIDAL has no synced data.
+    pub lrc_lines: Vec<LrcLine>,
+    /// True for languages that render right-to-left (Arabic, Hebrew,
+    /// Farsi).  UI should mirror text alignment accordingly.
+    pub is_right_to_left: bool,
+}
+
+impl TrackLyrics {
+    /// True when TIDAL returned neither plain nor synced lyrics.
+    pub fn is_empty(&self) -> bool {
+        self.plain_text.as_deref().is_none_or(str::is_empty) && self.lrc_lines.is_empty()
+    }
+
+    /// True when time-synced (LRC) lyrics are available for karaoke-style
+    /// playback highlighting.
+    pub fn is_synced(&self) -> bool {
+        !self.lrc_lines.is_empty()
+    }
+
+    /// Find the index of the line that should be highlighted at the given
+    /// playback position (in seconds).
+    ///
+    /// Returns the last line whose `time_ms` is `<= position_ms`.  Returns
+    /// `None` before the first line starts (i.e. during the intro before
+    /// the first lyric), and the index of the last line for any position
+    /// past the final timestamp.  O(log n) — cheap to call every tick.
+    pub fn line_index_at(&self, position_seconds: f64) -> Option<usize> {
+        if self.lrc_lines.is_empty() || position_seconds < 0.0 {
+            return None;
+        }
+        let position_ms = (position_seconds * 1000.0) as u64;
+        // partition_point returns the count of elements that are <= predicate;
+        // since lines are sorted by time_ms ascending and we want the *last*
+        // line that has started, that count minus one is our index.
+        let count = self
+            .lrc_lines
+            .partition_point(|line| line.time_ms <= position_ms);
+        if count == 0 { None } else { Some(count - 1) }
+    }
+}
+
+/// Parse a TIDAL `subtitles` LRC-format string into time-synced lines.
+///
+/// Standard LRC syntax: `[mm:ss.xx]lyric text` per line, where the
+/// fractional second separator may be `.` or `:` and may have 1–3
+/// digits.  A single line may carry multiple timestamps for repeated
+/// choruses (`[01:02.34][02:18.56]Same hook`); we expand those into
+/// independent `LrcLine` entries.
+///
+/// Metadata tags (`[ti:Title]`, `[ar:Artist]`, `[al:Album]`, `[by:...]`,
+/// `[length:...]`, `[offset:...]`) are skipped — the offset tag would
+/// be useful but TIDAL doesn't appear to use it.  Empty lines and lines
+/// with no timestamp are skipped.
+///
+/// Result is sorted by `time_ms` ascending, so consumers can rely on
+/// monotonic ordering for binary-search lookups.
+pub fn parse_lrc(subtitles: &str) -> Vec<LrcLine> {
+    let mut out: Vec<LrcLine> = Vec::new();
+
+    for raw_line in subtitles.lines() {
+        let line = raw_line.trim_end_matches('\r');
+        if line.is_empty() {
+            continue;
+        }
+
+        // Collect every leading [..] tag, then whatever text follows.
+        let mut rest = line;
+        let mut timestamps: Vec<u64> = Vec::new();
+        loop {
+            let trimmed = rest.trim_start();
+            if !trimmed.starts_with('[') {
+                rest = trimmed;
+                break;
+            }
+            let Some(close) = trimmed.find(']') else {
+                rest = trimmed;
+                break;
+            };
+            let tag = &trimmed[1..close];
+            if let Some(ms) = parse_lrc_timestamp(tag) {
+                timestamps.push(ms);
+            }
+            // Tags that aren't timestamps (metadata like `ti:Title`) are
+            // silently discarded; we still consume them to keep the
+            // remaining text clean.
+            rest = &trimmed[close + 1..];
+        }
+
+        if timestamps.is_empty() {
+            continue;
+        }
+        let text = rest.trim().to_string();
+        for ms in timestamps {
+            out.push(LrcLine {
+                time_ms: ms,
+                text: text.clone(),
+            });
+        }
+    }
+
+    out.sort_by_key(|line| line.time_ms);
+    out
+}
+
+/// Convert a single LRC timestamp body (the part inside `[...]`) to
+/// milliseconds.  Returns `None` for non-timestamp tags like
+/// `ti:Title` so callers can treat them as metadata.
+///
+/// Accepted shapes: `mm:ss`, `mm:ss.xx`, `mm:ss.xxx`, `mm:ss:xx`.
+/// Hour-prefixed timestamps (`hh:mm:ss.xx`) are rare in practice and
+/// not currently supported — the format ambiguity (vs `mm:ss:xx`)
+/// would need a smarter parser if TIDAL ever ships them.
+fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
+    // Must start with at least one digit then ':'.
+    let (mm_str, after_mm) = tag.split_once(':')?;
+    let mm: u64 = mm_str.parse().ok()?;
+
+    // Seconds may be followed by `.frac` or `:frac` or nothing.
+    let (ss_str, frac_str) = match after_mm.split_once(['.', ':']) {
+        Some((s, f)) => (s, Some(f)),
+        None => (after_mm, None),
+    };
+    let ss: u64 = ss_str.parse().ok()?;
+    let frac_ms: u64 = match frac_str {
+        Some(f) if !f.is_empty() => {
+            // Normalise to 3 digits: '5' -> 500ms, '50' -> 500ms,
+            // '500' -> 500ms, '5000' -> truncated to '500' → 500ms.
+            let digits: String = f.chars().take_while(|c| c.is_ascii_digit()).collect();
+            if digits.is_empty() {
+                0
+            } else {
+                let padded = format!("{digits:0<3}");
+                padded[..3].parse().ok()?
+            }
+        }
+        _ => 0,
+    };
+
+    Some(mm * 60_000 + ss * 1_000 + frac_ms)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -582,5 +752,184 @@ mod tests {
         let results = SearchResults::default();
         assert!(results.is_empty());
         assert_eq!(results.total_count(), 0);
+    }
+
+    // ── Lyrics tests ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_lrc_basic_two_digit_centiseconds() {
+        let lines = parse_lrc("[00:01.23]First line\n[00:05.67]Second line");
+        assert_eq!(
+            lines,
+            vec![
+                LrcLine {
+                    time_ms: 1_230,
+                    text: "First line".into()
+                },
+                LrcLine {
+                    time_ms: 5_670,
+                    text: "Second line".into()
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_lrc_accepts_three_digit_milliseconds() {
+        let lines = parse_lrc("[01:30.456]Verse");
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].time_ms, 90_456);
+    }
+
+    #[test]
+    fn parse_lrc_accepts_one_digit_decisecond() {
+        // '.5' should normalise to 500ms.
+        let lines = parse_lrc("[00:02.5]Half second");
+        assert_eq!(lines[0].time_ms, 2_500);
+    }
+
+    #[test]
+    fn parse_lrc_accepts_colon_centisecond_separator() {
+        // Some encoders use `:` instead of `.` for the fractional part.
+        let lines = parse_lrc("[00:03:14]Pi-ish");
+        assert_eq!(lines[0].time_ms, 3_140);
+    }
+
+    #[test]
+    fn parse_lrc_accepts_seconds_with_no_fractional() {
+        let lines = parse_lrc("[00:07]Whole second");
+        assert_eq!(lines[0].time_ms, 7_000);
+    }
+
+    #[test]
+    fn parse_lrc_expands_multi_timestamp_lines() {
+        // Choruses commonly carry multiple timestamps for the same text.
+        let lines = parse_lrc("[00:10.00][01:30.00][03:00.00]Chorus hook");
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].time_ms, 10_000);
+        assert_eq!(lines[1].time_ms, 90_000);
+        assert_eq!(lines[2].time_ms, 180_000);
+        assert!(lines.iter().all(|l| l.text == "Chorus hook"));
+    }
+
+    #[test]
+    fn parse_lrc_skips_metadata_tags_keeps_timestamped_lines() {
+        let raw = "[ti:Song Title]\n[ar:Artist]\n[al:Album]\n[00:01.00]Real line\n";
+        let lines = parse_lrc(raw);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].text, "Real line");
+    }
+
+    #[test]
+    fn parse_lrc_skips_empty_and_untimed_lines() {
+        let raw = "\n\nuntimed garbage\n[00:02.00]Kept\n\n";
+        let lines = parse_lrc(raw);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].text, "Kept");
+    }
+
+    #[test]
+    fn parse_lrc_sorts_output_by_time() {
+        // Out-of-order input (rare but possible when multi-timestamps
+        // interleave) should still produce monotonic output.
+        let raw = "[01:00.00]Later\n[00:30.00]Earlier\n[00:45.00]Middle";
+        let lines = parse_lrc(raw);
+        let times: Vec<u64> = lines.iter().map(|l| l.time_ms).collect();
+        assert_eq!(times, vec![30_000, 45_000, 60_000]);
+    }
+
+    #[test]
+    fn parse_lrc_handles_carriage_returns() {
+        // TIDAL occasionally serves CRLF; trim_end_matches handles it.
+        let lines = parse_lrc("[00:01.00]One\r\n[00:02.00]Two\r\n");
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].text, "One");
+        assert_eq!(lines[1].text, "Two");
+    }
+
+    #[test]
+    fn parse_lrc_empty_input_yields_empty_vec() {
+        assert!(parse_lrc("").is_empty());
+        assert!(parse_lrc("   \n\n  ").is_empty());
+    }
+
+    #[test]
+    fn lyrics_line_index_at_returns_none_before_first_line() {
+        let lyrics = TrackLyrics {
+            lrc_lines: vec![
+                LrcLine {
+                    time_ms: 5_000,
+                    text: "First".into(),
+                },
+                LrcLine {
+                    time_ms: 10_000,
+                    text: "Second".into(),
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(lyrics.line_index_at(0.0), None);
+        assert_eq!(lyrics.line_index_at(4.999), None);
+    }
+
+    #[test]
+    fn lyrics_line_index_at_picks_active_line() {
+        let lyrics = TrackLyrics {
+            lrc_lines: vec![
+                LrcLine {
+                    time_ms: 5_000,
+                    text: "A".into(),
+                },
+                LrcLine {
+                    time_ms: 10_000,
+                    text: "B".into(),
+                },
+                LrcLine {
+                    time_ms: 15_000,
+                    text: "C".into(),
+                },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(lyrics.line_index_at(5.0), Some(0));
+        assert_eq!(lyrics.line_index_at(7.5), Some(0));
+        assert_eq!(lyrics.line_index_at(10.0), Some(1));
+        assert_eq!(lyrics.line_index_at(14.999), Some(1));
+        assert_eq!(lyrics.line_index_at(15.0), Some(2));
+        // Past the final timestamp: stays on the last line.
+        assert_eq!(lyrics.line_index_at(99.0), Some(2));
+    }
+
+    #[test]
+    fn lyrics_line_index_at_handles_empty_synced_lyrics() {
+        let lyrics = TrackLyrics {
+            plain_text: Some("Just a plain block".into()),
+            ..Default::default()
+        };
+        assert_eq!(lyrics.line_index_at(10.0), None);
+    }
+
+    #[test]
+    fn lyrics_is_empty_and_is_synced_flags() {
+        let empty = TrackLyrics::default();
+        assert!(empty.is_empty());
+        assert!(!empty.is_synced());
+
+        let plain_only = TrackLyrics {
+            plain_text: Some("text".into()),
+            ..Default::default()
+        };
+        assert!(!plain_only.is_empty());
+        assert!(!plain_only.is_synced());
+
+        let synced = TrackLyrics {
+            lrc_lines: vec![LrcLine {
+                time_ms: 0,
+                text: "hi".into(),
+            }],
+            ..Default::default()
+        };
+        assert!(!synced.is_empty());
+        assert!(synced.is_synced());
     }
 }

@@ -137,6 +137,9 @@ impl cosmic::Application for AppModel {
             selected_mix_id: None,
             selected_radio_tracks: Vec::new(),
             selected_radio_source_track: None,
+            selected_lyrics_track: None,
+            selected_track_lyrics: None,
+            current_lyric_index: None,
             selected_detail_track: None,
             track_detail_artist_albums: Vec::new(),
             track_detail_related_artists: Vec::new(),
@@ -474,6 +477,7 @@ impl cosmic::Application for AppModel {
             | Message::MixesLoaded(_)
             | Message::MixTracksLoaded(_)
             | Message::TrackRadioLoaded(_)
+            | Message::TrackLyricsLoaded(_)
             | Message::TrackDetailArtistAlbumsLoaded(_)
             | Message::TrackDetailRelatedArtistsLoaded(_)
             | Message::TrackDetailRelatedAlbumsLoaded(_)
@@ -576,6 +580,10 @@ impl cosmic::Application for AppModel {
             // Data handlers - track radio
             Message::ShowTrackRadio(track) => self.handle_show_track_radio(track),
             Message::TrackRadioLoaded(result) => self.handle_track_radio_loaded(result),
+
+            // Data handlers - track lyrics
+            Message::ShowLyrics(track) => self.handle_show_lyrics(track),
+            Message::TrackLyricsLoaded(result) => self.handle_track_lyrics_loaded(result),
 
             // Data handlers - track detail (recommendations)
             Message::ShowTrackDetail(track) => self.handle_show_track_detail(track),

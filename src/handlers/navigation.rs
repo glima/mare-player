@@ -306,6 +306,21 @@ impl AppModel {
         self.load_track_radio(track.id)
     }
 
+    /// Handle show lyrics view for a specific track.
+    ///
+    /// Pushes the nav stack, resets prior lyrics state, switches to the
+    /// `Lyrics` view, and kicks off the async fetch.  The view renders
+    /// a loading state until `TrackLyricsLoaded` arrives.
+    pub fn handle_show_lyrics(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
+        self.nav_stack.push(self.view_state.clone());
+        let track_id = track.id.clone();
+        self.selected_lyrics_track = Some(track);
+        self.selected_track_lyrics = None;
+        self.current_lyric_index = None;
+        self.view_state = ViewState::Lyrics;
+        self.load_track_lyrics(track_id)
+    }
+
     /// Handle show track detail view (recommendations seeded from a track).
     ///
     /// Loads three recommendation sections in parallel:

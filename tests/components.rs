@@ -540,6 +540,81 @@ mod radio_svg {
 }
 
 // ===========================================================================
+// LYRICS_SVG constant
+// ===========================================================================
+
+mod lyrics_svg {
+    use cosmic_applet_mare::views::components::LYRICS_SVG;
+
+    #[test]
+    fn lyrics_svg_is_nonempty() {
+        assert!(!LYRICS_SVG.is_empty());
+    }
+
+    #[test]
+    fn lyrics_svg_starts_with_svg_tag() {
+        let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
+        assert!(
+            s.starts_with("<svg"),
+            "LYRICS_SVG should start with <svg, got: {}",
+            &s[..s.len().min(20)]
+        );
+    }
+
+    #[test]
+    fn lyrics_svg_ends_with_closing_tag() {
+        let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
+        assert!(
+            s.trim_end().ends_with("</svg>"),
+            "LYRICS_SVG should end with </svg>"
+        );
+    }
+
+    #[test]
+    fn lyrics_svg_is_16x16() {
+        let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
+        assert!(
+            s.contains("width=\"16\"") && s.contains("height=\"16\""),
+            "LYRICS_SVG should be 16x16"
+        );
+    }
+
+    #[test]
+    fn lyrics_svg_is_valid_utf8() {
+        assert!(
+            std::str::from_utf8(LYRICS_SVG).is_ok(),
+            "LYRICS_SVG should be valid UTF-8"
+        );
+    }
+
+    #[test]
+    fn lyrics_svg_contains_path_elements() {
+        let s = std::str::from_utf8(LYRICS_SVG).unwrap();
+        let has_drawing = s.contains("<path")
+            || s.contains("<circle")
+            || s.contains("<rect")
+            || s.contains("<line");
+        assert!(
+            has_drawing,
+            "LYRICS_SVG should contain SVG drawing elements"
+        );
+    }
+
+    #[test]
+    fn lyrics_svg_has_text_lines() {
+        // The icon's defining feature: three horizontal text lines
+        // suggesting lyric stanzas.  If a redesign removes them, the
+        // visual semantics break — force the test to catch it.
+        let s = std::str::from_utf8(LYRICS_SVG).unwrap();
+        let line_count = s.matches("<line").count();
+        assert!(
+            line_count >= 3,
+            "LYRICS_SVG should contain >=3 <line> elements (text lines), got {line_count}"
+        );
+    }
+}
+
+// ===========================================================================
 // favorite_icon_handle
 // ===========================================================================
 

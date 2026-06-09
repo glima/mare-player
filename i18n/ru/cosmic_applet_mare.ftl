@@ -171,3 +171,11 @@ share-album = Поделиться альбомом: {$title}
 context-favorites = Избранное
 context-history = История
 context-search = Поиск
+
+# Lyrics
+lyrics-title = Текст — {$title}
+lyrics-title-fallback = Текст песни
+loading-lyrics = Загрузка текста…
+no-lyrics-available = Текст для «{$title}» недоступен.
+lyrics-provider = Текст от {$provider}
+tooltip-show-lyrics = Показать текст

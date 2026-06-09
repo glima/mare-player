@@ -167,3 +167,11 @@ share-album = অ্যালবাম শেয়ার করুন: {$title}
 context-favorites = প্রিয়
 context-history = ইতিহাস
 context-search = অনুসন্ধান
+
+# Lyrics
+lyrics-title = গান — {$title}
+lyrics-title-fallback = গানের কথা
+loading-lyrics = গানের কথা লোড করা হচ্ছে…
+no-lyrics-available = "{$title}" এর জন্য গানের কথা পাওয়া যায়নি।
+lyrics-provider = গানের কথা সরবরাহ করেছে {$provider}
+tooltip-show-lyrics = গানের কথা দেখান

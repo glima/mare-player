@@ -14,13 +14,14 @@
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, button, text};
+use cosmic::widget::{self, button, icon, text};
 
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, fading_header_title, fading_text_column, list_item, scrollable_list,
+    ARTIST_PICTURE_SIZE, LYRICS_SVG, fading_header_title, fading_text_column, list_item,
+    scrollable_list,
 };
 
 impl AppModel {
@@ -40,7 +41,7 @@ impl AppModel {
             .map(|t| t.artist_name.as_str())
             .unwrap_or(&fallback_artist);
 
-        // Header row: back button + track title
+        // Header row: back button + track title + lyrics action
         let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
@@ -48,6 +49,23 @@ impl AppModel {
                     .padding(4),
             )
             .push(fading_header_title(track_title))
+            .push({
+                // Lyrics action: only enabled when we actually have a
+                // selected track to pass to ShowLyrics (defensive —
+                // the view is only routed to when one is set, but
+                // the borrow checker can't see that invariant).
+                let track_for_lyrics = self.selected_detail_track.clone();
+                let mut li = icon::from_svg_bytes(LYRICS_SVG);
+                li.symbolic = true;
+                let btn = button::icon(li)
+                    .tooltip(fl!("tooltip-show-lyrics"))
+                    .padding(4);
+                if let Some(track) = track_for_lyrics {
+                    btn.on_press(Message::ShowLyrics(track))
+                } else {
+                    btn
+                }
+            })
             .spacing(8)
             .align_y(Alignment::Center);
 

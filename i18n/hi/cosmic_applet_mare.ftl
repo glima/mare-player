@@ -167,3 +167,11 @@ share-album = एल्बम साझा करें: {$title}
 context-favorites = पसंदीदा
 context-history = इतिहास
 context-search = खोज
+
+# Lyrics
+lyrics-title = बोल — {$title}
+lyrics-title-fallback = बोल
+loading-lyrics = बोल लोड हो रहे हैं…
+no-lyrics-available = "{$title}" के लिए कोई बोल उपलब्ध नहीं है।
+lyrics-provider = बोल {$provider} द्वारा
+tooltip-show-lyrics = बोल दिखाएं

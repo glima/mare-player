@@ -167,3 +167,11 @@ share-album = Compartilhar Álbum: {$title}
 context-favorites = Favoritos
 context-history = Histórico
 context-search = Pesquisa
+
+# Lyrics
+lyrics-title = Letra — {$title}
+lyrics-title-fallback = Letra
+loading-lyrics = Carregando letra…
+no-lyrics-available = Sem letra disponível para "{$title}".
+lyrics-provider = Letra por {$provider}
+tooltip-show-lyrics = Mostrar letra

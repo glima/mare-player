@@ -161,3 +161,11 @@ share-album = แชร์อัลบั้ม: {$title}
 context-favorites = รายการโปรด
 context-history = ประวัติ
 context-search = ค้นหา
+
+# Lyrics
+lyrics-title = เนื้อเพลง — {$title}
+lyrics-title-fallback = เนื้อเพลง
+loading-lyrics = กำลังโหลดเนื้อเพลง…
+no-lyrics-available = ไม่มีเนื้อเพลงสำหรับ "{$title}"
+lyrics-provider = เนื้อเพลงโดย {$provider}
+tooltip-show-lyrics = แสดงเนื้อเพลง

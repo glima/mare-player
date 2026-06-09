@@ -167,3 +167,11 @@ share-album = Dela Album: {$title}
 context-favorites = Favoriter
 context-history = Historik
 context-search = Sök
+
+# Lyrics
+lyrics-title = Sångtext — {$title}
+lyrics-title-fallback = Sångtext
+loading-lyrics = Laddar sångtext…
+no-lyrics-available = Ingen sångtext tillgänglig för "{$title}".
+lyrics-provider = Sångtext av {$provider}
+tooltip-show-lyrics = Visa sångtext

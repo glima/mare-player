@@ -80,6 +80,13 @@ related-artists = Related Artists
 track-radio = {$title} Radio
 track-radio-fallback = Track Radio
 
+# Lyrics
+lyrics-title = Lyrics — {$title}
+lyrics-title-fallback = Lyrics
+loading-lyrics = Loading lyrics…
+no-lyrics-available = No lyrics available for “{$title}”.
+lyrics-provider = Lyrics by {$provider}
+
 # Fallback labels
 fallback-track = Track
 fallback-artist = Artist
@@ -141,6 +148,7 @@ tooltip-pause = Pause
 tooltip-play = Play
 tooltip-stop = Stop
 tooltip-go-to-track-radio = Go to track radio
+tooltip-show-lyrics = Show lyrics
 tooltip-share = Share
 tooltip-add-to-favorites = Add to favorites
 tooltip-remove-from-favorites = Remove from favorites

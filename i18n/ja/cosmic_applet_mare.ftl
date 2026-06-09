@@ -161,3 +161,11 @@ share-album = アルバムを共有: {$title}
 context-favorites = お気に入り
 context-history = 履歴
 context-search = 検索
+
+# Lyrics
+lyrics-title = 歌詞 — {$title}
+lyrics-title-fallback = 歌詞
+loading-lyrics = 歌詞を読み込み中…
+no-lyrics-available = 「{$title}」の歌詞は利用できません。
+lyrics-provider = 歌詞提供: {$provider}
+tooltip-show-lyrics = 歌詞を表示

@@ -13,7 +13,8 @@
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
-    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track, tidal_cover_url,
+    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track, TrackLyrics,
+    tidal_cover_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
@@ -1883,6 +1884,99 @@ impl TidalAppClient {
         }
 
         Ok(review.text)
+    }
+
+    // =========================================================================
+    // Track Lyrics
+    // =========================================================================
+
+    /// Fetch lyrics for a track from TIDAL.
+    ///
+    /// Hits the TIDAL v1 API endpoint `GET /v1/tracks/{id}/lyrics` directly
+    /// (tidlers' v2/OpenAPI lyrics surface needs a different OAuth flow
+    /// than mare's internal client; this v1 path works with the access
+    /// token we already hold).
+    ///
+    /// The endpoint returns plain `lyrics` and LRC-format `subtitles`
+    /// in parallel; we surface both via [`TrackLyrics`].  A `404`
+    /// (TIDAL has no lyrics for this track) is mapped to an empty
+    /// `TrackLyrics`, not an error — the UI distinguishes "loading·
+    /// vs no-lyrics·vs error" by inspecting the result.
+    pub async fn get_track_lyrics(&self, track_id: &str) -> TidalResult<TrackLyrics> {
+        let ctx = self.auth_context().await?;
+
+        let url = format!(
+            "https://api.tidal.com/v1/tracks/{}/lyrics?countryCode={}",
+            track_id, ctx.country_code
+        );
+
+        debug!("Fetching lyrics for track {}", track_id);
+
+        let http_client = reqwest::Client::new();
+        let response = http_client
+            .get(&url)
+            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
+            .send()
+            .await
+            .map_err(|e| TidalError::NetworkError(format!("{:?}", e)))?;
+
+        // 404 / 401 with empty lyrics: "no lyrics available" for this
+        // track.  Not an error — just an empty result.
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            debug!("No lyrics found for track {}", track_id);
+            return Ok(TrackLyrics::default());
+        }
+
+        if !response.status().is_success() {
+            return Err(TidalError::RequestFailed(format!(
+                "HTTP {} fetching lyrics for track {}",
+                response.status(),
+                track_id
+            )));
+        }
+
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct LyricsResponse {
+            #[serde(default)]
+            lyrics: Option<String>,
+            #[serde(default)]
+            subtitles: Option<String>,
+            #[serde(default)]
+            lyrics_provider: Option<String>,
+            #[serde(default)]
+            is_right_to_left: bool,
+        }
+
+        let raw: LyricsResponse = response
+            .json()
+            .await
+            .map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+
+        let plain_text = raw.lyrics.and_then(|s| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() { None } else { Some(s) }
+        });
+        let lrc_lines = raw
+            .subtitles
+            .as_deref()
+            .map(crate::tidal::models::parse_lrc)
+            .unwrap_or_default();
+
+        info!(
+            "Loaded lyrics for track {}: provider={:?} plain={} synced_lines={}",
+            track_id,
+            raw.lyrics_provider,
+            plain_text.is_some(),
+            lrc_lines.len()
+        );
+
+        Ok(TrackLyrics {
+            provider: raw.lyrics_provider,
+            plain_text,
+            lrc_lines,
+            is_right_to_left: raw.is_right_to_left,
+        })
     }
 
     // =========================================================================

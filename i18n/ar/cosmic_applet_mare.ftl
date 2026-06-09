@@ -175,3 +175,11 @@ share-album = مشاركة الألبوم: {$title}
 context-favorites = المفضلة
 context-history = السجل
 context-search = البحث
+
+# Lyrics
+lyrics-title = كلمات الأغنية — {$title}
+lyrics-title-fallback = كلمات الأغنية
+loading-lyrics = جارٍ تحميل كلمات الأغنية…
+no-lyrics-available = لا تتوفر كلمات لأغنية "{$title}".
+lyrics-provider = كلمات بواسطة {$provider}
+tooltip-show-lyrics = عرض كلمات الأغنية

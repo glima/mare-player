@@ -192,6 +192,15 @@ pub struct AppModel {
     pub(crate) selected_radio_tracks: Vec<Track>,
     /// The seed track that the radio is based on
     pub(crate) selected_radio_source_track: Option<Track>,
+    /// The track whose lyrics view is currently open.
+    pub(crate) selected_lyrics_track: Option<Track>,
+    /// Lyrics loaded for `selected_lyrics_track`.  `None` while loading;
+    /// `Some` with `is_empty() == true` when TIDAL has no lyrics.
+    pub(crate) selected_track_lyrics: Option<crate::tidal::models::TrackLyrics>,
+    /// Index of the currently-active synced lyric line, updated each
+    /// tick from `playback_position`.  `None` before the first line
+    /// fires or when the lyrics view isn't synced.
+    pub(crate) current_lyric_index: Option<usize>,
     /// The track whose detail/recommendations view is open
     pub(crate) selected_detail_track: Option<Track>,
     /// "More Albums by {Artist}" for the track detail view
@@ -360,6 +369,8 @@ pub enum ViewState {
     ArtistDetail,
     /// Track radio view (similar tracks based on a seed track)
     TrackRadio,
+    /// Lyrics view for a specific track (synced or plain).
+    Lyrics,
     /// Track detail view (recommendations: more albums by artist, related albums, related artists)
     TrackDetail,
     /// Favorite tracks view

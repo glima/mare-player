@@ -171,3 +171,11 @@ share-album = Поділитися альбомом: {$title}
 context-favorites = Улюблені
 context-history = Історія
 context-search = Пошук
+
+# Lyrics
+lyrics-title = Текст — {$title}
+lyrics-title-fallback = Текст пісні
+loading-lyrics = Завантаження тексту…
+no-lyrics-available = Текст для «{$title}» недоступний.
+lyrics-provider = Текст від {$provider}
+tooltip-show-lyrics = Показати текст

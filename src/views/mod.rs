@@ -27,6 +27,7 @@ pub mod auth;
 pub mod components;
 pub mod feed;
 pub mod history;
+pub mod lyrics;
 pub mod main;
 pub mod mixes;
 #[cfg(feature = "panel-applet")]

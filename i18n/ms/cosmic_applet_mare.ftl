@@ -161,3 +161,11 @@ share-album = Kongsi Album: {$title}
 context-favorites = Kegemaran
 context-history = Sejarah
 context-search = Carian
+
+# Lyrics
+lyrics-title = Lirik — {$title}
+lyrics-title-fallback = Lirik
+loading-lyrics = Memuatkan lirik…
+no-lyrics-available = Tiada lirik tersedia untuk "{$title}".
+lyrics-provider = Lirik oleh {$provider}
+tooltip-show-lyrics = Tunjukkan lirik

@@ -161,3 +161,11 @@ share-album = 앨범 공유: {$title}
 context-favorites = 즐겨찾기
 context-history = 기록
 context-search = 검색
+
+# Lyrics
+lyrics-title = 가사 — {$title}
+lyrics-title-fallback = 가사
+loading-lyrics = 가사 로드 중…
+no-lyrics-available = "{$title}"의 가사를 사용할 수 없습니다.
+lyrics-provider = 가사 제공: {$provider}
+tooltip-show-lyrics = 가사 표시

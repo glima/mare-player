@@ -161,3 +161,11 @@ share-album = Chia sẻ album: {$title}
 context-favorites = Yêu thích
 context-history = Lịch sử
 context-search = Tìm kiếm
+
+# Lyrics
+lyrics-title = Lời bài hát — {$title}
+lyrics-title-fallback = Lời bài hát
+loading-lyrics = Đang tải lời bài hát…
+no-lyrics-available = Không có lời bài hát cho "{$title}".
+lyrics-provider = Lời bài hát bởi {$provider}
+tooltip-show-lyrics = Hiển thị lời bài hát

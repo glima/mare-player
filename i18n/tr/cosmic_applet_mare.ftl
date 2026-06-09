@@ -161,3 +161,11 @@ share-album = Albümü Paylaş: {$title}
 context-favorites = Favoriler
 context-history = Geçmiş
 context-search = Arama
+
+# Lyrics
+lyrics-title = Şarkı Sözleri — {$title}
+lyrics-title-fallback = Şarkı Sözleri
+loading-lyrics = Şarkı sözleri yükleniyor…
+no-lyrics-available = "{$title}" için şarkı sözü mevcut değil.
+lyrics-provider = Şarkı sözleri: {$provider}
+tooltip-show-lyrics = Şarkı sözlerini göster

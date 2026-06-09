@@ -167,3 +167,11 @@ share-album = Album delen: {$title}
 context-favorites = Favorieten
 context-history = Geschiedenis
 context-search = Zoeken
+
+# Lyrics
+lyrics-title = Songtekst — {$title}
+lyrics-title-fallback = Songtekst
+loading-lyrics = Songtekst laden…
+no-lyrics-available = Geen songtekst beschikbaar voor "{$title}".
+lyrics-provider = Songtekst door {$provider}
+tooltip-show-lyrics = Songtekst weergeven

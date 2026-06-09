@@ -28,6 +28,24 @@ pub const RADIO_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 16
 </svg>"##;
 
 // =============================================================================
+// Lyrics Icon
+// =============================================================================
+
+/// Lyrics icon SVG for the "show lyrics" button.
+///
+/// A small portrait sheet of paper with a folded top-right corner and
+/// three horizontal text lines suggesting a lyric sheet.  Same
+/// stroke-based design language as [`RADIO_SVG`] so it recolours with
+/// the theme.  Designed for 16×16 symbolic use.
+pub const LYRICS_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3 1.5h6.5L13 5v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V1.5Z" stroke="#232323" stroke-width="1.2" stroke-linejoin="round" fill="none"/>
+<path d="M9.5 1.5V4a1 1 0 0 0 1 1H13" stroke="#232323" stroke-width="1.2" stroke-linejoin="round" fill="none"/>
+<line x1="5" y1="8" x2="11" y2="8" stroke="#232323" stroke-width="1.1" stroke-linecap="round"/>
+<line x1="5" y1="10" x2="10" y2="10" stroke="#232323" stroke-width="1.1" stroke-linecap="round"/>
+<line x1="5" y1="12" x2="11" y2="12" stroke="#232323" stroke-width="1.1" stroke-linecap="round"/>
+</svg>"##;
+
+// =============================================================================
 // Favorite (Heart) Icon
 // =============================================================================
 

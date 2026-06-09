@@ -122,6 +122,13 @@ pub enum Message {
     /// Track radio tracks loaded
     TrackRadioLoaded(Result<Vec<Track>, String>),
 
+    // Track Lyrics
+    /// Open the lyrics view for a specific track and kick off the fetch.
+    ShowLyrics(Track),
+    /// Lyrics fetch completed (`Ok(TrackLyrics::default())` for tracks
+    /// with no lyrics; only `Err` for genuine network/parse failures).
+    TrackLyricsLoaded(Result<crate::tidal::models::TrackLyrics, String>),
+
     // Track Detail (recommendations from a track)
     /// Show track detail view (more albums by artist, related albums, related artists)
     ShowTrackDetail(Track),

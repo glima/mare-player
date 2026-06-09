@@ -28,7 +28,7 @@ use crate::helpers::format_seconds;
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
 use crate::tidal::player::PlaybackState;
-use crate::views::components::{NOW_PLAYING_ART_SIZE, RADIO_SVG, favorite_icon_handle};
+use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, RADIO_SVG, favorite_icon_handle};
 
 /// Build a custom [`cosmic::theme::style::iced::Slider`] class whose handle
 /// fills from the bottom up according to `progress` (0.0 → 1.0), showing
@@ -118,6 +118,7 @@ impl AppModel {
             ViewState::AlbumDetail => self.view_album_detail(),
             ViewState::ArtistDetail => self.view_artist_detail(),
             ViewState::TrackRadio => self.view_track_radio(),
+            ViewState::Lyrics => self.view_lyrics(),
             ViewState::TrackDetail => self.view_track_detail(),
             ViewState::FavoriteTracks => self.view_favorite_tracks(),
             ViewState::Feed => self.view_feed(),
@@ -446,6 +447,21 @@ impl AppModel {
                     .padding(4);
                 if let Some(track) = track_for_radio {
                     btn.on_press(Message::ShowTrackRadio(track))
+                } else {
+                    btn
+                }
+            })
+            .push({
+                // Lyrics view entry point.  Disabled (no on_press) when
+                // there's no currently-playing track to attribute to.
+                let track_for_lyrics = self.playback_queue.get(self.playback_queue_index).cloned();
+                let mut li = icon::from_svg_bytes(LYRICS_SVG);
+                li.symbolic = true;
+                let btn = button::icon(li)
+                    .tooltip(fl!("tooltip-show-lyrics"))
+                    .padding(4);
+                if let Some(track) = track_for_lyrics {
+                    btn.on_press(Message::ShowLyrics(track))
                 } else {
                     btn
                 }

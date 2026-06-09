@@ -161,3 +161,11 @@ share-album = 分享专辑：{$title}
 context-favorites = 收藏
 context-history = 历史记录
 context-search = 搜索
+
+# Lyrics
+lyrics-title = 歌词 — {$title}
+lyrics-title-fallback = 歌词
+loading-lyrics = 正在加载歌词…
+no-lyrics-available = 暂无"{$title}"的歌词。
+lyrics-provider = 歌词提供：{$provider}
+tooltip-show-lyrics = 显示歌词
