@@ -119,8 +119,10 @@ pub enum Message {
     // Track Radio
     /// Show track radio view for a specific track
     ShowTrackRadio(Track),
-    /// Track radio tracks loaded
-    TrackRadioLoaded(Result<Vec<Track>, String>),
+    /// Track radio loaded: `(mix_id, tracks)`.  Track radio is a
+    /// track-seeded Mix; the mix id lets plays attribute as
+    /// `MIX:<mix_id>` so they surface in TIDAL's Recently Played.
+    TrackRadioLoaded(Result<(String, Vec<Track>), String>),
 
     // Track Lyrics
     /// Open the lyrics view for a specific track and kick off the fetch.

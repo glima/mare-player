@@ -31,16 +31,23 @@ impl AppModel {
 
         let tracks: Arc<[_]> = self.selected_radio_tracks.clone().into();
 
-        // PROBE: try sourceType=TRACK_RADIO with the seed track id so
-        // these plays surface in TIDAL's Recently Played as a radio
-        // station rather than as bare TRACK events.  Falls back to
-        // ad_hoc(title) when there's no seed track (shouldn't happen
-        // in practice but defensive).
-        let radio_source = match &self.selected_radio_source_track {
-            Some(seed) => {
+        // Attribute plays as MIX:<mix_id> once the track-seeded mix has
+        // loaded -- this is the only sourceType that surfaces track-radio
+        // listening in TIDAL's Recently Played (rendered as a "Track
+        // Radio" tile via the mix's mixType=TRACK_MIX).  Before the mix
+        // resolves no playback can start (the list is empty), so the
+        // seed-track TRACK_RADIO fallback is purely defensive.
+        let radio_source = match (
+            &self.selected_radio_mix_id,
+            &self.selected_radio_source_track,
+        ) {
+            (Some(mix_id), _) => {
+                crate::tidal::models::PlaybackSource::mix(mix_id.clone(), title.clone())
+            }
+            (None, Some(seed)) => {
                 crate::tidal::models::PlaybackSource::track_radio(seed.id.clone(), title.clone())
             }
-            None => crate::tidal::models::PlaybackSource::ad_hoc(title.clone()),
+            (None, None) => crate::tidal::models::PlaybackSource::ad_hoc(title.clone()),
         };
 
         let header = widget::Row::new()

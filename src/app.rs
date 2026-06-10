@@ -137,6 +137,7 @@ impl cosmic::Application for AppModel {
             selected_mix_id: None,
             selected_radio_tracks: Vec::new(),
             selected_radio_source_track: None,
+            selected_radio_mix_id: None,
             selected_lyrics_track: None,
             selected_track_lyrics: None,
             current_lyric_index: None,

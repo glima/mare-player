@@ -2609,40 +2609,48 @@ impl TidalAppClient {
     }
 
     // =========================================================================
-    // Track Radio
+    // Track Radio (delivered as a track-seeded Mix)
     // =========================================================================
 
-    /// Fetch a "radio" playlist generated from a specific track.
+    /// Fetch a track-seeded mix and its tracks.
     ///
-    /// Uses the TIDAL v1 API endpoint `GET /v1/tracks/{track_id}/radio` via tidlers.
-    /// Returns a list of recommended tracks similar to the seed track.
-    pub async fn get_track_radio(
-        &self,
-        track_id: &str,
-        limit: Option<u32>,
-    ) -> TidalResult<Vec<Track>> {
+    /// TIDAL's "track radio" is internally a Mix: `GET /v1/tracks/{id}/mix`
+    /// returns a mix id (`mixType=TRACK_MIX`), whose items we then fetch
+    /// via `GET /v1/mixes/{mix_id}/items`.  Both hops go through tidlers.
+    ///
+    /// Returns `(mix_id, tracks)`.  The mix id is what lets plays from
+    /// this view report as `sourceType=MIX, sourceId=<mix_id>` — the
+    /// ONLY attribution that actually surfaces track-radio listening in
+    /// TIDAL's Recently Played (empirically confirmed; the older
+    /// `/tracks/{id}/radio` flat-list endpoint carries no mix id, so
+    /// its plays could only be reported as the dead-end `TRACK_RADIO`
+    /// sourceType that TIDAL's play_log silently drops).
+    pub async fn get_track_mix(&self, track_id: &str) -> TidalResult<(String, Vec<Track>)> {
         self.ensure_valid_token().await?;
-        let limit_param = limit.unwrap_or(100);
-        info!(
-            "Fetching track radio for track {} (limit {})",
-            track_id, limit_param
-        );
+        info!("Fetching track mix for track {}", track_id);
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        let response = client
-            .get_track_radio(track_id, Some(limit_param), None)
+        let mix_response = client
+            .get_track_mix(track_id, None, None)
             .await
-            .map_err(|e| TidalError::RequestFailed(format!("track radio: {e:?}")))?;
+            .map_err(|e| TidalError::RequestFailed(format!("track mix: {e:?}")))?;
+        let mix_id = mix_response.id;
+
+        let items_response = client
+            .get_mix_tracks(mix_id.clone(), None, None)
+            .await
+            .map_err(|e| TidalError::RequestFailed(format!("track mix items: {e:?}")))?;
         drop(client_guard);
 
-        let tracks: Vec<Track> = response.items.into_iter().map(Track::from).collect();
+        let tracks: Vec<Track> = items_response.items.into_iter().map(Track::from).collect();
         info!(
-            "Loaded {} radio tracks for track {}",
+            "Loaded track mix {} with {} tracks for seed track {}",
+            mix_id,
             tracks.len(),
             track_id
         );
-        Ok(tracks)
+        Ok((mix_id, tracks))
     }
 
     // =========================================================================

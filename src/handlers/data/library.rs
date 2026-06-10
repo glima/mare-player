@@ -123,14 +123,19 @@ impl AppModel {
         )
     }
 
-    /// Load radio tracks for a specific track (similar/recommended tracks)
+    /// Load the track-seeded mix for a track (TIDAL's "Track Radio").
+    ///
+    /// Returns `(mix_id, tracks)` so the view can attribute plays as
+    /// `MIX:<mix_id>` — the attribution that surfaces track-radio
+    /// listening in TIDAL's Recently Played.  See
+    /// [`TidalAppClient::get_track_mix`](crate::tidal::client::TidalAppClient::get_track_mix).
     pub(crate) fn load_track_radio(&self, track_id: String) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
         Task::perform(
             async move {
                 let client = client.lock().await;
                 client
-                    .get_track_radio(&track_id, None)
+                    .get_track_mix(&track_id)
                     .await
                     .map_err(|e| e.to_string())
             },
@@ -589,18 +594,22 @@ impl AppModel {
         }
     }
 
-    /// Handle track radio loaded result
+    /// Handle track radio loaded result.
+    ///
+    /// Stores the backing mix id (for `MIX:<mix_id>` play attribution)
+    /// alongside the resolved track list.
     pub fn handle_track_radio_loaded(
         &mut self,
-        result: Result<Vec<Track>, String>,
+        result: Result<(String, Vec<Track>), String>,
     ) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
-            Ok(tracks) => {
-                tracing::info!("Loaded {} track radio tracks", tracks.len());
+            Ok((mix_id, tracks)) => {
+                tracing::info!("Loaded track radio: mix={} tracks={}", mix_id, tracks.len());
                 let urls: Vec<String> = tracks.iter().filter_map(|t| t.cover_url.clone()).collect();
                 self.set_track_list(tracks.clone());
                 self.selected_radio_tracks = tracks;
+                self.selected_radio_mix_id = Some(mix_id);
                 self.load_images_for_urls(urls)
             }
             Err(e) => {

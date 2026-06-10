@@ -192,6 +192,12 @@ pub struct AppModel {
     pub(crate) selected_radio_tracks: Vec<Track>,
     /// The seed track that the radio is based on
     pub(crate) selected_radio_source_track: Option<Track>,
+    /// TIDAL mix id backing the current track radio (from
+    /// `/v1/tracks/{seed}/mix`).  Track radio is internally a Mix;
+    /// reporting plays as `MIX:<mix_id>` is the only attribution that
+    /// surfaces them in TIDAL's Recently Played (as a "Track Radio"
+    /// tile, via the mix's `mixType=TRACK_MIX`).
+    pub(crate) selected_radio_mix_id: Option<String>,
     /// The track whose lyrics view is currently open.
     pub(crate) selected_lyrics_track: Option<Track>,
     /// Lyrics loaded for `selected_lyrics_track`.  `None` while loading;

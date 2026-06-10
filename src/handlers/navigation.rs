@@ -301,6 +301,7 @@ impl AppModel {
         self.nav_stack.push(self.view_state.clone());
         self.selected_radio_source_track = Some(track.clone());
         self.selected_radio_tracks.clear();
+        self.selected_radio_mix_id = None;
         self.is_loading = true;
         self.view_state = ViewState::TrackRadio;
         self.load_track_radio(track.id)
