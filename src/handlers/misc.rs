@@ -129,6 +129,12 @@ impl AppModel {
         &mut self,
         quality: AudioQuality,
     ) -> Task<cosmic::Action<Message>> {
+        // Only a genuine, user-initiated switch should invalidate the
+        // audio cache — detect it before mutating config.  Never fires on
+        // startup (session restore sets quality via the client directly,
+        // not this handler), and the guard skips a no-op re-select.
+        let quality_changed = self.config.audio_quality != quality;
+
         // Update local config
         self.config.audio_quality = quality;
 
@@ -147,6 +153,14 @@ impl AppModel {
             async move {
                 let mut client = client.lock().await;
                 client.set_audio_quality(tidlers_quality).await;
+                if quality_changed {
+                    // Cache keys embed the quality (`{track_id}_{quality:?}`),
+                    // so after a switch every cached .dat/.rg is at the old
+                    // quality: unservable (new key hashes differently) and
+                    // indistinguishable on disk.  Drop it now instead of
+                    // letting it linger until 5 GB LRU eviction.
+                    client.clear_audio_cache();
+                }
             },
             |_| cosmic::Action::App(Message::ClearError), // No-op on completion
         )
