@@ -371,4 +371,24 @@ mod tests {
         assert!(np.track_id.is_empty());
         assert!(np.title.is_empty());
     }
+
+    #[test]
+    fn engine_state_maps_to_player_state() {
+        assert_eq!(
+            PlaybackState::from(EnginePlaybackState::Stopped),
+            PlaybackState::Stopped
+        );
+        assert_eq!(
+            PlaybackState::from(EnginePlaybackState::Playing),
+            PlaybackState::Playing
+        );
+        assert_eq!(
+            PlaybackState::from(EnginePlaybackState::Paused),
+            PlaybackState::Paused
+        );
+        assert_eq!(
+            PlaybackState::from(EnginePlaybackState::Loading),
+            PlaybackState::Loading
+        );
+    }
 }
