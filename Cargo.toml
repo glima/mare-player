@@ -120,26 +120,6 @@ features = [
 # Applet support ("applet", "applet-token") is activated conditionally
 # by the `panel-applet` feature — see [features] above.
 
-# Use a fork of libcosmic that trusts the compositor's DMA-BUF device
-# preference without probing the (possibly stale) Wayland surface.
-# Without this fix, hybrid GPU laptops (e.g. NVIDIA + Intel) hit
-# VK_ERROR_SURFACE_LOST_KHR during adapter selection and fall back to
-# llvmpipe (CPU software rasterizer).
-#
-# Upstream PR: https://github.com/pop-os/iced/pull/263
-#
-# To develop against a local libcosmic checkout instead, comment out
-# the git lines below and uncomment the path lines:
-#   libcosmic = { path = "../libcosmic" }
-#   cosmic-config = { path = "../libcosmic/cosmic-config" }
-#   cosmic-theme = { path = "../libcosmic/cosmic-theme" }
-[patch.'https://github.com/pop-os/libcosmic']
-libcosmic = { git = "https://github.com/glima/libcosmic.git" }
-cosmic-config = { git = "https://github.com/glima/libcosmic.git" }
-cosmic-theme = { git = "https://github.com/glima/libcosmic.git" }
-
-
-
 # ── packaging ────────────────────────────────────────────────────────
 
 [package.metadata.deb]
