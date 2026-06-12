@@ -295,4 +295,39 @@ mod tests {
         assert_eq!(h.tracks()[0].title, "B2");
         assert_eq!(h.tracks()[2].title, "A2");
     }
+
+    fn temp_cache() -> (DiskCache, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let cache = DiskCache::new(tmp.path().to_path_buf(), 10);
+        (cache, tmp)
+    }
+
+    #[test]
+    fn save_then_load_round_trips_entries() {
+        let (cache, _tmp) = temp_cache();
+        let mut h = PlayHistory::new();
+        h.record(&make_track("a", "A"));
+        h.record(&make_track("b", "B"));
+        h.save(&cache);
+
+        let loaded = PlayHistory::load(&cache);
+        // most-recent first: B then A
+        assert_eq!(loaded.len(), 2);
+        assert_eq!(loaded.tracks()[0].id, "b");
+        assert_eq!(loaded.tracks()[1].id, "a");
+    }
+
+    #[test]
+    fn load_from_empty_cache_is_empty() {
+        let (cache, _tmp) = temp_cache();
+        let loaded = PlayHistory::load(&cache);
+        assert!(loaded.is_empty());
+    }
+
+    #[test]
+    fn save_empty_then_load_is_empty() {
+        let (cache, _tmp) = temp_cache();
+        PlayHistory::new().save(&cache);
+        assert!(PlayHistory::load(&cache).is_empty());
+    }
 }

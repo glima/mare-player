@@ -268,4 +268,54 @@ mod tests {
         let manifest = DashManifest::parse(SAMPLE_MPD).unwrap();
         assert_eq!(manifest.init_url, "https://example.com/init.mp4");
     }
+
+    #[test]
+    fn dash_error_display_messages() {
+        assert_eq!(
+            DashError::ParseError("boom".into()).to_string(),
+            "Parse error: boom"
+        );
+        assert_eq!(
+            DashError::NoAudioTrack.to_string(),
+            "No audio track found in manifest"
+        );
+        assert_eq!(
+            DashError::InvalidManifest("bad".into()).to_string(),
+            "Invalid manifest: bad"
+        );
+    }
+
+    #[test]
+    fn parse_garbage_yields_parse_error() {
+        let err = DashManifest::parse("not xml at all").unwrap_err();
+        assert!(matches!(err, DashError::ParseError(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn parse_manifest_without_audio_yields_no_audio_track() {
+        // Reuse the sample but flip its single adaptation set to video.
+        let video_only = SAMPLE_MPD
+            .replace(r#"contentType="audio""#, r#"contentType="video""#)
+            .replace(r#"mimeType="audio/mp4""#, r#"mimeType="video/mp4""#);
+        let err = DashManifest::parse(&video_only).unwrap_err();
+        assert!(matches!(err, DashError::NoAudioTrack), "got {err:?}");
+    }
+
+    #[test]
+    fn parse_sanitizes_non_numeric_group_attribute() {
+        // group="main" would make dash-mpd choke (it expects an integer);
+        // sanitize_manifest rewrites it to group="0" so parsing succeeds.
+        let with_group = SAMPLE_MPD.replace(
+            r#"<AdaptationSet id="0" contentType="audio""#,
+            r#"<AdaptationSet id="0" group="main" contentType="audio""#,
+        );
+        assert!(with_group.contains(r#"group="main""#));
+        let manifest = DashManifest::parse(&with_group).expect("sanitized manifest should parse");
+        assert_eq!(manifest.audio_info.codec, "flac");
+    }
+
+    #[test]
+    fn sanitize_manifest_is_noop_for_clean_input() {
+        assert_eq!(DashManifest::sanitize_manifest(SAMPLE_MPD), SAMPLE_MPD);
+    }
 }
