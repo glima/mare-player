@@ -932,4 +932,134 @@ mod tests {
         assert!(!synced.is_empty());
         assert!(synced.is_synced());
     }
+
+    // ── Cover URL helpers ─────────────────────────────────────────────────────
+
+    #[test]
+    fn cover_url_joins_uuid_segments_with_slashes() {
+        assert_eq!(
+            tidal_cover_url("7e58f111-5b1a-492a-aaf1-88fb55ce8a44"),
+            "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
+        );
+    }
+
+    #[test]
+    fn cover_url_uses_default_size() {
+        // tidal_cover_url delegates to the sized variant with DEFAULT_COVER_SIZE_PX.
+        let uuid = "abcd-ef01";
+        assert_eq!(
+            tidal_cover_url(uuid),
+            tidal_cover_url_sized(uuid, DEFAULT_COVER_SIZE_PX)
+        );
+    }
+
+    #[test]
+    fn cover_url_sized_embeds_requested_dimensions() {
+        assert_eq!(
+            tidal_cover_url_sized("a-b-c", 750),
+            "https://resources.tidal.com/images/a/b/c/750x750.jpg"
+        );
+    }
+
+    #[test]
+    fn cover_url_without_hyphens_is_passed_through() {
+        assert_eq!(
+            tidal_cover_url_sized("singlesegment", 80),
+            "https://resources.tidal.com/images/singlesegment/80x80.jpg"
+        );
+    }
+
+    // ── PlaybackSourceKind ─────────────────────────────────────────────────
+
+    #[test]
+    fn playback_source_kind_tidal_strings() {
+        assert_eq!(PlaybackSourceKind::Album.as_tidal_str(), "ALBUM");
+        assert_eq!(PlaybackSourceKind::Playlist.as_tidal_str(), "PLAYLIST");
+        assert_eq!(PlaybackSourceKind::Mix.as_tidal_str(), "MIX");
+        assert_eq!(PlaybackSourceKind::Artist.as_tidal_str(), "ARTIST");
+        assert_eq!(PlaybackSourceKind::TrackRadio.as_tidal_str(), "TRACK_RADIO");
+        assert_eq!(PlaybackSourceKind::Track.as_tidal_str(), "TRACK");
+    }
+
+    // ── PlaybackSource constructors ──────────────────────────────────────
+
+    #[test]
+    fn playback_source_album_constructor() {
+        let s = PlaybackSource::album("123", "Kind of Blue");
+        assert_eq!(s.kind, PlaybackSourceKind::Album);
+        assert_eq!(s.id, "123");
+        assert_eq!(s.display_name, "Kind of Blue");
+    }
+
+    #[test]
+    fn playback_source_playlist_constructor() {
+        let s = PlaybackSource::playlist("uuid-1", "Roadtrip");
+        assert_eq!(s.kind, PlaybackSourceKind::Playlist);
+        assert_eq!(s.id, "uuid-1");
+        assert_eq!(s.display_name, "Roadtrip");
+    }
+
+    #[test]
+    fn playback_source_mix_constructor() {
+        let s = PlaybackSource::mix("mix-9", "My Mix 1");
+        assert_eq!(s.kind, PlaybackSourceKind::Mix);
+        assert_eq!(s.id, "mix-9");
+        assert_eq!(s.display_name, "My Mix 1");
+    }
+
+    #[test]
+    fn playback_source_artist_constructor() {
+        let s = PlaybackSource::artist("42", "Miles Davis");
+        assert_eq!(s.kind, PlaybackSourceKind::Artist);
+        assert_eq!(s.id, "42");
+        assert_eq!(s.display_name, "Miles Davis");
+    }
+
+    #[test]
+    fn playback_source_track_radio_constructor() {
+        let s = PlaybackSource::track_radio("seed-7", "So What Radio");
+        assert_eq!(s.kind, PlaybackSourceKind::TrackRadio);
+        assert_eq!(s.id, "seed-7");
+        assert_eq!(s.display_name, "So What Radio");
+    }
+
+    #[test]
+    fn playback_source_track_constructor() {
+        let s = PlaybackSource::track("t-1", "Blue in Green");
+        assert_eq!(s.kind, PlaybackSourceKind::Track);
+        assert_eq!(s.id, "t-1");
+        assert_eq!(s.display_name, "Blue in Green");
+    }
+
+    #[test]
+    fn playback_source_ad_hoc_has_empty_id_and_track_kind() {
+        let s = PlaybackSource::ad_hoc("Favorites");
+        assert_eq!(s.kind, PlaybackSourceKind::Track);
+        assert!(s.id.is_empty());
+        assert_eq!(s.display_name, "Favorites");
+    }
+
+    // ── SearchResults counting ────────────────────────────────────────
+
+    #[test]
+    fn search_results_count_sums_all_categories() {
+        let results = SearchResults {
+            tracks: vec![Track::default(), Track::default()],
+            albums: vec![Album::default()],
+            artists: vec![Artist::default(), Artist::default(), Artist::default()],
+            playlists: vec![Playlist::default()],
+        };
+        assert!(!results.is_empty());
+        assert_eq!(results.total_count(), 7);
+    }
+
+    #[test]
+    fn search_results_with_only_one_category_is_not_empty() {
+        let results = SearchResults {
+            tracks: vec![Track::default()],
+            ..Default::default()
+        };
+        assert!(!results.is_empty());
+        assert_eq!(results.total_count(), 1);
+    }
 }
