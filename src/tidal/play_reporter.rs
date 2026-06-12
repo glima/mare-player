@@ -674,4 +674,42 @@ mod tests {
         p.observe_position(0.0);
         assert_eq!(p.last_position_s, 200.0);
     }
+
+    #[test]
+    fn sqs_batch_has_single_1based_entry_with_both_attributes() {
+        let params = encode_sqs_batch("msg-7", "the-body", "the-headers");
+        let map: std::collections::HashMap<_, _> = params.into_iter().collect();
+
+        assert_eq!(map["SendMessageBatchRequestEntry.1.Id"], "msg-7");
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageBody"],
+            "the-body"
+        );
+        // Attribute 1 = Name -> EVENT_NAME
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Name"],
+            "Name"
+        );
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.StringValue"],
+            EVENT_NAME
+        );
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.DataType"],
+            "String"
+        );
+        // Attribute 2 = Headers -> headers_attr
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Name"],
+            "Headers"
+        );
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue"],
+            "the-headers"
+        );
+        assert_eq!(
+            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.DataType"],
+            "String"
+        );
+    }
 }

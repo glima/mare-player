@@ -72,3 +72,32 @@ pub fn scroll_to_volume_delta(delta: ScrollDelta) -> f32 {
 pub const CACHE_DIR_NAME: &str = "cosmic-applet-mare";
 #[cfg(not(feature = "panel-applet"))]
 pub const CACHE_DIR_NAME: &str = "mare-player";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn line_scroll_maps_one_line_to_one_step() {
+        let d = scroll_to_volume_delta(ScrollDelta::Lines { x: 0.0, y: 1.0 });
+        assert!((d - VOLUME_STEP).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn line_scroll_is_signed() {
+        let down = scroll_to_volume_delta(ScrollDelta::Lines { x: 0.0, y: -2.0 });
+        assert!((down - (-2.0 * VOLUME_STEP)).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn pixel_scroll_normalises_15px_to_one_step() {
+        let d = scroll_to_volume_delta(ScrollDelta::Pixels { x: 0.0, y: 15.0 });
+        assert!((d - VOLUME_STEP).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn pixel_scroll_ignores_horizontal_axis() {
+        let d = scroll_to_volume_delta(ScrollDelta::Pixels { x: 999.0, y: 0.0 });
+        assert_eq!(d, 0.0);
+    }
+}
