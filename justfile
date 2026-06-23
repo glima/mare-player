@@ -83,10 +83,7 @@ check *args:
         # All ignored advisories are transitive deps from libcosmic/iced
         # that we cannot fix or upgrade ourselves.
         cargo audit \
-            --ignore RUSTSEC-2024-0388 `# derivative (unmaintained) — via zbus 3 → atspi → accesskit → iced` \
-            --ignore RUSTSEC-2024-0384 `# instant (unmaintained) — via parking_lot 0.11 → wasm-timer → iced_futures` \
             --ignore RUSTSEC-2024-0436 `# paste (unmaintained) — via metal/accesskit_windows → wgpu/iced` \
-            --ignore RUSTSEC-2026-0002 `# lru (unsound) — via iced_glyphon → iced_wgpu → libcosmic` \
             --ignore RUSTSEC-2026-0186 `# memmap2 (unsound) — via cosmic-freedesktop-icons / cosmic-text → libcosmic` \
             --ignore RUSTSEC-2026-0173 `# proc-macro-error2 (unmaintained) — via i18n-embed-fl`
     else
