@@ -1,6 +1,6 @@
 [package]
 name = "cosmic-applet-mare-fuzz"
-version = "0.2.3"
+version = "0.2.4"
 publish = false
 edition = "2024"
 
