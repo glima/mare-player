@@ -29,7 +29,7 @@ impl AppModel {
             title_row = title_row.push(text(fl!("debug-unoptimized")).size(12).class(
                 cosmic::theme::Text::Custom(|_theme| cosmic::iced::widget::text::Style {
                     color: Some(cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2)),
-                    ..Default::default()
+                    selected_fill: cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2),
                 }),
             ));
         }
@@ -147,9 +147,16 @@ impl AppModel {
             Message::ShowFeed,
         );
 
+        let explore_btn = AppModel::menu_row(
+            "find-location-symbolic",
+            fl!("explore"),
+            Message::ShowExplore,
+        );
+
         let collection_section = widget::Column::new()
             .push(text(fl!("collection")).size(12))
             .push(albums_btn)
+            .push(explore_btn)
             .push(feed_btn)
             .push(history_btn)
             .push(mixes_btn)

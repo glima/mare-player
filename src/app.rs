@@ -132,6 +132,10 @@ impl cosmic::Application for AppModel {
             user_mixes: Vec::new(),
             user_followed_artists: Vec::new(),
             feed_activities: Vec::new(),
+            explore_page: None,
+            explore_rows: cosmic::iced::widget::list::Content::default(),
+            explore_loading: false,
+            explore_stack: Vec::new(),
             selected_mix_tracks: Vec::new(),
             selected_mix_name: None,
             selected_mix_id: None,
@@ -484,6 +488,7 @@ impl cosmic::Application for AppModel {
             | Message::TrackDetailRelatedAlbumsLoaded(_)
             | Message::ProfilesLoaded(_)
             | Message::FeedLoaded(_)
+            | Message::ExploreLoaded(_)
             | Message::FollowArtistToggled(_) => {
                 tracing::debug!("update() received: {:?}", message);
             }
@@ -549,6 +554,7 @@ impl cosmic::Application for AppModel {
             }
             Message::ShowMixes => self.handle_show_mixes(),
             Message::ShowFeed => self.handle_show_feed(),
+            Message::ShowExplore => self.handle_show_explore(),
             Message::ShowPlaylists => self.handle_show_playlists(),
             Message::ShowAlbums => self.handle_show_albums(),
             Message::ShowFavoriteTracks => self.handle_show_favorite_tracks(),
@@ -605,6 +611,10 @@ impl cosmic::Application for AppModel {
             // Data handlers - feed
             Message::LoadFeed => self.handle_load_feed(),
             Message::FeedLoaded(result) => self.handle_feed_loaded(result),
+            Message::LoadExplorePage(slug) => self.handle_load_explore_page(slug),
+            Message::ExploreLoaded(result) => self.handle_explore_loaded(result),
+            Message::OpenExploreTarget(target) => self.handle_open_explore_target(target),
+            Message::ExploreBack => self.handle_explore_back(),
 
             // Data handlers - search
             Message::SearchQueryChanged(query) => self.handle_search_query_changed(query),

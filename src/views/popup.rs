@@ -122,6 +122,7 @@ impl AppModel {
             ViewState::TrackDetail => self.view_track_detail(),
             ViewState::FavoriteTracks => self.view_favorite_tracks(),
             ViewState::Feed => self.view_feed(),
+            ViewState::Explore => self.view_explore(),
             ViewState::History => self.view_history(),
             ViewState::Profiles => self.view_profiles(),
             ViewState::Settings => self.view_settings(),

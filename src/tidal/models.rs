@@ -37,6 +37,18 @@ pub fn tidal_cover_url_sized(uuid: &str, size_px: u32) -> String {
     )
 }
 
+/// Build a TIDAL CDN URL for a featured-promo image UUID.
+///
+/// Promo artwork is a 550×400 banner — it has no square variant, so the
+/// usual `320x320` request returns 403 Forbidden.  Featured cards must
+/// request this specific non-square size.
+pub fn tidal_promo_image_url(uuid: &str) -> String {
+    format!(
+        "https://resources.tidal.com/images/{}/550x400.jpg",
+        uuid.replace('-', "/")
+    )
+}
+
 /// A music track
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Track {
@@ -541,6 +553,134 @@ pub enum FeedItem {
         subtitle: String,
         image_url: Option<String>,
     },
+}
+
+// ── Explore (TIDAL browse pages) ────────────────────────────────────
+//
+// Mirrors TIDAL's `GET /v1/pages/{path}` response: a page is a list of
+// modules (sections), each holding either promo cards, links to other
+// browse pages (genres/moods/decades/…), or content lists.
+
+/// A fully parsed TIDAL browse page (e.g. "explore", a genre, a mood).
+#[derive(Debug, Clone, Default)]
+pub struct ExplorePage {
+    pub title: String,
+    pub sections: Vec<ExploreSection>,
+}
+
+/// One section of a browse page.
+#[derive(Debug, Clone)]
+pub enum ExploreSection {
+    /// Top "Featured" carousel of promo cards.
+    Featured {
+        title: String,
+        items: Vec<ExploreCard>,
+    },
+    /// A cloud/grid of links to other browse pages
+    /// (Genres, Moods & Activities, Decades, More).
+    Links { title: String, links: Vec<PageLink> },
+    /// Horizontal list of albums.
+    Albums { title: String, albums: Vec<Album> },
+    /// Horizontal list of playlists.
+    Playlists {
+        title: String,
+        playlists: Vec<Playlist>,
+    },
+    /// Horizontal list of artists.
+    Artists { title: String, artists: Vec<Artist> },
+}
+
+/// A featured promo card: an image plus a navigation target.
+#[derive(Debug, Clone)]
+pub struct ExploreCard {
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub image_url: Option<String>,
+    pub target: ExploreTarget,
+}
+
+/// Where an explore card or link points when activated.
+#[derive(Debug, Clone)]
+pub enum ExploreTarget {
+    Album(String),
+    Playlist(String),
+    Artist(String),
+    Mix(String),
+    /// Another browse page to load recursively (`/v1/pages/{path}`).
+    Page(String),
+    /// Nothing actionable (unknown/unsupported target type).
+    None,
+}
+
+/// A text link to another browse page (genre, mood, decade, …).
+#[derive(Debug, Clone)]
+pub struct PageLink {
+    pub text: String,
+    /// TIDAL page path to load, e.g. `"genre_hip_hop"` or a full
+    /// `apiPath` the client normalises before requesting.
+    pub path: String,
+}
+
+/// A single flattened row of the Explore page, suitable for rendering
+/// through the virtual `List` widget (only visible rows materialise,
+/// keeping scrolling smooth on long browse pages).
+#[derive(Debug, Clone)]
+pub enum ExploreRow {
+    /// A section heading ("Featured", "Genres", …).
+    SectionHeader(String),
+    /// A featured promo card.
+    Featured(ExploreCard),
+    /// A page link (genre/mood/decade/more).
+    Link(PageLink),
+    /// An album entry.
+    Album(Album),
+    /// A playlist entry.
+    Playlist(Playlist),
+    /// An artist entry.
+    Artist(Artist),
+}
+
+impl ExplorePage {
+    /// Flatten the page's sections into a single ordered list of rows
+    /// (section header followed by its items), for the virtual `List`.
+    pub fn into_rows(&self) -> Vec<ExploreRow> {
+        let mut rows = Vec::new();
+        for section in &self.sections {
+            match section {
+                ExploreSection::Featured { title, items } => {
+                    if !title.is_empty() {
+                        rows.push(ExploreRow::SectionHeader(title.clone()));
+                    }
+                    rows.extend(items.iter().cloned().map(ExploreRow::Featured));
+                }
+                ExploreSection::Links { title, links } => {
+                    if !title.is_empty() {
+                        rows.push(ExploreRow::SectionHeader(title.clone()));
+                    }
+                    rows.extend(links.iter().cloned().map(ExploreRow::Link));
+                }
+                ExploreSection::Albums { title, albums } => {
+                    if !title.is_empty() {
+                        rows.push(ExploreRow::SectionHeader(title.clone()));
+                    }
+                    rows.extend(albums.iter().cloned().map(ExploreRow::Album));
+                }
+                ExploreSection::Playlists { title, playlists } => {
+                    if !title.is_empty() {
+                        rows.push(ExploreRow::SectionHeader(title.clone()));
+                    }
+                    rows.extend(playlists.iter().cloned().map(ExploreRow::Playlist));
+                }
+                ExploreSection::Artists { title, artists } => {
+                    if !title.is_empty() {
+                        rows.push(ExploreRow::SectionHeader(title.clone()));
+                    }
+                    rows.extend(artists.iter().cloned().map(ExploreRow::Artist));
+                }
+            }
+        }
+        rows
+    }
 }
 
 // ── Lyrics ────────────────────────────────────────────────────────────────────────

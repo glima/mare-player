@@ -13,8 +13,9 @@
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
-    Album, Artist, FeedActivity, FeedItem, Mix, Playlist, SearchResults, Track, TrackLyrics,
-    tidal_cover_url,
+    Album, Artist, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity, FeedItem,
+    Mix, PageLink, Playlist, SearchResults, Track, TrackLyrics, tidal_cover_url,
+    tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
@@ -2586,6 +2587,329 @@ impl TidalAppClient {
             mix_type,
             image_url,
         })
+    }
+
+    // =========================================================================
+    // Explore (TIDAL browse pages: /v1/pages/{path})
+    // =========================================================================
+
+    /// Fetch and parse a TIDAL browse page.
+    ///
+    /// `path` is the page slug — `"explore"` for the root Explore view, or a
+    /// sub-page slug (genre/mood/decade) obtained from a [`PageLink`].  A
+    /// full `apiPath` like `pages/genre_hip_hop` is normalised to its slug.
+    ///
+    /// tidlers has no pages API, so this is a hand-built request mirroring the
+    /// official web client (`GET /v1/pages/{path}?deviceType=BROWSER&...`).
+    pub async fn get_explore_page(&self, path: &str) -> TidalResult<ExplorePage> {
+        self.ensure_valid_token().await?;
+
+        let (access_token, country_code, locale) = {
+            let client_guard = self.client.lock().await;
+            let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+            let token = client
+                .session
+                .auth
+                .access_token
+                .as_ref()
+                .ok_or(TidalError::NotAuthenticated)?
+                .clone();
+            let cc = client
+                .user_info
+                .as_ref()
+                .map(|u| u.country_code.clone())
+                .unwrap_or_else(|| "US".to_string());
+            let loc = client.session.locale.clone();
+            (token, cc, loc)
+        };
+
+        // Normalise `pages/foo` / `/v1/pages/foo` down to the bare slug.
+        let slug = path
+            .trim_start_matches('/')
+            .trim_start_matches("v1/")
+            .trim_start_matches("pages/");
+
+        let url = format!(
+            "https://api.tidal.com/v1/pages/{slug}?countryCode={country_code}&locale={locale}&deviceType=BROWSER&platform=WEB"
+        );
+        debug!("Fetching explore page: {}", slug);
+
+        let http_client = reqwest::Client::new();
+        let response = http_client
+            .get(&url)
+            .header(AUTHORIZATION, format!("Bearer {}", access_token))
+            .header("x-tidal-client-version", "2026.1.5")
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0",
+            )
+            .send()
+            .await
+            .map_err(|e| TidalError::NetworkError(format!("explore request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!("Explore page '{}' failed: HTTP {} — {}", slug, status, body);
+            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
+        }
+
+        let body = response
+            .text()
+            .await
+            .map_err(|e| TidalError::NetworkError(format!("reading explore body: {}", e)))?;
+        let page: serde_json::Value = serde_json::from_str(&body)
+            .map_err(|e| TidalError::ParseError(format!("parsing explore JSON: {}", e)))?;
+
+        let parsed = Self::parse_explore_page(&page);
+        info!("Explore '{}': {} sections", slug, parsed.sections.len());
+        Ok(parsed)
+    }
+
+    /// Parse a `/v1/pages/{path}` JSON body into an [`ExplorePage`].
+    ///
+    /// Defensive throughout: unknown module types are skipped, missing
+    /// fields fall back to sensible defaults, so a partial/changed payload
+    /// degrades gracefully instead of erroring.
+    fn parse_explore_page(page: &serde_json::Value) -> ExplorePage {
+        let title = page
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Explore")
+            .to_string();
+
+        let mut sections: Vec<ExploreSection> = Vec::new();
+
+        let rows = page.get("rows").and_then(|v| v.as_array());
+        for row in rows.into_iter().flatten() {
+            let modules = row.get("modules").and_then(|v| v.as_array());
+            for module in modules.into_iter().flatten() {
+                if let Some(section) = Self::parse_explore_module(module) {
+                    sections.push(section);
+                }
+            }
+        }
+
+        ExplorePage { title, sections }
+    }
+
+    /// Parse a single module into an [`ExploreSection`], or `None` if it is
+    /// empty or an unsupported type (e.g. videos).
+    fn parse_explore_module(module: &serde_json::Value) -> Option<ExploreSection> {
+        let module_type = module.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        let title = module
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        match module_type {
+            "FEATURED_PROMOTIONS" => {
+                let items: Vec<ExploreCard> = module
+                    .get("items")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(Self::parse_promo_card).collect())
+                    .unwrap_or_default();
+                (!items.is_empty()).then_some(ExploreSection::Featured { title, items })
+            }
+            "PAGE_LINKS" | "PAGE_LINKS_CLOUD" => {
+                let links: Vec<PageLink> = module
+                    .get("pagedList")
+                    .and_then(|v| v.get("items"))
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.iter().filter_map(Self::parse_page_link).collect())
+                    .unwrap_or_default();
+                (!links.is_empty()).then_some(ExploreSection::Links { title, links })
+            }
+            "ALBUM_LIST" => {
+                let albums: Vec<Album> = Self::paged_items(module)
+                    .iter()
+                    .filter_map(Self::parse_explore_album)
+                    .collect();
+                (!albums.is_empty()).then_some(ExploreSection::Albums { title, albums })
+            }
+            "PLAYLIST_LIST" => {
+                let playlists: Vec<Playlist> = Self::paged_items(module)
+                    .iter()
+                    .filter_map(Self::parse_explore_playlist)
+                    .collect();
+                (!playlists.is_empty()).then_some(ExploreSection::Playlists { title, playlists })
+            }
+            "ARTIST_LIST" => {
+                let artists: Vec<Artist> = Self::paged_items(module)
+                    .iter()
+                    .filter_map(Self::parse_explore_artist)
+                    .collect();
+                (!artists.is_empty()).then_some(ExploreSection::Artists { title, artists })
+            }
+            _ => None,
+        }
+    }
+
+    fn paged_items(module: &serde_json::Value) -> Vec<serde_json::Value> {
+        module
+            .get("pagedList")
+            .and_then(|v| v.get("items"))
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Parse a FEATURED_PROMOTIONS item into a card with a nav target.
+    fn parse_promo_card(item: &serde_json::Value) -> Option<ExploreCard> {
+        let title = item
+            .get("header")
+            .and_then(|v| v.as_str())
+            .or_else(|| item.get("shortHeader").and_then(|v| v.as_str()))
+            .unwrap_or("")
+            .to_string();
+        let subtitle = item
+            .get("shortSubHeader")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        let image_url = item
+            .get("imageId")
+            .and_then(|v| v.as_str())
+            .map(tidal_promo_image_url);
+
+        let artifact_id = item
+            .get("artifactId")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let target = match item.get("type").and_then(|v| v.as_str()).unwrap_or("") {
+            "PLAYLIST" => ExploreTarget::Playlist(artifact_id),
+            "ALBUM" => ExploreTarget::Album(artifact_id),
+            "ARTIST" => ExploreTarget::Artist(artifact_id),
+            "MIX" => ExploreTarget::Mix(artifact_id),
+            "CATEGORY_PAGES" | "PAGE" => ExploreTarget::Page(artifact_id),
+            _ => ExploreTarget::None,
+        };
+
+        if title.is_empty() && image_url.is_none() {
+            return None;
+        }
+        Some(ExploreCard {
+            title,
+            subtitle,
+            image_url,
+            target,
+        })
+    }
+
+    /// Parse a PAGE_LINKS item (genre/mood/decade button).
+    fn parse_page_link(item: &serde_json::Value) -> Option<PageLink> {
+        let text = item
+            .get("title")
+            .and_then(|v| v.as_str())
+            .or_else(|| item.get("text").and_then(|v| v.as_str()))
+            .unwrap_or("")
+            .to_string();
+        // The link target lives in `apiPath` (preferred) or `path`.
+        let path = item
+            .get("apiPath")
+            .and_then(|v| v.as_str())
+            .or_else(|| item.get("path").and_then(|v| v.as_str()))
+            .unwrap_or("")
+            .to_string();
+        if text.is_empty() || path.is_empty() {
+            return None;
+        }
+        Some(PageLink { text, path })
+    }
+
+    fn parse_explore_album(it: &serde_json::Value) -> Option<Album> {
+        let id = Self::json_id(it.get("id"))?;
+        Some(Album {
+            id,
+            title: it.get("title").and_then(|v| v.as_str())?.to_string(),
+            artist_name: it
+                .get("artists")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|a| a.get("name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            artist_id: it
+                .get("artists")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|a| Self::json_id(a.get("id"))),
+            num_tracks: it
+                .get("numberOfTracks")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            duration: it.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            release_date: it
+                .get("releaseDate")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            cover_url: it
+                .get("cover")
+                .and_then(|v| v.as_str())
+                .map(tidal_cover_url),
+            explicit: it
+                .get("explicit")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            audio_quality: it
+                .get("audioQuality")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            review: None,
+        })
+    }
+
+    fn parse_explore_playlist(it: &serde_json::Value) -> Option<Playlist> {
+        let uuid = it.get("uuid").and_then(|v| v.as_str())?.to_string();
+        let image_id = it
+            .get("squareImage")
+            .and_then(|v| v.as_str())
+            .or_else(|| it.get("image").and_then(|v| v.as_str()));
+        Some(Playlist {
+            uuid,
+            title: it.get("title").and_then(|v| v.as_str())?.to_string(),
+            description: it
+                .get("description")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+            creator_name: None,
+            num_tracks: it
+                .get("numberOfTracks")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            duration: it.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            last_updated: None,
+            image_url: image_id.map(tidal_cover_url),
+            is_user_playlist: false,
+        })
+    }
+
+    fn parse_explore_artist(it: &serde_json::Value) -> Option<Artist> {
+        let id = Self::json_id(it.get("id"))?;
+        Some(Artist {
+            id,
+            name: it.get("name").and_then(|v| v.as_str())?.to_string(),
+            picture_url: it
+                .get("picture")
+                .and_then(|v| v.as_str())
+                .map(tidal_cover_url),
+            bio: None,
+            popularity: None,
+            roles: Vec::new(),
+            url: None,
+        })
+    }
+
+    /// TIDAL ids arrive as either JSON numbers or strings; coerce to String.
+    fn json_id(v: Option<&serde_json::Value>) -> Option<String> {
+        match v {
+            Some(serde_json::Value::Number(n)) => Some(n.to_string()),
+            Some(serde_json::Value::String(s)) => Some(s.clone()),
+            _ => None,
+        }
     }
 
     /// Fetch the tracks for a specific mix by its ID.

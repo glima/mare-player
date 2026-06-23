@@ -15,7 +15,8 @@ use crate::config::{AudioQuality, Config};
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::PlaybackUrl;
 use crate::tidal::models::{
-    Album, Artist, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
+    Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist,
+    SearchResults, Track,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 
@@ -81,6 +82,8 @@ pub enum Message {
     ShowMixes,
     /// Show the feed view (new releases from followed artists)
     ShowFeed,
+    /// Show the Explore view (TIDAL browse: featured/genres/moods/decades)
+    ShowExplore,
     /// Show the playlists list
     ShowPlaylists,
     /// Show the albums list
@@ -107,6 +110,17 @@ pub enum Message {
     LoadFeed,
     /// Feed activities loaded
     FeedLoaded(Result<Vec<FeedActivity>, String>),
+
+    // Explore (TIDAL browse pages)
+    /// Load an Explore page by slug, pushing the current one onto the
+    /// in-view back stack (genres/moods/decades drill down recursively).
+    LoadExplorePage(String),
+    /// An Explore page finished loading.
+    ExploreLoaded(Result<ExplorePage, String>),
+    /// Activate an Explore card/promo target (album/playlist/artist/mix/page).
+    OpenExploreTarget(ExploreTarget),
+    /// Pop one level off the Explore back stack (in-view back button).
+    ExploreBack,
 
     // Mixes & Radio
     /// Load user mixes from home feed

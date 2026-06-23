@@ -263,6 +263,19 @@ impl AppModel {
         }
     }
 
+    /// Handle show Explore view (TIDAL browse pages).
+    ///
+    /// Resets the in-view back stack to the root "explore" page and loads
+    /// it (always re-fetched — the page is time-sensitive featured content).
+    pub fn handle_show_explore(&mut self) -> Task<cosmic::Action<Message>> {
+        self.nav_stack.clear();
+        self.view_state = ViewState::Explore;
+        self.explore_stack = vec!["explore".to_string()];
+        self.explore_page = None;
+        self.explore_loading = true;
+        self.load_explore_page("explore")
+    }
+
     // =========================================================================
     // List-level views (push parent onto the stack)
     // =========================================================================

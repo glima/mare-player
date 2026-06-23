@@ -234,6 +234,22 @@ impl AppModel {
         )
     }
 
+    /// Fetch an Explore (browse) page by slug.
+    pub(crate) fn load_explore_page(&self, slug: &str) -> Task<cosmic::Action<Message>> {
+        let client = self.tidal_client.clone();
+        let slug = slug.to_string();
+        Task::perform(
+            async move {
+                let client = client.lock().await;
+                client
+                    .get_explore_page(&slug)
+                    .await
+                    .map_err(|e| e.to_string())
+            },
+            |result| cosmic::Action::App(Message::ExploreLoaded(result)),
+        )
+    }
+
     /// Load followed artists (profiles)
     pub(crate) fn load_profiles(&self) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
@@ -755,6 +771,89 @@ impl AppModel {
             Err(e) => {
                 tracing::error!("Failed to load feed: {}", e);
                 self.error_message = Some(format!("Failed to load feed: {}", e));
+                Task::none()
+            }
+        }
+    }
+
+    /// Drill into an Explore sub-page (genre/mood/decade): push the slug
+    /// onto the back stack and fetch it.
+    pub fn handle_load_explore_page(&mut self, slug: String) -> Task<cosmic::Action<Message>> {
+        self.explore_stack.push(slug.clone());
+        self.explore_loading = true;
+        self.load_explore_page(&slug)
+    }
+
+    /// Pop one level off the Explore back stack and reload the parent page.
+    pub fn handle_explore_back(&mut self) -> Task<cosmic::Action<Message>> {
+        if self.explore_stack.len() > 1 {
+            self.explore_stack.pop();
+        }
+        if let Some(slug) = self.explore_stack.last().cloned() {
+            self.explore_loading = true;
+            self.load_explore_page(&slug)
+        } else {
+            Task::none()
+        }
+    }
+
+    /// Activate an Explore card/promo target.
+    pub fn handle_open_explore_target(
+        &mut self,
+        target: crate::tidal::models::ExploreTarget,
+    ) -> Task<cosmic::Action<Message>> {
+        use crate::tidal::models::ExploreTarget;
+        match target {
+            ExploreTarget::Album(id) => self.handle_show_album_detail_by_id(id),
+            ExploreTarget::Artist(id) => self.handle_show_artist_detail(id),
+            ExploreTarget::Playlist(uuid) => self.handle_show_playlist_detail(uuid, String::new()),
+            ExploreTarget::Mix(id) => self.handle_show_mix_detail(id, String::new()),
+            ExploreTarget::Page(slug) => self.handle_load_explore_page(slug),
+            ExploreTarget::None => Task::none(),
+        }
+    }
+
+    /// Handle an Explore page finishing loading: store it and preload covers.
+    pub fn handle_explore_loaded(
+        &mut self,
+        result: Result<crate::tidal::models::ExplorePage, String>,
+    ) -> Task<cosmic::Action<Message>> {
+        use crate::tidal::models::ExploreSection;
+        self.explore_loading = false;
+        match result {
+            Ok(page) => {
+                tracing::info!(
+                    "Loaded explore page '{}' ({} sections)",
+                    page.title,
+                    page.sections.len()
+                );
+                // Collect every cover URL across the page for preloading.
+                let mut urls: Vec<String> = Vec::new();
+                for section in &page.sections {
+                    match section {
+                        ExploreSection::Featured { items, .. } => {
+                            urls.extend(items.iter().filter_map(|c| c.image_url.clone()));
+                        }
+                        ExploreSection::Albums { albums, .. } => {
+                            urls.extend(albums.iter().filter_map(|a| a.cover_url.clone()));
+                        }
+                        ExploreSection::Playlists { playlists, .. } => {
+                            urls.extend(playlists.iter().filter_map(|p| p.image_url.clone()));
+                        }
+                        ExploreSection::Artists { artists, .. } => {
+                            urls.extend(artists.iter().filter_map(|a| a.picture_url.clone()));
+                        }
+                        ExploreSection::Links { .. } => {}
+                    }
+                }
+                // Flatten into virtual-list rows for smooth scrolling.
+                self.explore_rows = page.into_rows().into_iter().collect();
+                self.explore_page = Some(page);
+                self.load_images_for_urls(urls)
+            }
+            Err(e) => {
+                tracing::error!("Failed to load explore page: {}", e);
+                self.error_message = Some(format!("Failed to load Explore: {}", e));
                 Task::none()
             }
         }
