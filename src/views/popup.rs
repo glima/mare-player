@@ -509,14 +509,16 @@ impl AppModel {
 
         let track_info = crate::views::components::fading_card_column(track_info_col);
 
-        // Info row: in video mode, album thumbnail + track info (no spectrum,
-        // so the fading text box runs to the far right) — this same row, with
-        // its clickable title/artist/context, is overlaid as the auto-hiding
-        // HUD. Otherwise album art + track info + spectrum visualizer.
+        // Info row: in video mode, album thumbnail + track info + spectrum
+        // visualizer (the video pipeline taps its audio into the same analyzer)
+        // — this same row, with its clickable title/artist/context, is overlaid
+        // as the auto-hiding HUD. The audio bar uses the identical layout.
         let info_row: Element<'_, Message> = if self.video_player.is_some() {
+            let visualizer = self.visualizer_state.view();
             widget::Row::new()
                 .push(now_playing_art)
                 .push(track_info)
+                .push(visualizer)
                 .spacing(8)
                 .align_y(Alignment::Center)
                 .width(Length::Fill)

@@ -410,42 +410,47 @@ impl AppModel {
         result: Result<(Track, String), String>,
     ) -> Task<cosmic::Action<Message>> {
         match result {
-            Ok((track, url)) => match crate::video::VideoPlayer::new(&url) {
-                Ok(video) => {
-                    video.set_volume(self.volume_level as f64);
-                    self.video_player = Some(video);
-                    // Show the overlay controls briefly when playback starts.
-                    self.video_controls_shown_at = Some(std::time::Instant::now());
-                    self.playback_state = PlaybackState::Playing;
-                    self.visualizer_state.set_active(false);
-                    self.now_playing = Some(NowPlaying {
-                        track_id: track.id.clone(),
-                        title: track.title.clone(),
-                        artist: track.artist_name.clone(),
-                        album: track.album_name.clone(),
-                        cover_url: track.cover_url.clone(),
-                        duration: track.duration as f64,
-                        playlist_name: self
-                            .playback_source
-                            .as_ref()
-                            .map(|s| s.display_name.clone()),
-                    });
-                    self.playback_position = 0.0;
-                    self.play_history.record(&track);
-                    {
-                        let client = self.tidal_client.blocking_lock();
-                        self.play_history.save(client.api_cache());
+            Ok((track, url)) => {
+                match crate::video::VideoPlayer::new(&url, self.visualizer_state.analyzer()) {
+                    Ok(video) => {
+                        video.set_volume(self.volume_level as f64);
+                        self.video_player = Some(video);
+                        // Show the overlay controls briefly when playback starts.
+                        self.video_controls_shown_at = Some(std::time::Instant::now());
+                        self.playback_state = PlaybackState::Playing;
+                        // The video pipeline taps its decoded audio into the shared
+                        // spectrum analyzer, so the now-playing visualizer animates
+                        // to the music video just as it does for audio tracks.
+                        self.visualizer_state.set_active(true);
+                        self.now_playing = Some(NowPlaying {
+                            track_id: track.id.clone(),
+                            title: track.title.clone(),
+                            artist: track.artist_name.clone(),
+                            album: track.album_name.clone(),
+                            cover_url: track.cover_url.clone(),
+                            duration: track.duration as f64,
+                            playlist_name: self
+                                .playback_source
+                                .as_ref()
+                                .map(|s| s.display_name.clone()),
+                        });
+                        self.playback_position = 0.0;
+                        self.play_history.record(&track);
+                        {
+                            let client = self.tidal_client.blocking_lock();
+                            self.play_history.save(client.api_cache());
+                        }
+                        tracing::info!("Video playback started: {}", track.title);
+                        return self.update_mpris_state();
                     }
-                    tracing::info!("Video playback started: {}", track.title);
-                    return self.update_mpris_state();
+                    Err(e) => {
+                        tracing::error!("Failed to start video pipeline: {}", e);
+                        self.error_message = Some(format!("Failed to play video: {}", e));
+                        self.playback_state = PlaybackState::Stopped;
+                        self.now_playing = None;
+                    }
                 }
-                Err(e) => {
-                    tracing::error!("Failed to start video pipeline: {}", e);
-                    self.error_message = Some(format!("Failed to play video: {}", e));
-                    self.playback_state = PlaybackState::Stopped;
-                    self.now_playing = None;
-                }
-            },
+            }
             Err(e) => {
                 tracing::error!("Failed to resolve video URL: {}", e);
                 self.error_message = Some(format!("Failed to load video: {}", e));
@@ -527,6 +532,10 @@ impl AppModel {
                 other => other,
             };
             self.playback_state = new_state;
+            // Mirror the audio path: settle the visualizer when paused (no PCM
+            // flows while the pipeline is stopped), re-arm it when resuming.
+            self.visualizer_state
+                .set_active(new_state == PlaybackState::Playing);
             return self.update_mpris_state();
         }
 

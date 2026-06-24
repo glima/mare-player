@@ -125,6 +125,15 @@ impl VisualizerState {
         self.analyzer = Some(analyzer);
     }
 
+    /// A clone of the shared spectrum analyzer, if a player has been created.
+    ///
+    /// The video pipeline uses this to feed decoded audio PCM into the same
+    /// analyzer the widget reads, so the HUD visualizer reacts to music
+    /// videos exactly as it does to audio tracks.
+    pub fn analyzer(&self) -> Option<SharedSpectrumAnalyzer> {
+        self.analyzer.clone()
+    }
+
     /// Set whether the visualizer should be animating.
     pub fn set_active(&mut self, active: bool) {
         let was = self.active.load(Ordering::Relaxed);
