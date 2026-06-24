@@ -7,8 +7,9 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/glima/mare-player)
 
 A COSMIC™ desktop application for the TIDAL music streaming service.
-Stream Hi-Res audio, browse your library, and control playback — with
-a real-time spectrum visualizer and full MPRIS integration.
+Stream Hi-Res audio, watch music videos, browse your library, and
+control playback — with a real-time spectrum visualizer and full
+MPRIS integration.
 
 Builds as either a **panel applet** (popup from the system panel) or a
 **standalone window** (regular application) — chosen at compile time
@@ -30,15 +31,35 @@ via the `panel-applet` feature flag (enabled by default).
 - **Hi-Res Audio Playback** — Stream FLAC up to 24-bit/192 kHz via
   DASH, decoded with symphonia and output through PulseAudio
   (pipewire-pulse on modern desktops)
+- **Music Video Playback** — Play TIDAL music videos (HLS, H.264/AAC)
+  through a GStreamer pipeline, shown in an auto-hiding "theater" HUD
+  with the same clickable title/artist/context and transport controls
+  as the audio bar
+- **Gapless Playback** — The next track is preloaded and decoded ahead
+  of time for seamless, gap-free transitions
+- **Volume Normalization** — Per-track replay-gain is applied so tracks
+  play back at a consistent loudness
 - **Real-time Spectrum Visualizer** — FFT-based stereo frequency
-  display in the now-playing bar
+  display in the now-playing bar, driven by the audio engine *and* by
+  music-video audio (tapped from the GStreamer pipeline)
 - **MPRIS D-Bus Integration** — Control playback from any MPRIS client
   (playerctl, KDE Connect, desktop media keys, etc.)
 - **Library Browsing** — Playlists, albums, artists, mixes & radio,
   favorite tracks, followed artists (profiles)
+- **Explore** — Browse TIDAL's curated pages: a Featured carousel plus
+  Genres, Moods & Activities, Decades, and more, with recursive
+  drill-down navigation
+- **Activity Feed** — New releases from the artists you follow, grouped
+  by time period
 - **Search** — Search tracks, albums, artists, and playlists across
   TIDAL's catalog
 - **Track Radio** — Start a radio station from any track
+- **Track Recommendations** — A per-track detail page with the artist's
+  discography, related albums, and related artists
+- **Lyrics** — Time-synced lyrics that highlight the current line (with
+  a plain-text fallback when only flat lyrics are available)
+- **Play History** — A locally-tracked, searchable list of recently
+  played tracks
 - **Artist Detail** — Bio, top tracks, and discography for any artist
 - **Favorites** — Add/remove tracks, albums, and follow/unfollow
   artists
@@ -63,13 +84,32 @@ Install the required system libraries before building:
 
 ```sh
 # Fedora / RHEL
-sudo dnf install dbus-devel libsecret-devel libxkbcommon-devel pulseaudio-libs-devel
+sudo dnf install dbus-devel libsecret-devel libxkbcommon-devel pulseaudio-libs-devel \
+    gstreamer1-devel gstreamer1-plugins-base-devel
 
 # Ubuntu / Debian
-sudo apt install libdbus-1-dev libsecret-1-dev libxkbcommon-dev libpulse-dev
+sudo apt install libdbus-1-dev libsecret-1-dev libxkbcommon-dev libpulse-dev \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
 
 # Arch
-sudo pacman -S dbus libsecret libxkbcommon libpulse
+sudo pacman -S dbus libsecret libxkbcommon libpulse gstreamer gst-plugins-base
+```
+
+#### Music-video playback (runtime)
+
+Music videos are decoded with GStreamer. Playing them needs the HLS/MPEG-TS
+demuxers and an H.264 decoder from the good/bad/libav plugin sets (audio-only
+playback works without these):
+
+```sh
+# Fedora / RHEL (avdec_h264 comes from RPM Fusion's gstreamer1-libav)
+sudo dnf install gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-libav
+
+# Ubuntu / Debian
+sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+
+# Arch
+sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
 ```
 
 ### Build & Install
@@ -106,11 +146,22 @@ just install-standalone
   tracks from the main screen
 - **Search** — Tap the search icon to find tracks, albums, artists, and
   playlists
+- **Explore** — Browse TIDAL's curated pages (genres, moods, decades,
+  featured) with drill-down navigation
 - **Mixes & Radio** — Browse your personalized TIDAL mixes
+- **Feed** — See new releases from the artists you follow
+- **History** — Revisit recently played tracks (searchable)
 - **Track Radio** — Start a radio station from any track via the radio
   button
+- **Music Videos** — Video tracks (marked with a video badge) play in a
+  full-area theater whose controls and track info auto-hide; move the
+  pointer to bring them back
+- **Lyrics** — Open the lyrics view for the current track; synced
+  lyrics highlight the active line
 - **Artist Detail** — Tap an artist name to see bio, top tracks, and
   discography
+- **Track Detail** — Tap a track title to see related albums and
+  artists seeded from it
 - **Now Playing** — Playback controls, seek bar, shuffle, and spectrum
   visualizer
 - **MPRIS** — Use media keys or any MPRIS controller (e.g.
@@ -128,6 +179,9 @@ settings:
 |---|---|---|
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
 | Song Cache Limit | Max disk space for cached songs | 2 GB |
+| Image Cache Limit | Max disk space for cached artwork | 200 MB |
+
+The playback volume is also persisted across restarts.
 
 ## Building
 
@@ -169,13 +223,14 @@ A [justfile](./justfile) provides all common workflows:
 
 ```
 src/
-├── audio/          # Playback engine, symphonia decoder, PulseAudio output, DASH streaming, FFT spectrum
+├── audio/          # Playback engine (gapless preload, replay-gain), symphonia decoder, PulseAudio output, DASH streaming, FFT spectrum
+├── video/          # GStreamer music-video pipeline: RGBA frame appsink + PCM tap feeding the visualizer
 ├── tidal/          # TIDAL API client, OAuth auth, player queue, MPRIS2 D-Bus interface
 ├── handlers/       # Message handlers: auth, data loading, navigation, playback, misc (images, sharing, MPRIS, screenshots)
 ├── views/          # UI views
 │   ├── components/ # Reusable components: FadingClip widget, icons, constants, list helpers, row builders
 │   ├── visualizer  # Audio spectrum visualizer widget
-│   └── *.rs        # Panel, popup, albums, artists, playlists, tracks, mixes, search, settings, auth, share, …
+│   └── *.rs        # Panel, popup, albums, artists, playlists, tracks, track detail, mixes, search, explore, feed, history, lyrics, profiles, settings, auth, share, …
 └── *.rs            # App model, state, messages, config, disk caching, image cache, helpers, menu
 ```
 
@@ -186,12 +241,14 @@ src/
 | [libcosmic](https://github.com/pop-os/libcosmic) | COSMIC application framework |
 | [tidlers](https://github.com/tomkoid/tidlers) | TIDAL API client |
 | [symphonia](https://github.com/pdeljanov/Symphonia) | Pure-Rust audio decoding (FLAC, AAC, MP3) |
+| [gstreamer-rs](https://gitlab.freedesktop.org/gstreamer/gstreamer-rs) | Music-video playback (HLS H.264/AAC pipeline) |
 | [libpulse-binding](https://crates.io/crates/libpulse-binding) | PulseAudio async API for playback & volume control |
 | [rustfft](https://crates.io/crates/rustfft) | FFT for spectrum analysis |
 | [zbus](https://crates.io/crates/zbus) | D-Bus / MPRIS2 interface |
 | [keyring](https://crates.io/crates/keyring) | System credential storage |
 | [dash-mpd](https://crates.io/crates/dash-mpd) | DASH manifest parsing |
 | [reqwest](https://crates.io/crates/reqwest) | HTTP client for streaming |
+| [image](https://crates.io/crates/image) | Decoding/processing album & video artwork |
 
 ## Acknowledgments
 
