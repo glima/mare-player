@@ -1481,10 +1481,20 @@ mod playback_url_replay_gain {
 
 mod client_replay_gain {
     use super::*;
+    use tempfile::TempDir;
+
+    /// Each test gets an isolated cache dir so parallel test binaries (and a
+    /// running app instance) never collide on shared replay-gain sidecars.
+    /// The returned `TempDir` must be kept alive for the test's duration.
+    fn isolated_client(audio_mb: u32) -> (TidalAppClient, TempDir) {
+        let tmp = TempDir::new().expect("failed to create temp dir");
+        let client = TidalAppClient::new_with_cache_dir(tmp.path(), audio_mb);
+        (client, tmp)
+    }
 
     #[test]
     fn save_then_load_replay_gain() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_id = "rg-save-load-test-001";
 
         client.save_replay_gain(track_id, -7.4);
@@ -1502,14 +1512,14 @@ mod client_replay_gain {
 
     #[test]
     fn load_replay_gain_nonexistent_returns_none() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let loaded = client.load_replay_gain("rg-nonexistent-track-xyz");
         assert!(loaded.is_none());
     }
 
     #[test]
     fn save_replay_gain_zero() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_id = "rg-zero-test-002";
 
         client.save_replay_gain(track_id, 0.0);
@@ -1527,7 +1537,7 @@ mod client_replay_gain {
 
     #[test]
     fn save_replay_gain_positive() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_id = "rg-positive-test-003";
 
         client.save_replay_gain(track_id, 3.5);
@@ -1545,7 +1555,7 @@ mod client_replay_gain {
 
     #[test]
     fn save_replay_gain_overwrites_previous() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_id = "rg-overwrite-test-004";
 
         client.save_replay_gain(track_id, -5.0);
@@ -1564,7 +1574,7 @@ mod client_replay_gain {
 
     #[test]
     fn replay_gain_for_different_tracks_are_independent() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_a = "rg-independent-a-005";
         let track_b = "rg-independent-b-005";
 
@@ -1586,7 +1596,7 @@ mod client_replay_gain {
 
     #[test]
     fn save_replay_gain_large_negative() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
+        let (client, _tmp) = isolated_client(100);
         let track_id = "rg-large-neg-006";
 
         client.save_replay_gain(track_id, -51.0);
