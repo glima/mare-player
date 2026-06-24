@@ -68,7 +68,13 @@ jobs:
       - name: Install packaging tools
         uses: cargo-bins/cargo-binstall@30b5ca8b54e1dcffd9548bc87ede1531310fdc67 # v1.20.0
 
-      - run: cargo binstall --no-confirm just cargo-deb cargo-generate-rpm
+      # `just` and `cargo-deb` ship prebuilt binaries that binstall can fetch.
+      # `cargo-generate-rpm` does not advertise binstall metadata, so binstall
+      # falls back to a bare `cargo install` (no `--locked`) that breaks on
+      # unpinned transitive deps. Install it from source with `--locked` so it
+      # uses the crate's own tested Cargo.lock.
+      - run: cargo binstall --no-confirm just cargo-deb
+      - run: cargo install cargo-generate-rpm --locked
 
       - name: Build release binary
         run: |
