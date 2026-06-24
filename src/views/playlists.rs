@@ -15,7 +15,7 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
 use crate::views::components::{
-    TrackRowOptions, fading_header_title, scrollable_element, scrollable_list,
+    TrackRowOptions, fading_header_title, scrollable_element, scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -120,9 +120,10 @@ impl AppModel {
 
             let track_list = cosmic::iced::widget::list::List::new(
                 &self.track_list_content,
-                move |index, track| build_track_row(loaded_images, track, index, &opts),
-            )
-            .spacing(2);
+                move |index, track| {
+                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+                },
+            );
 
             scrollable_element(track_list)
         };

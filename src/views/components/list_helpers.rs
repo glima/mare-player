@@ -122,6 +122,33 @@ pub fn list_item<'a>(
         .into()
 }
 
+/// Bake an inter-row gap into a virtual-`List` row as non-interactive bottom
+/// padding, instead of using `List::spacing()`.
+///
+/// **Why this exists:** the virtual `List` widget (iced/libcosmic) is buggy.
+/// Its event pass (`update`) positions each visible child at
+/// `offset + spacing * index`, while `draw`, `mouse_interaction` and `operate`
+/// position them at just `offset` (the per-row layout already bakes in
+/// `index * spacing`).  So with `spacing > 0` the click hit-boxes drift
+/// *downward* by `index * spacing` pixels relative to what's painted, and you
+/// end up activating a row *above* the one you clicked — the error growing the
+/// further you scroll.  (Observed: clicking "1950s" in Explore loaded "Focus".)
+///
+/// We therefore keep `List` spacing at 0 (where `update`/`draw` agree exactly)
+/// and reproduce the visual gap here as bottom padding *outside* the
+/// interactive button, so the gap stays dead space and hit-testing matches
+/// drawing. Remove this and restore `List::spacing()` once the widget is fixed
+/// upstream.
+pub fn virtual_list_row<'a>(
+    content: impl Into<Element<'a, Message>>,
+    gap: u16,
+) -> Element<'a, Message> {
+    container(content)
+        .width(Length::Fill)
+        .padding([0, 0, gap, 0])
+        .into()
+}
+
 // =============================================================================
 // Fading Text Helpers
 // =============================================================================

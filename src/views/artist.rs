@@ -19,7 +19,7 @@ use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
 use crate::views::components::{
     ARTIST_PICTURE_SIZE, TrackRowOptions, fading_header_title, fading_text_column,
-    favorite_icon_handle, list_item, scrollable_list,
+    favorite_icon_handle, list_item, scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -197,9 +197,8 @@ impl AppModel {
 
         let track_list =
             cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
-                build_track_row(loaded_images, track, index, &opts)
-            })
-            .spacing(2);
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
         widget::Column::new()
             .push(section_header)

@@ -22,7 +22,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
-use crate::views::components::{TrackRowOptions, scrollable_element};
+use crate::views::components::{TrackRowOptions, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the play history list view.
@@ -114,9 +114,10 @@ impl AppModel {
 
             let track_list = cosmic::iced::widget::list::List::new(
                 &self.track_list_content,
-                move |index, track| build_track_row(loaded_images, track, index, &opts),
-            )
-            .spacing(2);
+                move |index, track| {
+                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+                },
+            );
 
             scrollable_element(track_list)
         };

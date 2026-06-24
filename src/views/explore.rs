@@ -21,7 +21,9 @@ use crate::messages::Message;
 use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{ExploreRow, ExploreTarget};
 use crate::views::components::rows::build_thumbnail;
-use crate::views::components::{fading_text_column, list_item, scrollable_element};
+use crate::views::components::{
+    fading_text_column, list_item, scrollable_element, virtual_list_row,
+};
 
 impl AppModel {
     /// Render the Explore view for the currently-loaded browse page.
@@ -69,8 +71,7 @@ impl AppModel {
             let list =
                 cosmic::iced::widget::list::List::new(&self.explore_rows, move |_index, row| {
                     build_explore_row(loaded_images, row)
-                })
-                .spacing(4);
+                });
             scrollable_element(list)
         };
 
@@ -86,7 +87,9 @@ impl AppModel {
 
 /// Build a single Explore row for the virtual `List` closure.
 fn build_explore_row<'a>(loaded_images: &HandleCache, row: &ExploreRow) -> Element<'a, Message> {
-    match row {
+    // The virtual `List` keeps spacing at 0 (its `spacing()` is buggy — see
+    // `virtual_list_row`); the old `spacing(4)` gap is baked in below instead.
+    let inner: Element<'a, Message> = match row {
         ExploreRow::SectionHeader(title) => widget::container(text(title.clone()).size(15))
             .padding([8, 0, 2, 0])
             .into(),
@@ -200,5 +203,7 @@ fn build_explore_row<'a>(loaded_images: &HandleCache, row: &ExploreRow) -> Eleme
                 .width(Length::Fill);
             list_item(r, Message::ShowArtistDetail(artist.id.clone()), 6)
         }
-    }
+    };
+
+    virtual_list_row(inner, 4)
 }
