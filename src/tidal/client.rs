@@ -1287,10 +1287,7 @@ impl TidalAppClient {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
                 error!("Favorite tracks request failed: {} - {}", status, body);
-                return Err(TidalError::RequestFailed(format!(
-                    "HTTP {}: {}",
-                    status, body
-                )));
+                return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
             let body = response
@@ -1360,10 +1357,7 @@ impl TidalAppClient {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
                 error!("Favorite albums request failed: {} - {}", status, body);
-                return Err(TidalError::RequestFailed(format!(
-                    "HTTP {}: {}",
-                    status, body
-                )));
+                return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
             let body = response.text().await.map_err(|e| {
@@ -1576,10 +1570,7 @@ impl TidalAppClient {
             let status = response.status();
             let body = response.text().await.unwrap_or_default();
             error!("Playback info request failed: {} - {}", status, body);
-            return Err(TidalError::RequestFailed(format!(
-                "HTTP {}: {}",
-                status, body
-            )));
+            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
         }
 
         let body = response

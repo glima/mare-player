@@ -96,6 +96,36 @@ fn buffering_slider_class(progress: f32) -> cosmic::theme::style::iced::Slider {
     }
 }
 
+/// Shorten an error string for display in the banner.
+///
+/// Error messages can be huge — a serde parse failure, for instance, appends
+/// the entire raw JSON response body on a following line. Rendering that
+/// verbatim fills the whole popup. We keep only the first line (dropping any
+/// appended body/dumps) and cap its length; the full error is still recorded
+/// in the log via `tracing::error!` at the point it's produced.
+fn concise_error(error: &str) -> String {
+    /// Maximum number of characters shown in the banner.
+    const MAX_LEN: usize = 120;
+
+    // Error strings often append a raw payload we never want in the banner: an
+    // HTTP error's JSON body (starts with `{`), or a serde parse dump on a
+    // following line. Cut at whichever comes first.
+    let cut = [error.find('\n'), error.find('{')]
+        .into_iter()
+        .flatten()
+        .min()
+        .unwrap_or(error.len());
+
+    let head = error[..cut].trim().trim_end_matches([':', '-', ' ']).trim();
+
+    if head.chars().count() > MAX_LEN {
+        let truncated: String = head.chars().take(MAX_LEN).collect();
+        format!("{}\u{2026}", truncated.trim_end())
+    } else {
+        head.to_string()
+    }
+}
+
 impl AppModel {
     /// Dispatch to the appropriate view based on the current [`ViewState`].
     ///
@@ -139,7 +169,7 @@ impl AppModel {
     /// Build an error banner element for display at the top of the content.
     fn view_error_banner<'a>(&'a self, error: &'a str) -> Element<'a, Message> {
         let error_row = widget::Row::new()
-            .push(text(error).size(12))
+            .push(text(concise_error(error)).size(12))
             .push(
                 button::icon(widget::icon::from_name("window-close-symbolic"))
                     .on_press(Message::ClearError)
@@ -592,5 +622,45 @@ impl AppModel {
             .padding(8)
             .class(cosmic::theme::Container::Card)
             .into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::concise_error;
+
+    #[test]
+    fn short_single_line_is_unchanged() {
+        assert_eq!(concise_error("Network unavailable"), "Network unavailable");
+    }
+
+    #[test]
+    fn drops_everything_after_the_first_line() {
+        let err = "failed to parse JSON (status 200 OK): invalid type: null\nresponse body: {\"items\":[...huge...]}";
+        let out = concise_error(err);
+        assert!(!out.contains("response body"));
+        assert!(!out.contains('\n'));
+        assert!(out.starts_with("failed to parse JSON"));
+    }
+
+    #[test]
+    fn drops_a_json_body_on_the_same_line() {
+        let err = "Failed to get playback URL: Request failed: HTTP 500 Internal Server Error: {\"status\":500,\"userMessage\":\"oops\"}";
+        let out = concise_error(err);
+        assert!(!out.contains('{'));
+        assert!(!out.contains("status"));
+        assert_eq!(
+            out,
+            "Failed to get playback URL: Request failed: HTTP 500 Internal Server Error"
+        );
+    }
+
+    #[test]
+    fn caps_a_long_first_line_with_an_ellipsis() {
+        let err = "e".repeat(500);
+        let out = concise_error(&err);
+        // 120 chars + the ellipsis.
+        assert_eq!(out.chars().count(), 121);
+        assert!(out.ends_with('\u{2026}'));
     }
 }
