@@ -1945,48 +1945,19 @@ impl TidalAppClient {
 
     /// Get album review / editorial text from TIDAL.
     ///
-    /// Calls `GET /v1/albums/{id}/review?countryCode=…` which returns a JSON
-    /// object with a `text` field containing the editorial review.  Many albums
-    /// do not have a review, so callers should treat errors as "no review".
+    /// Delegates to tidlers' `get_album_review` (`GET /v1/albums/{id}/review`).
+    /// Many albums have no review, so callers treat any error as "no review".
     pub async fn get_album_review(&self, album_id: &str) -> TidalResult<String> {
-        let ctx = self.auth_context().await?;
-
-        let url = format!(
-            "https://api.tidal.com/v1/albums/{}/review?countryCode={}",
-            album_id, ctx.country_code
-        );
-
+        self.ensure_valid_token().await?;
         debug!("Fetching album review for: {}", album_id);
 
-        let http_client = reqwest::Client::new();
-        let response = http_client
-            .get(&url)
-            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
-            .send()
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+
+        let review = client
+            .get_album_review(album_id.to_string())
             .await
-            .map_err(|e| TidalError::NetworkError(format!("{:?}", e)))?;
-
-        if !response.status().is_success() {
-            debug!(
-                "No review for album {} (HTTP {})",
-                album_id,
-                response.status()
-            );
-            return Err(TidalError::RequestFailed(format!(
-                "HTTP {}",
-                response.status()
-            )));
-        }
-
-        #[derive(Deserialize)]
-        struct AlbumReviewResponse {
-            text: String,
-        }
-
-        let review: AlbumReviewResponse = response
-            .json()
-            .await
-            .map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+            .map_err(|e| TidalError::RequestFailed(format!("album review: {e:?}")))?;
 
         if review.text.is_empty() {
             return Err(TidalError::RequestFailed(
