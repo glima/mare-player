@@ -497,6 +497,11 @@ impl AppModel {
     pub fn handle_navigate_back(&mut self) -> Task<cosmic::Action<Message>> {
         let target = self.nav_stack.pop().unwrap_or(ViewState::Main);
 
+        // Rebuild the target view's virtual-list content from its own source
+        // data: restores the correct rows AND forces the `list::List` widget to
+        // rebuild its cached per-row widget state. See `rebuild_virtual_list_for`.
+        self.rebuild_virtual_list_for(&target);
+
         // For views that need focus or lazy-loading, handle specially
         match &target {
             ViewState::Search => {
@@ -515,5 +520,67 @@ impl AppModel {
         }
 
         Task::none()
+    }
+
+    /// Rebuild the target view's virtual-list `Content` from its own backing
+    /// data when returning to it via back navigation.
+    ///
+    /// This serves two purposes:
+    ///
+    /// 1. Correctness. Several views share the single `track_list_content`
+    ///    field, and the per-view `selected_*` source vectors are only
+    ///    repopulated on forward navigation. Without rebuilding here, going
+    ///    back to a parent track view (e.g. TrackRadio -> back -> PlaylistDetail)
+    ///    would render whatever tracks the child view left behind.
+    ///
+    /// 2. Crash avoidance. Every `list::List` shares one widget tag (its
+    ///    private `State` type is not generic over the item type), so iced
+    ///    reuses a List's cached widget-state across view changes whenever a
+    ///    List sits at the same position in the widget tree. That cached state
+    ///    holds child widget-trees built for the previous view's rows; if the
+    ///    target view renders rows with a different widget structure (e.g.
+    ///    Explore's mixed header/link/promo rows vs. a uniform track list), the
+    ///    List reuses those stale child-trees and iced downcasts a child's
+    ///    state to the wrong widget type, panicking with "Downcast widget
+    ///    state" (iced `widget/tree.rs`). Recreating the `Content` (via
+    ///    `set_track_list`, the `rebuild_*` helpers, or a fresh collect) marks
+    ///    it "new", which makes the List recompute from scratch and drop the
+    ///    stale child-trees -- exactly what forward navigation already does.
+    ///
+    /// Views without a virtual `List` have no cached row state to reset, so
+    /// they're left untouched.
+    fn rebuild_virtual_list_for(&mut self, target: &ViewState) {
+        match target {
+            ViewState::AlbumDetail => {
+                let tracks = self.selected_album_tracks.clone();
+                self.set_track_list(tracks);
+            }
+            ViewState::PlaylistDetail => {
+                let tracks = self.selected_playlist_tracks.clone();
+                self.set_track_list(tracks);
+            }
+            ViewState::MixDetail => {
+                let tracks = self.selected_mix_tracks.clone();
+                self.set_track_list(tracks);
+            }
+            ViewState::TrackRadio => {
+                let tracks = self.selected_radio_tracks.clone();
+                self.set_track_list(tracks);
+            }
+            ViewState::ArtistDetail => {
+                let tracks = self.selected_artist_top_tracks.clone();
+                self.set_track_list(tracks);
+            }
+            ViewState::History => self.rebuild_history_track_list(),
+            ViewState::FavoriteTracks => self.rebuild_favorites_track_list(),
+            ViewState::Explore => {
+                self.explore_rows = self
+                    .explore_page
+                    .as_ref()
+                    .map(|page| page.into_rows().into_iter().collect())
+                    .unwrap_or_default();
+            }
+            _ => {}
+        }
     }
 }
