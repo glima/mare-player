@@ -65,11 +65,41 @@ pub(crate) fn build_track_row<'a>(
     index: usize,
     opts: &TrackRowOptions,
 ) -> Element<'a, Message> {
-    let thumbnail = build_thumbnail(
+    let base_thumbnail = build_thumbnail(
         loaded_images,
         track.cover_url.as_deref(),
         opts.fallback_icon,
     );
+    // Video entries get a small video emblem in the thumbnail's corner.
+    let thumbnail: Element<'a, Message> = if track.is_video {
+        let badge = container(widget::icon::from_name("emblem-videos-symbolic").size(12))
+            .padding(2)
+            .class(cosmic::theme::Container::custom(|_theme| {
+                cosmic::widget::container::Style {
+                    background: Some(cosmic::iced::Background::Color(
+                        cosmic::iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6),
+                    )),
+                    text_color: Some(cosmic::iced::Color::WHITE),
+                    border: cosmic::iced::Border {
+                        radius: [7.0; 4].into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }));
+        cosmic::iced::widget::Stack::new()
+            .push(base_thumbnail)
+            .push(
+                container(badge)
+                    .width(Length::Fixed(THUMBNAIL_SIZE as f32))
+                    .height(Length::Fixed(THUMBNAIL_SIZE as f32))
+                    .align_x(Alignment::End)
+                    .align_y(Alignment::End),
+            )
+            .into()
+    } else {
+        base_thumbnail
+    };
 
     let track_info = fading_text_column(vec![
         text(track.title.clone())

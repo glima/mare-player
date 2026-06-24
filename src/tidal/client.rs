@@ -121,8 +121,13 @@ struct ApiPaginatedResponse<T> {
 /// Wrapper for endpoints that nest the real payload under `"item"`.
 /// `item` is `Option` because mix endpoints can contain null entries.
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiItemWrapper<T> {
     item: Option<T>,
+    /// Playlist items carry the kind here (`"track"` or `"video"`); absent on
+    /// other endpoints.
+    #[serde(default, rename = "type")]
+    item_type: Option<String>,
 }
 
 /// Lenient track data — works for playlist, favorite, mix, and radio responses.
@@ -138,7 +143,14 @@ struct ApiTrackData {
     explicit: bool,
     audio_quality: Option<String>,
     artist: ApiTrackArtist,
-    album: ApiTrackAlbum,
+    /// Null for video items in playlists (and occasionally curated lists), so
+    /// this must stay optional or the whole response fails to deserialize.
+    #[serde(default)]
+    album: Option<ApiTrackAlbum>,
+    /// Video items have no album cover; their thumbnail lives here (camelCase
+    /// `imageId`). Used as the cover when `album` is absent.
+    #[serde(default)]
+    image_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,6 +171,16 @@ struct ApiTrackAlbum {
 /// Convert an `ApiTrackData` into our domain `Track`.
 impl From<ApiTrackData> for Track {
     fn from(t: ApiTrackData) -> Self {
+        // Video items (and some curated entries) have no album; fall back to
+        // the item's own `imageId` thumbnail for the cover.
+        let (album_name, album_id, cover_url) = match t.album {
+            Some(a) => (
+                Some(a.title),
+                Some(a.id.to_string()),
+                a.cover.map(|c| tidal_cover_url(&c)),
+            ),
+            None => (None, None, t.image_id.map(|id| tidal_cover_url(&id))),
+        };
         Track {
             id: t.id.to_string(),
             title: t.title,
@@ -169,11 +191,12 @@ impl From<ApiTrackData> for Track {
                 .name
                 .unwrap_or_else(|| "Unknown Artist".to_string()),
             artist_id: Some(t.artist.id.to_string()),
-            album_name: Some(t.album.title),
-            album_id: Some(t.album.id.to_string()),
-            cover_url: t.album.cover.map(|c| tidal_cover_url(&c)),
+            album_name,
+            album_id,
+            cover_url,
             explicit: t.explicit,
             audio_quality: t.audio_quality,
+            is_video: false,
         }
     }
 }
@@ -1398,9 +1421,15 @@ impl TidalAppClient {
 
     /// Get playlist items (tracks).
     ///
-    /// Calls tidlers' `get_playlist_items()` repeatedly to paginate through the
-    /// full playlist. `limit` is the page size (capped at 100 by tidlers);
-    /// `_offset` is ignored (we always start from 0 and walk to the end).
+    /// Paginates through `GET /v1/playlists/{uuid}/items` with a **hand-rolled**
+    /// request and our lenient [`ApiTrackData`] parser, rather than tidlers'
+    /// `get_playlist_items()`. TIDAL playlists can contain video items whose
+    /// `album` field is `null`; tidlers' strict deserializer rejects those and
+    /// fails the entire playlist. Our parser tolerates the null album, so video
+    /// playlists load (video entries surface as tracks with no album/cover).
+    ///
+    /// `limit` is the page size (capped at 100); `_offset` is ignored (we always
+    /// start from 0 and walk to the end).
     pub async fn get_playlist_tracks(
         &self,
         playlist_uuid: &str,
@@ -1410,24 +1439,53 @@ impl TidalAppClient {
         self.ensure_valid_token().await?;
         debug!("Getting playlist tracks for: {}", playlist_uuid);
 
-        let page_size: u64 = limit.unwrap_or(100).min(100) as u64;
-        let mut offset: u64 = 0;
+        let ctx = self.auth_context_with_user().await?;
+        let http_client = reqwest::Client::new();
+        let page_size: u32 = limit.unwrap_or(100).min(100);
+        let mut offset: u32 = 0;
         let mut all_tracks: Vec<Track> = Vec::new();
 
         loop {
-            let response = {
-                let client_guard = self.client.lock().await;
-                let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-                client
-                    .get_playlist_items(playlist_uuid, Some(page_size), Some(offset), None, None)
-                    .await
-                    .map_err(|e| TidalError::RequestFailed(format!("playlist items: {e:?}")))?
-            };
+            let url = format!(
+                "https://api.tidal.com/v1/playlists/{}/items?countryCode={}&limit={}&offset={}&order=INDEX&orderDirection=ASC",
+                playlist_uuid, ctx.country_code, page_size, offset
+            );
 
-            let total = response.total_number_of_items;
-            let page_items = response.items.len() as u64;
+            let response = http_client
+                .get(&url)
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
+                .send()
+                .await
+                .map_err(|e| {
+                    TidalError::NetworkError(format!("playlist items request failed: {}", e))
+                })?;
 
-            all_tracks.extend(response.items.into_iter().map(|p| Track::from(p.item)));
+            if !response.status().is_success() {
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                error!("Playlist items request failed: {} - {}", status, body);
+                return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
+            }
+
+            let body = response.text().await.map_err(|e| {
+                TidalError::NetworkError(format!("reading playlist items body: {}", e))
+            })?;
+
+            let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
+                serde_json::from_str(&body)
+                    .map_err(|e| TidalError::ParseError(format!("playlist items JSON: {}", e)))?;
+
+            let total = parsed.total_number_of_items.max(0) as u32;
+            let page_items = parsed.items.len() as u32;
+
+            all_tracks.extend(parsed.items.into_iter().filter_map(|w| {
+                let is_video = w.item_type.as_deref() == Some("video");
+                w.item.map(|it| {
+                    let mut track = Track::from(it);
+                    track.is_video = is_video;
+                    track
+                })
+            }));
 
             offset += page_items;
             info!(
@@ -1446,6 +1504,67 @@ impl TidalAppClient {
         self.cache_api_response(&cache_key, &all_tracks);
 
         Ok(all_tracks)
+    }
+
+    /// Resolve the playable HLS (`.m3u8`) URL for a music **video**.
+    ///
+    /// TIDAL videos are DRM-free HLS: `GET /v1/videos/{id}/playbackinfopostpaywall`
+    /// returns a base64 "EMU" manifest that simply wraps the HLS master URL.
+    /// We decode it and hand the URL to the GStreamer pipeline. (Verified the
+    /// inner HLS carries no `EXT-X-KEY`/Widevine, so no CDM is needed.)
+    pub async fn get_video_hls_url(&self, video_id: &str) -> TidalResult<String> {
+        self.ensure_valid_token().await?;
+        let ctx = self.auth_context().await?;
+
+        let url = format!(
+            "https://api.tidal.com/v1/videos/{}/playbackinfopostpaywall?videoquality=HIGH&playbackmode=STREAM&assetpresentation=FULL&countryCode={}",
+            video_id, ctx.country_code
+        );
+        debug!("Fetching video playback info for: {}", video_id);
+
+        let http_client = reqwest::Client::new();
+        let response = http_client
+            .get(&url)
+            .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
+            .send()
+            .await
+            .map_err(|e| {
+                TidalError::NetworkError(format!("video playback request failed: {}", e))
+            })?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            error!("Video playback info failed: {} - {}", status, body);
+            return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
+        }
+
+        let body = response
+            .text()
+            .await
+            .map_err(|e| TidalError::NetworkError(format!("reading video playback body: {}", e)))?;
+
+        #[derive(Deserialize)]
+        struct VideoPlaybackInfo {
+            manifest: String,
+        }
+        #[derive(Deserialize)]
+        struct EmuManifest {
+            urls: Vec<String>,
+        }
+
+        let info: VideoPlaybackInfo = serde_json::from_str(&body)
+            .map_err(|e| TidalError::ParseError(format!("video playback JSON: {}", e)))?;
+        let manifest_bytes = general_purpose::STANDARD
+            .decode(info.manifest.as_bytes())
+            .map_err(|e| TidalError::ParseError(format!("video manifest base64: {}", e)))?;
+        let emu: EmuManifest = serde_json::from_slice(&manifest_bytes)
+            .map_err(|e| TidalError::ParseError(format!("video EMU manifest JSON: {}", e)))?;
+
+        emu.urls
+            .into_iter()
+            .next()
+            .ok_or_else(|| TidalError::ParseError("video manifest contained no URLs".to_string()))
     }
 
     /// Get album tracks
@@ -3243,5 +3362,84 @@ impl TidalAppClient {
             occurred_at: a.occurred_at,
             seen: a.seen,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn playlist_items_with_a_null_album_video_still_parse() {
+        // A trimmed `GET /v1/playlists/{uuid}/items` page: one regular track and
+        // one music-video item whose `album` is null — the case that used to
+        // fail deserialization for the whole playlist.
+        let json = r#"{
+            "totalNumberOfItems": 2,
+            "items": [
+                {
+                    "item": {
+                        "id": 123,
+                        "title": "A Song",
+                        "duration": 200,
+                        "trackNumber": 1,
+                        "explicit": false,
+                        "audioQuality": "LOSSLESS",
+                        "artist": { "id": 1, "name": "An Artist" },
+                        "album": { "id": 9, "title": "An Album", "cover": "ab/cd/ef" }
+                    },
+                    "type": "track"
+                },
+                {
+                    "item": {
+                        "id": 456,
+                        "title": "A Music Video",
+                        "duration": 240,
+                        "artist": { "id": 2, "name": "Another Artist" },
+                        "album": null,
+                        "imageId": "7bd9a4c2-424a-49cf-afd9-31f6e526a71e"
+                    },
+                    "type": "video"
+                }
+            ]
+        }"#;
+
+        let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
+            serde_json::from_str(json).expect("video playlist item should parse");
+
+        let tracks: Vec<Track> = parsed
+            .items
+            .into_iter()
+            .filter_map(|w| {
+                let is_video = w.item_type.as_deref() == Some("video");
+                w.item.map(|it| {
+                    let mut t = Track::from(it);
+                    t.is_video = is_video;
+                    t
+                })
+            })
+            .collect();
+
+        assert_eq!(tracks.len(), 2);
+
+        // Regular track keeps its album metadata and is not a video.
+        assert_eq!(tracks[0].title, "A Song");
+        assert_eq!(tracks[0].album_name.as_deref(), Some("An Album"));
+        assert!(tracks[0].cover_url.is_some());
+        assert!(!tracks[0].is_video);
+
+        // Video item loads with no album, but its `imageId` provides a cover,
+        // and it's flagged as a video.
+        assert_eq!(tracks[1].title, "A Music Video");
+        assert_eq!(tracks[1].album_name, None);
+        assert_eq!(tracks[1].album_id, None);
+        assert!(tracks[1].is_video);
+        assert_eq!(
+            tracks[1].cover_url.as_deref(),
+            Some(
+                "https://resources.tidal.com/images/7bd9a4c2/424a/49cf/afd9/31f6e526a71e/320x320.jpg"
+            )
+        );
+        assert_eq!(tracks[1].artist_name, "Another Artist");
     }
 }

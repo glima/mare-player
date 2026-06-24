@@ -154,6 +154,7 @@ mod track {
             cover_url: Some("https://example.com/cover.jpg".to_string()),
             explicit: true,
             audio_quality: Some("HI_RES".to_string()),
+            is_video: false,
         };
         let json = serde_json::to_string(&t).unwrap();
         let t2: Track = serde_json::from_str(&json).unwrap();

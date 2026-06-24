@@ -251,6 +251,11 @@ pub enum Message {
     SeekDebounced(u64),
     /// Playback URL received for track
     PlaybackUrlReceived(Result<(Track, PlaybackUrl), String>),
+    /// HLS URL resolved for a music video; starts the GStreamer pipeline.
+    VideoUrlReceived(Result<(Track, String), String>),
+    /// Pointer interaction over the video surface — reveals the overlay
+    /// controls (which auto-hide again after a few idle seconds).
+    VideoInteraction,
     /// Preload the next track for gapless playback
     PreloadNextTrack,
     /// Preload URL received for gapless playback

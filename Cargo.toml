@@ -66,6 +66,12 @@ libpulse-binding = "2.30.1"
 # FFT for real spectrum analysis
 rustfft = "6.4.1"
 
+# GStreamer — video playback for TIDAL music videos (DRM-free HLS H.264/AAC).
+# Used only on the video path; audio tracks still go through the symphonia engine.
+gstreamer = "0.25"
+gstreamer-app = "0.25"
+gstreamer-video = "0.25"
+
 # DASH manifest parsing only (we do our own HTTP downloading)
 dash-mpd = { version = "0.19.3", default-features = false }
 

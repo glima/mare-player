@@ -257,6 +257,12 @@ pub struct AppModel {
     pub(crate) session_restore_attempted: bool,
     /// Audio player
     pub(crate) player: Option<Player>,
+    /// Active video pipeline (GStreamer), when a music video is playing.
+    /// `Some` ⇒ the now-playing pane shows live video instead of the spectrum.
+    pub(crate) video_player: Option<crate::video::VideoPlayer>,
+    /// When the video-mode overlay controls were last shown (by interaction).
+    /// They fade out a few seconds after the last pointer movement.
+    pub(crate) video_controls_shown_at: Option<std::time::Instant>,
     /// Current playback state
     pub(crate) playback_state: PlaybackState,
     /// Currently playing track info

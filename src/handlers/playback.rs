@@ -38,9 +38,34 @@ impl AppModel {
         // the state here prevents the tick handler from overwriting the
         // position with the *old* track's value while the URL is being
         // fetched (race between async fetch and the 50 ms tick).
+        // Tear down any in-flight video before (re)starting playback.
+        self.stop_video();
+
         self.playback_position = 0.0;
         self.loading_progress = 0.0;
         self.playback_state = PlaybackState::Loading;
+
+        // Music videos play through the GStreamer pipeline, not the audio
+        // engine.  Stop the audio engine so the two never overlap, then resolve
+        // the video's HLS URL.
+        if track.is_video {
+            if let Some(player) = &mut self.player {
+                let _ = player.stop();
+            }
+            self.visualizer_state.set_active(false);
+            let video_id = track.id.clone();
+            let client = self.tidal_client.clone();
+            return Task::perform(
+                async move {
+                    let client = client.lock().await;
+                    match client.get_video_hls_url(&video_id).await {
+                        Ok(url) => Ok((track, url)),
+                        Err(e) => Err(e.to_string()),
+                    }
+                },
+                |result| cosmic::Action::App(Message::VideoUrlReceived(result)),
+            );
+        }
 
         // Drain any stale engine events (e.g. a queued StateChanged(Playing)
         // from the previous track) so they don't flip us back out of Loading
@@ -61,6 +86,14 @@ impl AppModel {
             },
             |result| cosmic::Action::App(Message::PlaybackUrlReceived(result)),
         )
+    }
+
+    /// Tear down any active video pipeline (dropping the GStreamer pipeline
+    /// sets it to `Null`).  Safe to call when no video is active.
+    pub(crate) fn stop_video(&mut self) {
+        if self.video_player.take().is_some() {
+            tracing::info!("Video pipeline stopped");
+        }
     }
 }
 
@@ -370,6 +403,59 @@ impl AppModel {
         }
     }
 
+    /// Handle the resolved HLS URL for a music video: start the GStreamer
+    /// pipeline and surface it in the now-playing pane.
+    pub fn handle_video_url_received(
+        &mut self,
+        result: Result<(Track, String), String>,
+    ) -> Task<cosmic::Action<Message>> {
+        match result {
+            Ok((track, url)) => match crate::video::VideoPlayer::new(&url) {
+                Ok(video) => {
+                    video.set_volume(self.volume_level as f64);
+                    self.video_player = Some(video);
+                    // Show the overlay controls briefly when playback starts.
+                    self.video_controls_shown_at = Some(std::time::Instant::now());
+                    self.playback_state = PlaybackState::Playing;
+                    self.visualizer_state.set_active(false);
+                    self.now_playing = Some(NowPlaying {
+                        track_id: track.id.clone(),
+                        title: track.title.clone(),
+                        artist: track.artist_name.clone(),
+                        album: track.album_name.clone(),
+                        cover_url: track.cover_url.clone(),
+                        duration: track.duration as f64,
+                        playlist_name: self
+                            .playback_source
+                            .as_ref()
+                            .map(|s| s.display_name.clone()),
+                    });
+                    self.playback_position = 0.0;
+                    self.play_history.record(&track);
+                    {
+                        let client = self.tidal_client.blocking_lock();
+                        self.play_history.save(client.api_cache());
+                    }
+                    tracing::info!("Video playback started: {}", track.title);
+                    return self.update_mpris_state();
+                }
+                Err(e) => {
+                    tracing::error!("Failed to start video pipeline: {}", e);
+                    self.error_message = Some(format!("Failed to play video: {}", e));
+                    self.playback_state = PlaybackState::Stopped;
+                    self.now_playing = None;
+                }
+            },
+            Err(e) => {
+                tracing::error!("Failed to resolve video URL: {}", e);
+                self.error_message = Some(format!("Failed to load video: {}", e));
+                self.playback_state = PlaybackState::Stopped;
+                self.now_playing = None;
+            }
+        }
+        Task::none()
+    }
+
     /// Handle seek to position (percentage)
     pub fn handle_seek_to(&mut self, percent: f64) -> Task<cosmic::Action<Message>> {
         if let Some(np) = &self.now_playing
@@ -408,6 +494,10 @@ impl AppModel {
         {
             tracing::info!("SeekDebounced: executing seek to {:.2}s", target_pos);
             let start = std::time::Instant::now();
+            if let Some(video) = &self.video_player {
+                video.seek_secs(target_pos);
+                return self.update_mpris_state();
+            }
             if let Some(player) = &self.player {
                 if let Err(e) = player.seek_absolute(target_pos) {
                     self.error_message = Some(format!("Seek failed: {}", e));
@@ -423,6 +513,23 @@ impl AppModel {
 
     /// Handle toggle play/pause
     pub fn handle_toggle_play_pause(&mut self) -> Task<cosmic::Action<Message>> {
+        // Video path: drive the GStreamer pipeline directly.
+        if let Some(video) = &self.video_player {
+            let new_state = match self.playback_state {
+                PlaybackState::Playing => {
+                    video.pause();
+                    PlaybackState::Paused
+                }
+                PlaybackState::Paused => {
+                    video.resume();
+                    PlaybackState::Playing
+                }
+                other => other,
+            };
+            self.playback_state = new_state;
+            return self.update_mpris_state();
+        }
+
         if let Some(player) = &self.player {
             // Determine new state BEFORE toggling (to avoid race condition)
             // toggle_pause sends async command to playback thread, so we can't
@@ -452,6 +559,14 @@ impl AppModel {
         // before tearing down playback state.  Reports the listen if it
         // crossed the threshold.
         self.finalize_and_report_play_session();
+        if self.video_player.is_some() {
+            self.stop_video();
+            self.playback_state = PlaybackState::Stopped;
+            self.now_playing = None;
+            self.playback_position = 0.0;
+            self.visualizer_state.set_active(false);
+            return self.update_mpris_state();
+        }
         if let Some(player) = &mut self.player {
             let _ = player.stop();
             self.playback_state = PlaybackState::Stopped;
@@ -471,6 +586,49 @@ impl AppModel {
     /// `SharedSpectrumAnalyzer` and drives its own redraws via
     /// `shell.request_redraw()`.
     pub fn handle_playback_tick(&mut self) -> Task<cosmic::Action<Message>> {
+        // Video path: position comes from the GStreamer pipeline, and we
+        // advance on EOS the same way the audio engine's TrackEnded does.
+        if self.video_player.is_some() {
+            if self.playback_state == PlaybackState::Playing
+                && let Some(video) = &self.video_player
+                && let Some(pos) = video.position_secs()
+            {
+                self.playback_position = pos;
+            }
+            let ended = self
+                .video_player
+                .as_ref()
+                .is_some_and(|v| v.is_eos() || v.poll());
+            if ended {
+                self.stop_video();
+                match self.loop_status {
+                    LoopStatus::Track => {
+                        return self.play_track_at_index(self.playback_queue_index);
+                    }
+                    _ => {
+                        let next_index = self.playback_queue_index + 1;
+                        if next_index < self.playback_queue.len() {
+                            return Task::done(cosmic::Action::App(Message::NextTrack));
+                        } else if self.loop_status == LoopStatus::Playlist {
+                            self.playback_queue_index = 0;
+                            return self.play_track_at_index(0);
+                        } else {
+                            self.playback_state = PlaybackState::Stopped;
+                            self.now_playing = None;
+                        }
+                    }
+                }
+            }
+            // Volume-bar auto-hide (mirrors the audio tail).
+            if let Some(shown_at) = self.volume_bar_shown_at
+                && shown_at.elapsed() > Duration::from_millis(1000)
+            {
+                self.show_volume_bar = false;
+                self.volume_bar_shown_at = None;
+            }
+            return Task::none();
+        }
+
         // Update playback position and process engine events.
         if (self.playback_state == PlaybackState::Playing
             || self.playback_state == PlaybackState::Loading)
@@ -677,6 +835,10 @@ impl AppModel {
             && let Err(e) = player.set_volume(new_volume)
         {
             tracing::warn!("Failed to set volume: {}", e);
+        }
+        // Apply to the video pipeline too, if one is active.
+        if let Some(video) = &self.video_player {
+            video.set_volume(new_volume as f64);
         }
 
         // Persist volume to config

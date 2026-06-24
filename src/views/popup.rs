@@ -30,6 +30,15 @@ use crate::state::{AppModel, ViewState};
 use crate::tidal::player::PlaybackState;
 use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, RADIO_SVG, favorite_icon_handle};
 
+/// Height (px) of the video region inside the now-playing bar when a video is
+/// playing — large enough to show the frame full-width while the track list
+/// stays visible above.
+const VIDEO_REGION_HEIGHT: f32 = 300.0;
+
+/// How long the video-mode overlay controls stay visible after the last
+/// pointer interaction before fading out.
+const VIDEO_CONTROLS_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
 /// Build a custom [`cosmic::theme::style::iced::Slider`] class whose handle
 /// fills from the bottom up according to `progress` (0.0 → 1.0), showing
 /// download/buffering progress inside the slider thumb itself.
@@ -207,7 +216,7 @@ impl AppModel {
     pub fn view_content(&self) -> Element<'_, Message> {
         let main_content = self.view_page_content();
 
-        // Add now playing bar if something is playing
+        // Add now playing bar (or video theater) if something is playing.
         let content: Element<'_, Message> = if let Some(np) = &self.now_playing {
             let now_playing_bar = self.view_now_playing_bar(np);
 
@@ -264,12 +273,127 @@ impl AppModel {
         // Main page content fills all remaining vertical space
         col = col.push(container(page).height(Length::Fill));
 
-        // Now-playing bar pinned at the bottom (shrink to intrinsic height)
+        // Now-playing bar (or video theater) pinned at the bottom
         if let Some(np) = &self.now_playing {
             col = col.push(self.view_now_playing_bar(np));
         }
 
         col.into()
+    }
+
+    /// Build the live video-frame element shown in the now-playing pane while a
+    /// music video is playing (replacing album art + track info + spectrum).
+    fn video_frame_element<'a>(
+        &self,
+        video: &crate::video::VideoPlayer,
+        height: Length,
+        fit: cosmic::iced::ContentFit,
+        radius: [f32; 4],
+    ) -> Element<'a, Message> {
+        let frame = video
+            .frame_buffer()
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref().cloned());
+        if let Some(f) = frame {
+            let handle =
+                cosmic::widget::image::Handle::from_rgba(f.width, f.height, (*f.rgba).clone());
+            cosmic::widget::image(handle)
+                .width(Length::Fill)
+                .height(height)
+                .content_fit(fit)
+                .border_radius(radius)
+                .into()
+        } else {
+            container(text(fl!("loading")).size(12))
+                .width(Length::Fill)
+                .height(height)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center)
+                .into()
+        }
+    }
+
+    /// Whether the video-mode overlay controls are currently shown.
+    fn video_controls_visible(&self) -> bool {
+        self.video_controls_shown_at
+            .is_some_and(|t| t.elapsed() < VIDEO_CONTROLS_TIMEOUT)
+    }
+
+    /// Build the video "theater": the live frame filling the content area, with
+    /// playback controls overlaid at the bottom that auto-hide when idle.
+    ///
+    /// Pointer movement over the surface re-reveals the controls; they fade out
+    /// again [`VIDEO_CONTROLS_TIMEOUT`] after the last interaction.
+    fn video_theater<'a>(
+        &'a self,
+        video: &crate::video::VideoPlayer,
+        info: Element<'a, Message>,
+        controls: Element<'a, Message>,
+    ) -> Element<'a, Message> {
+        // Round the video's corners to match the surrounding pane / popup.
+        let radius = cosmic::theme::active().cosmic().corner_radii.radius_m;
+        let corner = radius[0];
+
+        // Base layer: the video, filling the bar region edge-to-edge.
+        let surface =
+            self.video_frame_element(video, Length::Fill, cosmic::iced::ContentFit::Cover, radius);
+
+        // Overlay layer: controls pinned to the bottom on a translucent strip,
+        // shown only while recently interacted with.  Its bottom corners are
+        // rounded too, so it doesn't square off the video's rounded bottom.
+        let overlay: Element<'_, Message> = if self.video_controls_visible() {
+            let strip = container(
+                widget::Column::new()
+                    .push(info)
+                    .push(controls)
+                    .spacing(6)
+                    .width(Length::Fill),
+            )
+            .padding(8)
+            .width(Length::Fill)
+            .class(cosmic::theme::Container::custom(move |theme| {
+                // Use the card colour so the clickable buttons' base backdrop
+                // and the track-info fade blend in (as they do on the audio
+                // bar); hover still highlights. Bottom corners match the video.
+                cosmic::widget::container::Style {
+                    background: Some(cosmic::iced::Background::Color(
+                        theme.cosmic().background.component.base.into(),
+                    )),
+                    border: cosmic::iced::Border {
+                        radius: [0.0, 0.0, corner, corner].into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            }));
+            container(strip)
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .align_y(Alignment::End)
+                .into()
+        } else {
+            container(widget::Column::new())
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
+        };
+
+        let stack = cosmic::iced::widget::Stack::new()
+            .push(surface)
+            .push(overlay);
+
+        // Any pointer movement over the theater (video or controls) keeps the
+        // controls visible. Only `on_move` is wired — not `on_press` — so clicks
+        // still pass through to the control buttons.
+        let interactive = widget::mouse_area(stack).on_move(|_| Message::VideoInteraction);
+
+        // Sized to the now-playing bar region (the track list stays above); the
+        // backdrop stays transparent so the rounded corners reveal the popup.
+        container(interactive)
+            .width(Length::Fill)
+            .height(Length::Fixed(VIDEO_REGION_HEIGHT))
+            .into()
     }
 
     /// Render the now-playing bar shown at the bottom of the popup.
@@ -385,16 +509,28 @@ impl AppModel {
 
         let track_info = crate::views::components::fading_card_column(track_info_col);
 
-        // Visualizer widget
-        let visualizer = self.visualizer_state.view();
-
-        // Info row with album art on the left, track info, then visualizer on the right
-        let info_row = widget::Row::new()
-            .push(now_playing_art)
-            .push(track_info)
-            .push(visualizer)
-            .spacing(8)
-            .align_y(Alignment::Center);
+        // Info row: in video mode, album thumbnail + track info (no spectrum,
+        // so the fading text box runs to the far right) — this same row, with
+        // its clickable title/artist/context, is overlaid as the auto-hiding
+        // HUD. Otherwise album art + track info + spectrum visualizer.
+        let info_row: Element<'_, Message> = if self.video_player.is_some() {
+            widget::Row::new()
+                .push(now_playing_art)
+                .push(track_info)
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .width(Length::Fill)
+                .into()
+        } else {
+            let visualizer = self.visualizer_state.view();
+            widget::Row::new()
+                .push(now_playing_art)
+                .push(track_info)
+                .push(visualizer)
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .into()
+        };
 
         // Buttons row below - centered
         let track_for_radio = self.playback_queue.get(self.playback_queue_index).cloned();
@@ -610,6 +746,18 @@ impl AppModel {
             .push(text(remaining).size(10))
             .spacing(6)
             .align_y(Alignment::Center);
+
+        // Video mode: replace the compact bar with a full-area theater whose
+        // overlay (track info + controls) auto-hides.
+        if let Some(video) = &self.video_player {
+            let controls = widget::Column::new()
+                .push(centered_buttons)
+                .push(progress_row)
+                .spacing(6)
+                .width(Length::Fill)
+                .into();
+            return self.video_theater(video, info_row, controls);
+        }
 
         let bar_col = widget::Column::new()
             .push(info_row)

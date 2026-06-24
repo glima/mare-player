@@ -74,6 +74,11 @@ pub struct Track {
     pub explicit: bool,
     /// Audio quality available
     pub audio_quality: Option<String>,
+    /// `true` if this entry is a music **video** (HLS), not an audio track.
+    /// Such items play through the GStreamer video pipeline, not the audio
+    /// engine. Defaults to `false` and is only set for playlist video items.
+    #[serde(default)]
+    pub is_video: bool,
 }
 
 impl Track {
@@ -100,6 +105,7 @@ impl From<tidlers::client::models::track::Track> for Track {
             cover_url: t.album.cover.as_deref().map(tidal_cover_url),
             explicit: t.explicit,
             audio_quality: Some(t.audio_quality),
+            is_video: false,
         }
     }
 }
@@ -129,6 +135,7 @@ impl From<tidlers::client::models::search::SearchTrackHit> for Track {
             cover_url: Some(tidal_cover_url(&t.album.cover)),
             explicit: t.explicit,
             audio_quality: t.audio_quality,
+            is_video: false,
         }
     }
 }

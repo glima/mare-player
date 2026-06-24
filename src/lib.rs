@@ -18,4 +18,5 @@ pub mod menu;
 pub mod messages;
 pub mod state;
 pub mod tidal;
+pub mod video;
 pub mod views;
