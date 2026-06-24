@@ -58,7 +58,9 @@ jobs:
             libinput-dev \
             libudev-dev \
             libseat-dev \
-            libexpat1-dev
+            libexpat1-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable

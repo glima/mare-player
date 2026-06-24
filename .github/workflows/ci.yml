@@ -30,7 +30,10 @@ jobs:
             libinput-dev \
             libudev-dev \
             libseat-dev \
-            libexpat1-dev
+            libexpat1-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base
 
       - name: Install just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
@@ -75,7 +78,10 @@ jobs:
             libinput-dev \
             libudev-dev \
             libseat-dev \
-            libexpat1-dev
+            libexpat1-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-base
 
       - name: Install just
         uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4.0.0
