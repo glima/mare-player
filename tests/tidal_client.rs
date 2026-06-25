@@ -514,54 +514,7 @@ mod client_auth_state {
 }
 
 // ===========================================================================
-// TidalAppClient — cached data (initially None)
-// ===========================================================================
-
-mod client_cached_data {
-    use super::*;
-
-    #[test]
-    fn get_cached_playlists_initially_none() {
-        let client = TidalAppClient::new();
-        // Fresh client with no prior API calls should have no cached playlists
-        // (unless leftover from a previous test run in the same XDG dir)
-        // We just verify it doesn't panic
-        let _result = client.get_cached_playlists();
-    }
-
-    #[test]
-    fn get_cached_albums_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _result = client.get_cached_albums();
-    }
-
-    #[test]
-    fn get_cached_favorite_tracks_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _result = client.get_cached_favorite_tracks();
-    }
-
-    #[test]
-    fn get_cached_mixes_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _result = client.get_cached_mixes();
-    }
-
-    #[test]
-    fn get_cached_followed_artists_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _result = client.get_cached_followed_artists();
-    }
-
-    #[test]
-    fn get_cached_playlist_tracks_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _result = client.get_cached_playlist_tracks("nonexistent-uuid");
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — audio_cache / api_cache accessors
+// TidalAppClient — audio_cache accessor
 // ===========================================================================
 
 mod client_cache_accessors {
@@ -571,12 +524,6 @@ mod client_cache_accessors {
     fn audio_cache_accessor_does_not_panic() {
         let client = TidalAppClient::new();
         let _cache = client.audio_cache();
-    }
-
-    #[test]
-    fn api_cache_accessor_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _cache = client.api_cache();
     }
 }
 

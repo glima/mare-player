@@ -387,7 +387,7 @@ pub struct Mix {
 }
 
 /// Search results container
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SearchResults {
     /// Matching tracks
     pub tracks: Vec<Track>,

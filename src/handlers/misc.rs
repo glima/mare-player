@@ -117,11 +117,32 @@ impl AppModel {
     pub fn handle_clear_history(&mut self) {
         tracing::info!("Clearing play history");
         self.play_history.clear();
-        let client = self.tidal_client.blocking_lock();
-        self.play_history.save(client.api_cache());
-        drop(client);
+        self.persist_play_history();
         // Clear virtual list if currently on history view
         self.set_track_list(Vec::new());
+    }
+
+    /// Persist the play history to the cache database (fire-and-forget).
+    ///
+    /// Serialises the in-memory history and spawns a background write to the
+    /// `kv` table. A no-op when the database isn't open yet, or when called
+    /// outside a tokio runtime.
+    pub(crate) fn persist_play_history(&self) {
+        let Some(db) = self.cache_db.clone() else {
+            return;
+        };
+        let Some(bytes) = self.play_history.to_json() else {
+            return;
+        };
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                handle.spawn(async move {
+                    db.put_kv(crate::tidal::play_history::HISTORY_KEY, &bytes)
+                        .await;
+                });
+            }
+            Err(_) => tracing::debug!("no tokio runtime; play history not persisted"),
+        }
     }
 
     /// Handle set audio quality

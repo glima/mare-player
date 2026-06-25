@@ -158,82 +158,26 @@ impl AppModel {
         ])
     }
 
-    /// Populate the UI with cached API data (playlists, albums, favorite tracks)
-    /// so the user sees content instantly on startup. Returns a Task that loads
-    /// cover images for any cached data that was restored.
-    fn restore_cached_api_data(&mut self) -> Task<cosmic::Action<Message>> {
-        let client = self.tidal_client.blocking_lock();
-        let mut image_urls: Vec<String> = Vec::new();
-
-        // Restore cached playlists
-        if let Some(playlists) = client.get_cached_playlists() {
-            tracing::info!("Restored {} playlists from API cache", playlists.len());
-            for p in &playlists {
-                if let Some(url) = &p.image_url {
-                    image_urls.push(url.clone());
-                }
-            }
-            self.user_playlists = playlists;
-        }
-
-        // Restore cached albums
-        if let Some(albums) = client.get_cached_albums() {
-            tracing::info!("Restored {} albums from API cache", albums.len());
-            for a in &albums {
-                if let Some(url) = &a.cover_url {
-                    image_urls.push(url.clone());
-                }
-            }
-            self.favorite_album_ids = albums.iter().map(|a| a.id.clone()).collect();
-            self.user_albums = albums;
-        }
-
-        // Restore cached favorite tracks
-        if let Some(tracks) = client.get_cached_favorite_tracks() {
-            tracing::info!("Restored {} favorite tracks from API cache", tracks.len());
-            for t in &tracks {
-                if let Some(url) = &t.cover_url {
-                    image_urls.push(url.clone());
-                }
-            }
-            self.favorite_track_ids = tracks.iter().map(|t| t.id.clone()).collect();
-            self.user_favorite_tracks = tracks;
-        }
-
-        // Restore cached mixes
-        if let Some(mixes) = client.get_cached_mixes() {
-            tracing::info!("Restored {} mixes from API cache", mixes.len());
-            for m in &mixes {
-                if let Some(url) = &m.image_url {
-                    image_urls.push(url.clone());
-                }
-            }
-            self.user_mixes = mixes;
-        }
-
-        // Restore cached followed artists
-        if let Some(artists) = client.get_cached_followed_artists() {
-            tracing::info!("Restored {} followed artists from API cache", artists.len());
-            for a in &artists {
-                if let Some(url) = &a.picture_url {
-                    image_urls.push(url.clone());
-                }
-            }
-            self.followed_artist_ids = artists.iter().map(|a| a.id.clone()).collect();
-            self.user_followed_artists = artists;
-        }
-
-        drop(client);
-
-        // Load cover images for the cached data
-        let img_task = self.load_images_for_urls(image_urls);
-        // Generate 2×2 grid thumbnails for any playlists that were restored
-        let thumb_task = if !self.user_playlists.is_empty() {
-            Task::done(cosmic::Action::App(Message::GeneratePlaylistThumbnails))
-        } else {
-            Task::none()
-        };
-        Task::batch([img_task, thumb_task])
+    /// Populate the UI with the last-seen library from the cache database
+    /// (playlists, albums, favorite tracks, mixes, profiles) so the user sees
+    /// content instantly on startup. Reads run through the same view-cache path
+    /// the navigation handlers use; the parallel network loads in
+    /// [`Self::enter_main_view`] then refresh everything.
+    fn restore_cached_api_data(&self) -> Task<cosmic::Action<Message>> {
+        use crate::tidal::models::{Album, Artist, Mix, Playlist, Track};
+        Task::batch([
+            self.read_view_cache::<Vec<Playlist>, _>("library:playlists", |p| {
+                Message::PlaylistsLoaded(Ok(p))
+            }),
+            self.read_view_cache::<Vec<Album>, _>("library:albums", |a| {
+                Message::AlbumsLoaded(Ok(a))
+            }),
+            self.read_view_cache::<Vec<Track>, _>("favorites:tracks", |t| {
+                Message::FavoriteTracksLoaded(Ok(t))
+            }),
+            self.read_view_cache::<Vec<Mix>, _>("library:mixes", |m| Message::MixesLoaded(Ok(m))),
+            self.read_view_cache::<Vec<Artist>, _>("profiles", |a| Message::ProfilesLoaded(Ok(a))),
+        ])
     }
 
     /// Handle session restored result

@@ -166,7 +166,15 @@ impl AppModel {
         self.view_state = ViewState::Playlists;
         if self.user_playlists.is_empty() {
             self.is_loading = true;
-            self.load_playlists()
+            // Paint the last-seen playlists instantly from cache while the
+            // network refreshes them in the background.
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::Playlist>, _>(
+                    "library:playlists",
+                    |p| Message::PlaylistsLoaded(Ok(p)),
+                ),
+                self.load_playlists(),
+            ])
         } else {
             // Playlists already loaded — generate any missing grid thumbnails
             Task::done(cosmic::Action::App(Message::GeneratePlaylistThumbnails))
@@ -179,7 +187,13 @@ impl AppModel {
         self.view_state = ViewState::Albums;
         if self.user_albums.is_empty() {
             self.is_loading = true;
-            self.load_albums()
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::Album>, _>(
+                    "library:albums",
+                    |a| Message::AlbumsLoaded(Ok(a)),
+                ),
+                self.load_albums(),
+            ])
         } else {
             Task::none()
         }
@@ -191,7 +205,13 @@ impl AppModel {
         self.view_state = ViewState::FavoriteTracks;
         if self.user_favorite_tracks.is_empty() {
             self.is_loading = true;
-            self.load_favorite_tracks()
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+                    "favorites:tracks",
+                    |t| Message::FavoriteTracksLoaded(Ok(t)),
+                ),
+                self.load_favorite_tracks(),
+            ])
         } else {
             self.rebuild_favorites_track_list();
             Task::none()
@@ -204,7 +224,12 @@ impl AppModel {
         self.view_state = ViewState::Mixes;
         if self.user_mixes.is_empty() {
             self.is_loading = true;
-            self.load_mixes()
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::Mix>, _>("library:mixes", |m| {
+                    Message::MixesLoaded(Ok(m))
+                }),
+                self.load_mixes(),
+            ])
         } else {
             self.load_images_for_mixes()
         }
@@ -245,7 +270,12 @@ impl AppModel {
         self.view_state = ViewState::Profiles;
         if self.user_followed_artists.is_empty() {
             self.is_loading = true;
-            self.load_profiles()
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::Artist>, _>("profiles", |a| {
+                    Message::ProfilesLoaded(Ok(a))
+                }),
+                self.load_profiles(),
+            ])
         } else {
             self.load_images_for_profiles()
         }
@@ -257,7 +287,12 @@ impl AppModel {
         self.view_state = ViewState::Feed;
         if self.feed_activities.is_empty() {
             self.is_loading = true;
-            self.load_feed()
+            Task::batch([
+                self.read_view_cache::<Vec<crate::tidal::models::FeedActivity>, _>("feed", |f| {
+                    Message::FeedLoaded(Ok(f))
+                }),
+                self.load_feed(),
+            ])
         } else {
             Task::none()
         }
@@ -291,7 +326,11 @@ impl AppModel {
         self.selected_playlist_uuid = Some(uuid.clone());
         self.selected_playlist_tracks.clear();
         self.view_state = ViewState::PlaylistDetail;
-        self.load_playlist_tracks(uuid)
+        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("playlist:{uuid}:tracks"),
+            |t| Message::PlaylistTracksLoaded(Ok(t)),
+        );
+        Task::batch([cache_read, self.load_playlist_tracks(uuid)])
     }
 
     /// Handle show mix detail view (tracks in a mix)
@@ -306,7 +345,11 @@ impl AppModel {
         self.selected_mix_tracks.clear();
         self.is_loading = true;
         self.view_state = ViewState::MixDetail;
-        self.load_mix_tracks(mix_id)
+        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("mix:{mix_id}:tracks"),
+            |t| Message::MixTracksLoaded(Ok(t)),
+        );
+        Task::batch([cache_read, self.load_mix_tracks(mix_id)])
     }
 
     /// Handle show track radio view (similar tracks based on a seed track)
@@ -385,10 +428,19 @@ impl AppModel {
         self.selected_album = Some(album);
         self.selected_album_tracks.clear();
         self.view_state = ViewState::AlbumDetail;
-        // Fetch tracks + album review in parallel (review is best-effort)
+        // Paint last-seen tracks instantly from cache, then fetch tracks +
+        // album review in parallel (review is best-effort).
+        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("album:{album_id}:tracks"),
+            |t| Message::AlbumTracksLoaded(Ok(t)),
+        );
+        let review_read = self
+            .read_view_cache::<String, _>(format!("album:{album_id}:review"), |r| {
+                Message::AlbumReviewLoaded(Ok(r))
+            });
         let tracks_task = self.load_album_tracks(album_id.clone());
         let review_task = self.load_album_review(album_id);
-        Task::batch([tracks_task, review_task])
+        Task::batch([cache_read, review_read, tracks_task, review_task])
     }
 
     /// Handle show album detail by ID (from now-playing bar or artist view)
@@ -402,11 +454,9 @@ impl AppModel {
         self.is_loading = true;
         self.view_state = ViewState::AlbumDetail;
 
-        // Load album info and tracks in parallel
+        // Load album info; paint last-seen tracks from cache, then refresh.
         let client1 = self.tidal_client.clone();
-        let client2 = self.tidal_client.clone();
         let id1 = album_id.clone();
-        let id2 = album_id;
 
         let info_task = Task::perform(
             async move {
@@ -416,18 +466,17 @@ impl AppModel {
             |result| cosmic::Action::App(Message::AlbumInfoLoaded(result)),
         );
 
-        let tracks_task = Task::perform(
-            async move {
-                let client = client2.lock().await;
-                client
-                    .get_album_tracks(&id2, None, None)
-                    .await
-                    .map_err(|e| e.to_string())
-            },
-            |result| cosmic::Action::App(Message::AlbumTracksLoaded(result)),
+        let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("album:{album_id}:tracks"),
+            |t| Message::AlbumTracksLoaded(Ok(t)),
         );
+        let review_read = self
+            .read_view_cache::<String, _>(format!("album:{album_id}:review"), |r| {
+                Message::AlbumReviewLoaded(Ok(r))
+            });
+        let tracks_task = self.load_album_tracks(album_id);
 
-        Task::batch(vec![info_task, tracks_task])
+        Task::batch(vec![info_task, cache_read, review_read, tracks_task])
     }
 
     /// Handle show artist detail view
@@ -442,48 +491,93 @@ impl AppModel {
         self.is_loading = true;
         self.view_state = ViewState::ArtistDetail;
 
-        // Load artist info, top tracks, and albums in parallel
+        // Load artist info, top tracks, and albums in parallel, caching each
+        // payload on success and painting the last-seen versions instantly.
         let client1 = self.tidal_client.clone();
         let client2 = self.tidal_client.clone();
         let client3 = self.tidal_client.clone();
+        let db1 = self.cache_db.clone();
+        let db2 = self.cache_db.clone();
+        let db3 = self.cache_db.clone();
         let id1 = artist_id.clone();
         let id2 = artist_id.clone();
-        let id3 = artist_id;
+        let id3 = artist_id.clone();
 
         let info_task = Task::perform(
             async move {
-                let client = client1.lock().await;
-                client
-                    .get_artist_info(&id1)
-                    .await
-                    .map_err(|e| e.to_string())
+                let key = format!("artist:{id1}:info");
+                let result = {
+                    let client = client1.lock().await;
+                    client
+                        .get_artist_info(&id1)
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                if let Ok(ref artist) = result {
+                    crate::handlers::view_cache::cache_put(db1, &key, artist).await;
+                }
+                result
             },
             |result| cosmic::Action::App(Message::ArtistInfoLoaded(result)),
         );
 
         let tracks_task = Task::perform(
             async move {
-                let client = client2.lock().await;
-                client
-                    .get_artist_top_tracks(&id2, Some(20))
-                    .await
-                    .map_err(|e| e.to_string())
+                let key = format!("artist:{id2}:toptracks");
+                let result = {
+                    let client = client2.lock().await;
+                    client
+                        .get_artist_top_tracks(&id2, Some(20))
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                if let Ok(ref tracks) = result {
+                    crate::handlers::view_cache::cache_put(db2, &key, tracks).await;
+                }
+                result
             },
             |result| cosmic::Action::App(Message::ArtistTopTracksLoaded(result)),
         );
 
         let albums_task = Task::perform(
             async move {
-                let client = client3.lock().await;
-                client
-                    .get_artist_albums(&id3, Some(50))
-                    .await
-                    .map_err(|e| e.to_string())
+                let key = format!("artist:{id3}:albums");
+                let result = {
+                    let client = client3.lock().await;
+                    client
+                        .get_artist_albums(&id3, Some(50))
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                if let Ok(ref albums) = result {
+                    crate::handlers::view_cache::cache_put(db3, &key, albums).await;
+                }
+                result
             },
             |result| cosmic::Action::App(Message::ArtistAlbumsLoaded(result)),
         );
 
-        Task::batch(vec![info_task, tracks_task, albums_task])
+        let read_info = self.read_view_cache::<crate::tidal::models::Artist, _>(
+            format!("artist:{artist_id}:info"),
+            |a| Message::ArtistInfoLoaded(Ok(a)),
+        );
+        let read_tracks = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("artist:{artist_id}:toptracks"),
+            |t| Message::ArtistTopTracksLoaded(Ok(t)),
+        );
+        let read_albums = self.read_view_cache::<Vec<crate::tidal::models::Album>, _>(
+            format!("artist:{artist_id}:albums"),
+            |a| Message::ArtistAlbumsLoaded(Ok(a)),
+        );
+
+        Task::batch(vec![
+            read_info,
+            read_tracks,
+            read_albums,
+            info_task,
+            tracks_task,
+            albums_task,
+        ])
     }
 
     // =========================================================================

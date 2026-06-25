@@ -16,10 +16,18 @@ impl AppModel {
     /// Perform a search query
     pub(crate) fn perform_search(&self, query: String) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
+        let db = self.cache_db.clone();
+        let key = format!("search:{query}");
         Task::perform(
             async move {
-                let client = client.lock().await;
-                client.search(&query, 20).await.map_err(|e| e.to_string())
+                let result = {
+                    let client = client.lock().await;
+                    client.search(&query, 20).await.map_err(|e| e.to_string())
+                };
+                if let Ok(ref results) = result {
+                    crate::handlers::view_cache::cache_put(db, &key, results).await;
+                }
+                result
             },
             |result| cosmic::Action::App(Message::SearchComplete(result)),
         )
@@ -64,7 +72,13 @@ impl AppModel {
         // Only perform search if version matches (no newer keystrokes)
         if version == self.search_debounce_version && !self.search_query.is_empty() {
             self.is_loading = true;
-            self.perform_search(self.search_query.clone())
+            let q = self.search_query.clone();
+            Task::batch([
+                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| {
+                    Message::SearchComplete(Ok(r))
+                }),
+                self.perform_search(q),
+            ])
         } else {
             Task::none()
         }
@@ -74,7 +88,13 @@ impl AppModel {
     pub fn handle_perform_search(&mut self) -> Task<cosmic::Action<Message>> {
         if !self.search_query.is_empty() {
             self.is_loading = true;
-            self.perform_search(self.search_query.clone())
+            let q = self.search_query.clone();
+            Task::batch([
+                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| {
+                    Message::SearchComplete(Ok(r))
+                }),
+                self.perform_search(q),
+            ])
         } else {
             Task::none()
         }

@@ -363,10 +363,7 @@ impl AppModel {
 
                         // Record this track in the local play history
                         self.play_history.record(&track);
-                        {
-                            let client = self.tidal_client.blocking_lock();
-                            self.play_history.save(client.api_cache());
-                        }
+                        self.persist_play_history();
 
                         // Open a TIDAL play-attribution session for this
                         // track.  Finalises the previous session (if any),
@@ -436,10 +433,7 @@ impl AppModel {
                         });
                         self.playback_position = 0.0;
                         self.play_history.record(&track);
-                        {
-                            let client = self.tidal_client.blocking_lock();
-                            self.play_history.save(client.api_cache());
-                        }
+                        self.persist_play_history();
                         tracing::info!("Video playback started: {}", track.title);
                         return self.update_mpris_state();
                     }
@@ -756,10 +750,7 @@ impl AppModel {
 
                             // Record this track in the local play history
                             self.play_history.record(&track);
-                            {
-                                let client = self.tidal_client.blocking_lock();
-                                self.play_history.save(client.api_cache());
-                            }
+                            self.persist_play_history();
 
                             // Open a TIDAL play-attribution session for the
                             // gaplessly-transitioned new track (finalises the

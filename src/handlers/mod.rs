@@ -19,3 +19,4 @@ pub mod data;
 pub mod misc;
 pub mod navigation;
 pub mod playback;
+pub mod view_cache;

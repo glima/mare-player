@@ -44,6 +44,11 @@ pub enum Message {
     // Subscription/background events
     /// Subscription channel event (used for startup)
     SubscriptionChannel,
+    /// A no-op. Used by fire-and-forget cache writes and by view-cache reads
+    /// that miss, which have no UI effect.
+    Noop,
+    /// Persisted play history finished loading from the cache database.
+    PlayHistoryLoaded(Vec<crate::tidal::play_history::HistoryEntry>),
     /// Configuration was updated
     UpdateConfig(Config),
 
@@ -301,6 +306,9 @@ pub enum Message {
     // MPRIS D-Bus integration
     /// MPRIS service started
     MprisServiceStarted(MprisStartResult),
+    /// The embedded cache database finished opening at startup (`None` if it
+    /// failed to open, in which case caching is disabled for the session).
+    CacheDbReady(Option<crate::cache::Db>),
     /// MPRIS command received
     MprisCommand(MprisCommand),
 

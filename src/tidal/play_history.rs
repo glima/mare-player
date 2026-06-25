@@ -4,20 +4,20 @@
 //!
 //! TIDAL's API does not expose a per-track "recently played" endpoint, so we
 //! maintain one locally.  Each time a track starts playing successfully its
-//! metadata is prepended to an ordered list that is persisted to the API disk
-//! cache as JSON.  Duplicates are collapsed: if the same track is played again
-//! it is moved to the front rather than appearing twice.
+//! metadata is prepended to an ordered list that is persisted to the cache
+//! database's `kv` table as JSON.  Duplicates are collapsed: if the same track
+//! is played again it is moved to the front rather than appearing twice.
 //!
 //! The history is unbounded — every track ever played is retained.
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, warn};
+use tracing::warn;
 
-use crate::disk_cache::DiskCache;
 use crate::tidal::models::Track;
 
-/// Cache key used for the serialised history inside the API [`DiskCache`].
-const CACHE_KEY: &str = "play_history";
+/// Key under which the serialised history is stored in the cache database's
+/// `kv` table.
+pub const HISTORY_KEY: &str = "play_history";
 
 /// A timestamped history entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,44 +43,22 @@ impl PlayHistory {
         }
     }
 
-    /// Load a previously-persisted history from the API cache.
+    /// Serialise the history entries to JSON bytes, or `None` on failure.
     ///
-    /// Returns an empty history if no cache file exists or if it is corrupt.
-    pub fn load(api_cache: &DiskCache) -> Self {
-        let entries: Vec<HistoryEntry> = api_cache
-            .get_hashed(CACHE_KEY, "json")
-            .and_then(|data| {
-                serde_json::from_slice(&data)
-                    .map_err(|e| {
-                        warn!("Failed to deserialise play history cache: {}", e);
-                        e
-                    })
-                    .ok()
+    /// The app persists these bytes into the cache database's `kv` table under
+    /// [`HISTORY_KEY`].
+    pub fn to_json(&self) -> Option<Vec<u8>> {
+        serde_json::to_vec(&self.entries)
+            .map_err(|e| {
+                warn!("Failed to serialise play history: {}", e);
+                e
             })
-            .unwrap_or_default();
-
-        debug!("Loaded {} play history entries from cache", entries.len());
-        Self { entries }
+            .ok()
     }
 
-    /// Persist the current history to the API cache.
-    pub fn save(&self, api_cache: &DiskCache) {
-        match serde_json::to_vec(&self.entries) {
-            Ok(json) => {
-                if let Err(e) = api_cache.put_hashed(CACHE_KEY, "json", &json) {
-                    warn!("Failed to persist play history: {}", e);
-                } else {
-                    debug!(
-                        "Persisted {} play history entries ({} bytes)",
-                        self.entries.len(),
-                        json.len()
-                    );
-                }
-            }
-            Err(e) => {
-                warn!("Failed to serialise play history: {}", e);
-            }
-        }
+    /// Replace all entries (used after the database loads them at startup).
+    pub fn set_entries(&mut self, entries: Vec<HistoryEntry>) {
+        self.entries = entries;
     }
 
     /// Record a track as just-played.
@@ -296,38 +274,34 @@ mod tests {
         assert_eq!(h.tracks()[2].title, "A2");
     }
 
-    fn temp_cache() -> (DiskCache, tempfile::TempDir) {
-        let tmp = tempfile::tempdir().expect("tempdir");
-        let cache = DiskCache::new(tmp.path().to_path_buf(), 10);
-        (cache, tmp)
-    }
-
     #[test]
-    fn save_then_load_round_trips_entries() {
-        let (cache, _tmp) = temp_cache();
+    fn to_json_round_trips_entries() {
         let mut h = PlayHistory::new();
         h.record(&make_track("a", "A"));
         h.record(&make_track("b", "B"));
-        h.save(&cache);
 
-        let loaded = PlayHistory::load(&cache);
+        let bytes = h.to_json().expect("serialise");
+        let entries: Vec<HistoryEntry> = serde_json::from_slice(&bytes).expect("deserialise");
+
+        let mut restored = PlayHistory::new();
+        restored.set_entries(entries);
         // most-recent first: B then A
-        assert_eq!(loaded.len(), 2);
-        assert_eq!(loaded.tracks()[0].id, "b");
-        assert_eq!(loaded.tracks()[1].id, "a");
+        assert_eq!(restored.len(), 2);
+        assert_eq!(restored.tracks()[0].id, "b");
+        assert_eq!(restored.tracks()[1].id, "a");
     }
 
     #[test]
-    fn load_from_empty_cache_is_empty() {
-        let (cache, _tmp) = temp_cache();
-        let loaded = PlayHistory::load(&cache);
-        assert!(loaded.is_empty());
+    fn empty_history_to_json_is_empty_array() {
+        let bytes = PlayHistory::new().to_json().expect("serialise");
+        assert_eq!(bytes, b"[]");
     }
 
     #[test]
-    fn save_empty_then_load_is_empty() {
-        let (cache, _tmp) = temp_cache();
-        PlayHistory::new().save(&cache);
-        assert!(PlayHistory::load(&cache).is_empty());
+    fn set_entries_replaces_contents() {
+        let mut h = PlayHistory::new();
+        h.record(&make_track("x", "X"));
+        h.set_entries(Vec::new());
+        assert!(h.is_empty());
     }
 }

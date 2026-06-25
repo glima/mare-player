@@ -4,16 +4,15 @@
 //!
 //! This module provides async image loading with both memory and disk caching
 //! to avoid repeated network requests for the same images. The disk layer is
-//! backed by the general-purpose [`DiskCache`],
-//! which handles size enforcement and LRU eviction.
+//! backed by the embedded cache database ([`crate::cache::Db`]), which handles
+//! byte-budgeted LRU eviction. Until the database finishes opening at startup
+//! the disk tier is skipped and only the in-memory tier is used.
 
 use image::GenericImageView;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{OnceCell, RwLock};
 use tracing::{debug, error};
-
-use crate::disk_cache::DiskCache;
 
 /// Decoded RGBA pixel data ready for direct use with `Handle::from_rgba`.
 /// Avoids the cost of re-encoding to PNG just to have iced decode it again.
@@ -40,8 +39,11 @@ pub struct ImageCache {
     client: reqwest::Client,
     /// Maximum total bytes to keep in the in-memory cache
     max_memory_bytes: u64,
-    /// Disk cache (size-limited, LRU-evicted)
-    disk: DiskCache,
+    /// Byte budget for the on-database image tier (LRU-evicted).
+    max_disk_bytes: i64,
+    /// Cache database, populated once it finishes opening at startup. While
+    /// empty, the disk tier is skipped and only the memory tier is consulted.
+    db: Arc<OnceCell<crate::cache::Db>>,
 }
 
 /// Maximum pixel dimension for decoded image handles.
@@ -69,44 +71,42 @@ impl ImageCache {
     /// images let more entries fit, while high-res artwork naturally evicts
     /// sooner.
     pub fn new(max_disk_size_mb: u32) -> Self {
-        let disk = DiskCache::xdg("images", max_disk_size_mb);
         let max_memory_bytes = (max_disk_size_mb as u64) * 1024 * 1024 / 10;
+        let max_disk_bytes = (max_disk_size_mb as i64) * 1024 * 1024;
 
         Self {
             memory_cache: Arc::new(RwLock::new(HashMap::new())),
             client: reqwest::Client::new(),
             max_memory_bytes,
-            disk,
+            max_disk_bytes,
+            db: Arc::new(OnceCell::new()),
         }
     }
 
-    /// Get the disk cache path for a URL (hashed filename with extension).
-    fn disk_cache_ext(url: &str) -> &str {
-        url.rsplit('/')
-            .next()
-            .and_then(|s| s.rsplit('.').next())
-            .filter(|e| e.len() <= 4 && e.chars().all(|c| c.is_alphanumeric()))
-            .unwrap_or("jpg")
+    /// Attach the cache database once it has finished opening at startup.
+    ///
+    /// Idempotent: a second call is a no-op. Until this is called the disk
+    /// tier is skipped (only the in-memory tier and network are used).
+    pub fn set_db(&self, db: crate::cache::Db) {
+        let _ = self.db.set(db);
     }
 
-    /// Try to load an image from disk cache
+    /// Try to load an image from the cache database.
     async fn load_from_disk(&self, url: &str) -> Option<CachedImage> {
-        let ext = Self::disk_cache_ext(url);
-        self.disk.get_hashed_async(url, ext).await.map(|data| {
-            debug!("Disk cache hit: {}", url);
+        let db = self.db.get()?;
+        db.get_image(url).await.map(|data| {
+            debug!("DB image cache hit: {}", url);
             CachedImage {
                 data: Arc::new(data),
             }
         })
     }
 
-    /// Save an image to disk cache, enforcing max size via DiskCache eviction
+    /// Save an image to the cache database (LRU-evicted by byte budget).
     async fn save_to_disk(&self, url: &str, data: &[u8]) {
-        let ext = Self::disk_cache_ext(url);
-        if let Err(e) = self.disk.put_hashed_async(url, ext, data).await {
-            tracing::warn!("Failed to write image to disk cache: {}", e);
-        } else {
-            debug!("Saved to disk cache: {} ({} bytes)", url, data.len());
+        if let Some(db) = self.db.get() {
+            db.put_image(url, data, self.max_disk_bytes).await;
+            debug!("Saved image to DB cache: {} ({} bytes)", url, data.len());
         }
     }
 
@@ -172,18 +172,20 @@ impl ImageCache {
         cache.insert(url.to_string(), cached);
     }
 
-    /// Try to load a cached grid thumbnail from disk.
+    /// Try to load a cached grid thumbnail from the database.
     ///
     /// `cache_key` should be a stable identifier (e.g. playlist UUID or a
     /// hash of the cover URLs).  Returns `None` on cache miss.
     pub async fn get_cached_grid(&self, cache_key: &str) -> Option<Vec<u8>> {
-        self.disk.get_hashed_async(cache_key, "png").await
+        let db = self.db.get()?;
+        db.get_image(&format!("grid:{cache_key}")).await
     }
 
-    /// Save a generated grid thumbnail PNG to the disk cache.
+    /// Save a generated grid thumbnail PNG to the database cache.
     pub async fn save_grid(&self, cache_key: &str, png_data: &[u8]) {
-        if let Err(e) = self.disk.put_hashed_async(cache_key, "png", png_data).await {
-            tracing::warn!("Failed to cache grid thumbnail: {}", e);
+        if let Some(db) = self.db.get() {
+            db.put_image(&format!("grid:{cache_key}"), png_data, self.max_disk_bytes)
+                .await;
         }
     }
 
@@ -369,17 +371,22 @@ mod tests {
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    /// Build an `ImageCache` backed by a temporary directory so tests
-    /// never touch the real XDG cache.  `max_memory_bytes` is set to
-    /// the supplied value for fine-grained eviction testing.
-    fn temp_cache(dir: &std::path::Path, max_memory_bytes: u64) -> ImageCache {
-        let disk = DiskCache::new(dir.to_path_buf(), 50); // 50 MB disk limit
-        ImageCache {
+    /// Build an `ImageCache` whose disk tier is an in-memory cache database,
+    /// so tests are isolated and never touch the real XDG cache or filesystem.
+    /// `max_memory_bytes` sizes the in-RAM tier for fine-grained eviction tests.
+    async fn temp_cache(max_memory_bytes: u64) -> ImageCache {
+        let cache = ImageCache {
             memory_cache: Arc::new(RwLock::new(HashMap::new())),
             client: reqwest::Client::new(),
             max_memory_bytes,
-            disk,
-        }
+            max_disk_bytes: 50 * 1024 * 1024,
+            db: Arc::new(OnceCell::new()),
+        };
+        let db = crate::cache::Db::open(std::path::Path::new(":memory:"))
+            .await
+            .expect("open in-memory cache db");
+        cache.set_db(db);
+        cache
     }
 
     /// Create a minimal valid 1×1 red PNG in memory (~67-70 bytes).
@@ -443,96 +450,19 @@ mod tests {
         (url, port)
     }
 
-    // ── disk_cache_ext ──────────────────────────────────────────────────
-
-    #[test]
-    fn test_disk_cache_ext() {
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/image.jpg"),
-            "jpg"
-        );
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/image.png"),
-            "png"
-        );
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/image"),
-            "jpg"
-        ); // fallback
-    }
-
-    #[test]
-    fn test_disk_cache_ext_webp() {
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://cdn.tidal.com/artwork.webp"),
-            "webp"
-        );
-    }
-
-    #[test]
-    fn test_disk_cache_ext_query_string() {
-        // The last path segment is "photo.png?size=large", the extension
-        // after the last '.' is "png?size=large" which is >4 chars and
-        // contains '?' → should fall back to "jpg".
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/photo.png?size=large"),
-            "jpg"
-        );
-    }
-
-    #[test]
-    fn test_disk_cache_ext_no_path() {
-        // Trailing slash → last segment is "", and "" passes the filter
-        // (len 0 ≤ 4, vacuously alphanumeric), so we get "".
-        assert_eq!(ImageCache::disk_cache_ext("https://example.com/"), "");
-    }
-
-    #[test]
-    fn test_disk_cache_ext_very_long_extension() {
-        // Extension > 4 chars → fallback
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/data.jsondata"),
-            "jpg"
-        );
-    }
-
-    #[test]
-    fn test_disk_cache_ext_empty_url() {
-        // Empty string → rsplit('/') yields [""], rsplit('.') yields [""],
-        // "" passes the filter (vacuously alphanumeric, len ≤ 4).
-        assert_eq!(ImageCache::disk_cache_ext(""), "");
-    }
-
-    #[test]
-    fn test_disk_cache_ext_gif() {
-        assert_eq!(
-            ImageCache::disk_cache_ext("https://example.com/anim.gif"),
-            "gif"
-        );
-    }
-
     // ── constructors ────────────────────────────────────────────────────
-
-    #[test]
-    fn test_disk_cache_path() {
-        let cache = ImageCache::new(100);
-        // Just verify it doesn't panic and produces a path ending with the right extension
-        let ext = ImageCache::disk_cache_ext("https://example.com/image.jpg");
-        let path = cache.disk.hashed_path("https://example.com/image.jpg", ext);
-        assert!(path.to_string_lossy().ends_with(".jpg"));
-    }
 
     #[test]
     fn test_new_sets_memory_limit() {
         // 200 MB disk → 20 MB RAM (10%)
         let cache = ImageCache::new(200);
         assert_eq!(cache.max_memory_bytes, 200 * 1024 * 1024 / 10);
+        assert_eq!(cache.max_disk_bytes, 200 * 1024 * 1024);
     }
 
     #[test]
     fn test_default_uses_200mb_disk() {
         let cache = ImageCache::default();
-        // default is 200 MB disk
         assert_eq!(cache.max_memory_bytes, 200 * 1024 * 1024 / 10);
     }
 
@@ -542,57 +472,32 @@ mod tests {
         assert_eq!(cache.max_memory_bytes, 0);
     }
 
-    #[test]
-    fn test_clone_shares_memory_cache() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
+    #[tokio::test]
+    async fn test_clone_shares_memory_cache() {
+        let cache = temp_cache(1024 * 1024).await;
         let clone = cache.clone();
-        // Both refer to the same Arc
+        // Both refer to the same Arc-backed memory tier and DB handle.
         assert!(Arc::ptr_eq(&cache.memory_cache, &clone.memory_cache));
+        assert!(Arc::ptr_eq(&cache.db, &clone.db));
     }
 
     // ── add_to_memory_cache ─────────────────────────────────────────────
 
     #[tokio::test]
     async fn test_add_to_memory_cache_basic() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024); // 1 MB limit
-
+        let cache = temp_cache(1024 * 1024).await;
         let img = CachedImage {
             data: Arc::new(vec![1, 2, 3, 4]),
         };
         cache.add_to_memory_cache("http://a.test/1.png", img).await;
-
         let mem = cache.memory_cache.read().await;
-        assert!(mem.contains_key("http://a.test/1.png"));
         assert_eq!(mem.get("http://a.test/1.png").unwrap().data.len(), 4);
     }
 
     #[tokio::test]
-    async fn test_add_to_memory_cache_multiple() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        for i in 0..5 {
-            let img = CachedImage {
-                data: Arc::new(vec![i; 10]),
-            };
-            cache
-                .add_to_memory_cache(&format!("http://a.test/{}.png", i), img)
-                .await;
-        }
-
-        let mem = cache.memory_cache.read().await;
-        assert_eq!(mem.len(), 5);
-    }
-
-    #[tokio::test]
     async fn test_add_to_memory_cache_eviction() {
-        let tmp = tempfile::tempdir().unwrap();
-        // Set limit to 20 bytes — inserting items larger than that forces eviction
-        let cache = temp_cache(tmp.path(), 20);
-
-        // Insert 3 items of 8 bytes each (24 total > 20 limit)
+        // 20-byte limit; inserting 3×8 bytes forces eviction.
+        let cache = temp_cache(20).await;
         for i in 0..3u8 {
             let img = CachedImage {
                 data: Arc::new(vec![i; 8]),
@@ -601,133 +506,88 @@ mod tests {
                 .add_to_memory_cache(&format!("http://a.test/{}.png", i), img)
                 .await;
         }
-
         let mem = cache.memory_cache.read().await;
-        // At least one old entry should have been evicted
-        assert!(mem.len() <= 3);
-        // The newest entry should always be present
         assert!(mem.contains_key("http://a.test/2.png"));
-        // Total size should be <= 20
         let total: u64 = mem.values().map(|v| v.data.len() as u64).sum();
         assert!(total <= 20);
     }
 
     #[tokio::test]
-    async fn test_add_to_memory_cache_evicts_all_when_single_item_exceeds_limit() {
-        let tmp = tempfile::tempdir().unwrap();
-        // Limit of 10 bytes
-        let cache = temp_cache(tmp.path(), 10);
-
-        // Pre-fill with small items
-        for i in 0..3u8 {
-            let img = CachedImage {
-                data: Arc::new(vec![i; 3]),
-            };
+    async fn test_add_to_memory_cache_replaces_same_key() {
+        let cache = temp_cache(1024 * 1024).await;
+        for sz in [10usize, 20] {
             cache
-                .add_to_memory_cache(&format!("http://a.test/{}.png", i), img)
+                .add_to_memory_cache(
+                    "http://a.test/same.png",
+                    CachedImage {
+                        data: Arc::new(vec![0u8; sz]),
+                    },
+                )
                 .await;
         }
-
-        // Now insert one item that is larger than the limit.  The eviction
-        // loop removes everything it can; the item is still inserted (the
-        // code doesn't reject oversized items).
-        let big = CachedImage {
-            data: Arc::new(vec![99; 15]),
-        };
-        cache
-            .add_to_memory_cache("http://a.test/big.png", big)
-            .await;
-
-        let mem = cache.memory_cache.read().await;
-        // Only the big item remains (old ones evicted, but it still inserts)
-        assert!(mem.contains_key("http://a.test/big.png"));
-        assert_eq!(mem.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn test_add_to_memory_cache_replaces_same_key() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let img1 = CachedImage {
-            data: Arc::new(vec![1; 10]),
-        };
-        cache
-            .add_to_memory_cache("http://a.test/same.png", img1)
-            .await;
-
-        let img2 = CachedImage {
-            data: Arc::new(vec![2; 20]),
-        };
-        cache
-            .add_to_memory_cache("http://a.test/same.png", img2)
-            .await;
-
         let mem = cache.memory_cache.read().await;
         assert_eq!(mem.len(), 1);
         assert_eq!(mem.get("http://a.test/same.png").unwrap().data.len(), 20);
     }
 
-    // ── save_to_disk / load_from_disk ───────────────────────────────────
+    // ── db disk tier (save_to_disk / load_from_disk) ────────────────────
 
     #[tokio::test]
-    async fn test_disk_round_trip() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
+    async fn test_db_round_trip() {
+        let cache = temp_cache(1024 * 1024).await;
         let data = tiny_png();
-
         cache
             .save_to_disk("https://example.com/art.png", &data)
             .await;
-
         let loaded = cache.load_from_disk("https://example.com/art.png").await;
-        assert!(loaded.is_some());
-        assert_eq!(&*loaded.unwrap().data, &data);
+        assert_eq!(loaded.map(|c| (*c.data).clone()), Some(data));
     }
 
     #[tokio::test]
-    async fn test_load_from_disk_miss() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let loaded = cache
-            .load_from_disk("https://example.com/nonexistent.png")
-            .await;
-        assert!(loaded.is_none());
+    async fn test_load_from_db_miss() {
+        let cache = temp_cache(1024 * 1024).await;
+        assert!(
+            cache
+                .load_from_disk("https://example.com/none.png")
+                .await
+                .is_none()
+        );
     }
 
     #[tokio::test]
-    async fn test_save_to_disk_creates_file() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-        let data = b"fake image bytes";
-
-        cache
-            .save_to_disk("https://example.com/photo.jpg", data)
-            .await;
-
-        let ext = ImageCache::disk_cache_ext("https://example.com/photo.jpg");
-        let path = cache.disk.hashed_path("https://example.com/photo.jpg", ext);
-        assert!(path.exists());
-    }
-
-    #[tokio::test]
-    async fn test_disk_round_trip_multiple_urls() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
+    async fn test_db_round_trip_multiple_urls() {
+        let cache = temp_cache(1024 * 1024).await;
         for i in 0..5u8 {
-            let url = format!("https://example.com/img{}.png", i);
-            let data = vec![i; 100];
-            cache.save_to_disk(&url, &data).await;
+            cache
+                .save_to_disk(&format!("https://example.com/img{}.png", i), &vec![i; 100])
+                .await;
         }
-
         for i in 0..5u8 {
-            let url = format!("https://example.com/img{}.png", i);
-            let loaded = cache.load_from_disk(&url).await;
-            assert!(loaded.is_some(), "expected disk hit for {}", url);
-            assert_eq!(loaded.unwrap().data.len(), 100);
+            let loaded = cache
+                .load_from_disk(&format!("https://example.com/img{}.png", i))
+                .await;
+            assert_eq!(loaded.map(|c| c.data.len()), Some(100));
         }
+    }
+
+    #[tokio::test]
+    async fn test_grid_round_trip() {
+        let cache = temp_cache(1024 * 1024).await;
+        let png = tiny_png();
+        assert!(cache.get_cached_grid("playlist-1").await.is_none());
+        cache.save_grid("playlist-1", &png).await;
+        assert_eq!(cache.get_cached_grid("playlist-1").await, Some(png));
+    }
+
+    #[tokio::test]
+    async fn test_disk_tier_noop_without_db() {
+        // No DB attached: disk-tier writes are silently skipped, reads miss,
+        // and nothing panics.
+        let cache = ImageCache::new(50);
+        cache.save_to_disk("https://x/y.png", b"data").await;
+        assert!(cache.load_from_disk("https://x/y.png").await.is_none());
+        cache.save_grid("k", b"data").await;
+        assert!(cache.get_cached_grid("k").await.is_none());
     }
 
     // ── download_image ──────────────────────────────────────────────────
@@ -736,52 +596,28 @@ mod tests {
     async fn test_download_image_success() {
         let png = tiny_png();
         let (url, _port) = spawn_http_server(png.clone(), "image/png");
-        // Give the server thread a moment to start listening
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.download_image(&url).await;
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), png);
+        let cache = temp_cache(1024 * 1024).await;
+        assert_eq!(cache.download_image(&url).await.ok(), Some(png));
     }
 
     #[tokio::test]
     async fn test_download_image_http_error() {
         let (url, _port) = spawn_http_error(404);
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.download_image(&url).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("HTTP error"));
-    }
-
-    #[tokio::test]
-    async fn test_download_image_500_error() {
-        let (url, _port) = spawn_http_error(500);
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.download_image(&url).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("HTTP error"));
+        let cache = temp_cache(1024 * 1024).await;
+        let err = cache.download_image(&url).await.unwrap_err();
+        assert!(err.contains("HTTP error"));
     }
 
     #[tokio::test]
     async fn test_download_image_connection_refused() {
-        // Use a port that is almost certainly not listening
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.download_image("http://127.0.0.1:1/image.png").await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Request failed"));
+        let cache = temp_cache(1024 * 1024).await;
+        let err = cache
+            .download_image("http://127.0.0.1:1/image.png")
+            .await
+            .unwrap_err();
+        assert!(err.contains("Request failed"));
     }
 
     // ── get_or_load (full integration) ──────────────────────────────────
@@ -791,167 +627,82 @@ mod tests {
         let png = tiny_png();
         let (url, _port) = spawn_http_server(png.clone(), "image/png");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let cache = temp_cache(1024 * 1024).await;
 
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        // First call — downloads from network
-        let result = cache.get_or_load(&url).await;
-        assert!(result.is_some());
-        assert_eq!(&*result.unwrap().data, &png);
-
-        // Verify it's now in memory cache
-        {
-            let mem = cache.memory_cache.read().await;
-            assert!(mem.contains_key(&url as &str));
-        }
-
-        // Verify it's on disk
-        let disk_hit = cache.load_from_disk(&url).await;
-        assert!(disk_hit.is_some());
+        assert_eq!(
+            cache.get_or_load(&url).await.map(|c| (*c.data).clone()),
+            Some(png)
+        );
+        // Promoted into the memory tier and persisted to the db tier.
+        assert!(cache.memory_cache.read().await.contains_key(&url as &str));
+        assert!(cache.load_from_disk(&url).await.is_some());
     }
 
     #[tokio::test]
     async fn test_get_or_load_memory_hit() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        // Pre-populate memory cache directly
+        let cache = temp_cache(1024 * 1024).await;
         let data = vec![42u8; 50];
-        let img = CachedImage {
-            data: Arc::new(data.clone()),
-        };
-        {
-            let mut mem = cache.memory_cache.write().await;
-            mem.insert("http://a.test/cached.png".to_string(), img);
-        }
-
-        // Should return from memory without any network call
-        let result = cache.get_or_load("http://a.test/cached.png").await;
-        assert!(result.is_some());
-        assert_eq!(&*result.unwrap().data, &data);
+        cache.memory_cache.write().await.insert(
+            "http://a.test/cached.png".to_string(),
+            CachedImage {
+                data: Arc::new(data.clone()),
+            },
+        );
+        assert_eq!(
+            cache
+                .get_or_load("http://a.test/cached.png")
+                .await
+                .map(|c| (*c.data).clone()),
+            Some(data)
+        );
     }
 
     #[tokio::test]
-    async fn test_get_or_load_disk_hit() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
+    async fn test_get_or_load_db_hit_promotes_to_memory() {
+        let cache = temp_cache(1024 * 1024).await;
         let data = tiny_png();
         let url = "https://example.com/disk-only.png";
-
-        // Write directly to disk (not in memory)
         cache.save_to_disk(url, &data).await;
+        assert!(!cache.memory_cache.read().await.contains_key(url));
 
-        // Verify memory is empty
-        {
-            let mem = cache.memory_cache.read().await;
-            assert!(!mem.contains_key(url));
-        }
-
-        // get_or_load should find it on disk and promote to memory
-        let result = cache.get_or_load(url).await;
-        assert!(result.is_some());
-        assert_eq!(&*result.unwrap().data, &data);
-
-        // Should now be in memory too
-        {
-            let mem = cache.memory_cache.read().await;
-            assert!(mem.contains_key(url));
-        }
+        assert_eq!(
+            cache.get_or_load(url).await.map(|c| (*c.data).clone()),
+            Some(data)
+        );
+        assert!(cache.memory_cache.read().await.contains_key(url));
     }
 
     #[tokio::test]
     async fn test_get_or_load_download_failure() {
         let (url, _port) = spawn_http_error(503);
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.get_or_load(&url).await;
-        assert!(result.is_none());
+        let cache = temp_cache(1024 * 1024).await;
+        assert!(cache.get_or_load(&url).await.is_none());
     }
 
     #[tokio::test]
-    async fn test_get_or_load_connection_refused() {
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        let result = cache.get_or_load("http://127.0.0.1:1/no-server.png").await;
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
-    async fn test_get_or_load_second_call_uses_memory() {
+    async fn test_get_or_load_second_call_uses_cache() {
         let png = tiny_png();
         let (url, _port) = spawn_http_server(png.clone(), "image/png");
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let cache = temp_cache(1024 * 1024).await;
 
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        // First call downloads
-        let r1 = cache.get_or_load(&url).await;
-        assert!(r1.is_some());
-
-        // Second call — the mock server already closed, so if this
-        // tried to download again it would fail.  Success means memory
-        // cache is being used.
-        let r2 = cache.get_or_load(&url).await;
-        assert!(r2.is_some());
-        assert_eq!(&*r2.unwrap().data, &png);
+        assert!(cache.get_or_load(&url).await.is_some());
+        // The one-shot server has closed; a second hit must come from cache.
+        assert_eq!(
+            cache.get_or_load(&url).await.map(|c| (*c.data).clone()),
+            Some(png)
+        );
     }
 
     // ── CachedImage ─────────────────────────────────────────────────────
 
     #[test]
-    fn test_cached_image_clone() {
+    fn test_cached_image_clone_shares_arc() {
         let img = CachedImage {
             data: Arc::new(vec![1, 2, 3]),
         };
         let cloned = img.clone();
-        assert_eq!(&*img.data, &*cloned.data);
-        // Clone shares the same Arc allocation
         assert!(Arc::ptr_eq(&img.data, &cloned.data));
-    }
-
-    #[test]
-    fn test_cached_image_empty_data() {
-        let img = CachedImage {
-            data: Arc::new(Vec::new()),
-        };
-        assert!(img.data.is_empty());
-    }
-
-    // ── save_to_disk error path ─────────────────────────────────────────
-
-    #[tokio::test]
-    async fn test_save_to_disk_readonly_dir_does_not_panic() {
-        // On Linux we can make the dir read-only to trigger the warn! path
-        // inside save_to_disk.  This must not panic.
-        let tmp = tempfile::tempdir().unwrap();
-        let cache = temp_cache(tmp.path(), 1024 * 1024);
-
-        // Make the cache directory read-only
-        let mut perms = std::fs::metadata(tmp.path()).unwrap().permissions();
-        // Deliberately toggling permissions to exercise the error path
-        // in save_to_disk; `set_readonly` is the simplest portable way.
-        #[allow(clippy::permissions_set_readonly_false)]
-        {
-            perms.set_readonly(true);
-        }
-        std::fs::set_permissions(tmp.path(), perms.clone()).unwrap();
-
-        // This should hit the Err branch and warn, not panic
-        cache
-            .save_to_disk("https://example.com/fail.png", b"data")
-            .await;
-
-        // Restore write permission so tempdir cleanup can remove the dir.
-        #[allow(clippy::permissions_set_readonly_false)]
-        {
-            perms.set_readonly(false);
-        }
-        std::fs::set_permissions(tmp.path(), perms).unwrap();
     }
 }

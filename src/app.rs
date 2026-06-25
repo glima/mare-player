@@ -101,10 +101,12 @@ impl cosmic::Application for AppModel {
         let audio_cache_max_mb = config.audio_cache_max_mb;
         let saved_volume = config.volume_level.clamp(0.0, 1.0);
 
-        // Build the single TidalAppClient up-front so we can load persisted
-        // play history from its API cache *before* moving it into the Arc.
+        // The TidalAppClient is built up-front (it owns the audio/API disk
+        // caches and is shared via an Arc). Play history is loaded from the
+        // cache database asynchronously once it opens (see
+        // `Message::CacheDbReady`); it starts empty here.
         let client = TidalAppClient::new_with_audio_cache_mb(audio_cache_max_mb);
-        let play_history = crate::tidal::play_history::PlayHistory::load(client.api_cache());
+        let play_history = crate::tidal::play_history::PlayHistory::new();
 
         // `app` is only mutated in standalone mode (`app.set_window_title`);
         // in panel-applet mode the binding is never written.
@@ -175,6 +177,7 @@ impl cosmic::Application for AppModel {
             loop_status: crate::tidal::mpris::LoopStatus::None,
             playback_source: None,
             image_cache: ImageCache::new(image_cache_max_mb),
+            cache_db: None,
             loaded_images: crate::state::HandleCache::new(1024),
             pending_image_loads: HashSet::new(),
             thumbnail_request_rx: None,
@@ -238,7 +241,30 @@ impl cosmic::Application for AppModel {
             },
         );
 
-        (app, Task::batch([mpris_task, title_task]))
+        // Open the embedded cache database (turso) off the main thread. On
+        // success the handle is delivered via `CacheDbReady` and wired into the
+        // image cache + view cache; on failure caching simply stays disabled.
+        let cache_db_task = Task::perform(
+            async {
+                let path = dirs::cache_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join("cosmic-applet-mare")
+                    .join("cache.db");
+                if let Some(parent) = path.parent() {
+                    let _ = tokio::fs::create_dir_all(parent).await;
+                }
+                match crate::cache::Db::open(&path).await {
+                    Ok(db) => Some(db),
+                    Err(e) => {
+                        tracing::warn!("cache db open failed; caching disabled: {e}");
+                        None
+                    }
+                }
+            },
+            |db| cosmic::Action::App(Message::CacheDbReady(db)),
+        );
+
+        (app, Task::batch([mpris_task, title_task, cache_db_task]))
     }
 
     /// Track the current window size so views can scale text limits, etc.
@@ -774,6 +800,43 @@ impl cosmic::Application for AppModel {
             // Misc handlers - MPRIS
             Message::MprisServiceStarted(result) => self.handle_mpris_service_started(result),
             Message::MprisCommand(cmd) => self.handle_mpris_command(cmd),
+
+            // Cache database finished opening at startup
+            Message::CacheDbReady(db) => {
+                if let Some(db) = db {
+                    tracing::info!("cache database ready");
+                    self.image_cache.set_db(db.clone());
+                    self.cache_db = Some(db.clone());
+                    // Load persisted play history from the database.
+                    return Task::perform(
+                        async move {
+                            db.get_kv(crate::tidal::play_history::HISTORY_KEY)
+                                .await
+                                .and_then(|b| serde_json::from_slice(&b).ok())
+                                .unwrap_or_default()
+                        },
+                        |entries| cosmic::Action::App(Message::PlayHistoryLoaded(entries)),
+                    );
+                }
+                Task::none()
+            }
+
+            // Persisted play history loaded from the cache database
+            Message::PlayHistoryLoaded(entries) => {
+                // Adopt the persisted history only if nothing has been recorded
+                // yet this session, so we never clobber an in-session play that
+                // happened during the brief window before the DB opened.
+                if self.play_history.is_empty() && !entries.is_empty() {
+                    self.play_history.set_entries(entries);
+                    if self.view_state == crate::state::ViewState::History {
+                        self.rebuild_history_track_list();
+                    }
+                }
+                Task::none()
+            }
+
+            // Fire-and-forget / cache-miss no-op
+            Message::Noop => Task::none(),
 
             // Volume control
             Message::AdjustVolume(delta) => self.handle_adjust_volume(delta),

@@ -13,9 +13,10 @@ use crate::state::AppModel;
 impl AppModel {
     /// Generate 2×2 album-art grid thumbnails for every loaded playlist.
     ///
-    /// For each playlist we try the API cache first (instant, no network), then
-    /// fall back to fetching the first 4 tracks from the TIDAL API. The cover
-    /// art of up to 4 distinct albums is composited into a circular grid image.
+    /// For each playlist we fetch its first few tracks from the TIDAL API and
+    /// composite the cover art of up to 4 distinct albums into a circular grid.
+    /// The finished grid is PNG-cached on disk, so subsequent startups skip the
+    /// fetch and composite entirely.
     pub fn handle_generate_playlist_thumbnails(&mut self) -> Task<cosmic::Action<Message>> {
         let playlists: Vec<(String, u32)> = self
             .user_playlists
@@ -40,25 +41,14 @@ impl AppModel {
                 let uuid_clone = uuid.clone();
                 Task::perform(
                     async move {
-                        // Try cached tracks first, otherwise fetch a small page
+                        // Fetch a small page of tracks for the cover art.
                         let tracks = {
                             let c = client.lock().await;
-                            c.get_cached_playlist_tracks(&uuid_clone)
-                        };
-                        let tracks = match tracks {
-                            Some(t) if !t.is_empty() => t,
-                            _ => {
-                                let c = client.lock().await;
-                                match c.get_playlist_tracks(&uuid_clone, Some(10), None).await {
-                                    Ok(t) => t,
-                                    Err(e) => {
-                                        tracing::debug!(
-                                            "Skipping thumbnail for {}: {}",
-                                            uuid_clone,
-                                            e
-                                        );
-                                        return None;
-                                    }
+                            match c.get_playlist_tracks(&uuid_clone, Some(10), None).await {
+                                Ok(t) => t,
+                                Err(e) => {
+                                    tracing::debug!("Skipping thumbnail for {}: {}", uuid_clone, e);
+                                    return None;
                                 }
                             }
                         };

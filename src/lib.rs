@@ -7,6 +7,7 @@
 
 pub mod app;
 pub mod audio;
+pub mod cache;
 pub mod config;
 pub mod disk_cache;
 pub mod handlers;

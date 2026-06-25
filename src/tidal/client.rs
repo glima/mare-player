@@ -306,8 +306,6 @@ pub struct TidalAppClient {
     dash_cache: DiskCache,
     /// Disk cache for downloaded audio/song files (size-limited, LRU-evicted)
     audio_cache: DiskCache,
-    /// Disk cache for API response JSON (playlists, albums, tracks, etc.)
-    api_cache: DiskCache,
 }
 
 impl Default for TidalAppClient {
@@ -441,8 +439,6 @@ impl TidalAppClient {
             dash_cache: DiskCache::xdg("dash", 10),
             // Audio files: songs cached on disk for instant replay
             audio_cache: DiskCache::xdg("audio", audio_cache_max_mb),
-            // API responses: playlists, albums, tracks JSON (small, 50 MB)
-            api_cache: DiskCache::xdg("api", 50),
         }
     }
 
@@ -457,18 +453,12 @@ impl TidalAppClient {
             audio_quality: AudioQuality::High,
             dash_cache: DiskCache::new(base_dir.join("dash"), 10),
             audio_cache: DiskCache::new(base_dir.join("audio"), audio_cache_max_mb),
-            api_cache: DiskCache::new(base_dir.join("api"), 50),
         }
     }
 
     /// Get a reference to the audio cache (for saving downloaded audio from the engine)
     pub fn audio_cache(&self) -> &DiskCache {
         &self.audio_cache
-    }
-
-    /// Get a reference to the API cache
-    pub fn api_cache(&self) -> &DiskCache {
-        &self.api_cache
     }
 
     /// Build the audio cache key for a track ID and the current quality setting
@@ -1183,75 +1173,6 @@ impl TidalAppClient {
         }
     }
 
-    // ── API response caching helpers ────────────────────────────────────
-
-    /// Save an API response to disk cache as JSON
-    fn cache_api_response<T: serde::Serialize>(&self, cache_key: &str, data: &T) {
-        match serde_json::to_vec(data) {
-            Ok(json) => {
-                if let Err(e) = self.api_cache.put_hashed(cache_key, "json", &json) {
-                    warn!("Failed to cache API response '{}': {}", cache_key, e);
-                } else {
-                    debug!("Cached API response '{}' ({} bytes)", cache_key, json.len());
-                }
-            }
-            Err(e) => {
-                warn!("Failed to serialize API response '{}': {}", cache_key, e);
-            }
-        }
-    }
-
-    /// Load a cached API response from disk
-    fn load_cached_api_response<T: serde::de::DeserializeOwned>(
-        &self,
-        cache_key: &str,
-    ) -> Option<T> {
-        self.api_cache
-            .get_hashed(cache_key, "json")
-            .and_then(|data| {
-                serde_json::from_slice(&data)
-                    .map_err(|e| {
-                        warn!(
-                            "Failed to deserialize cached API response '{}': {}",
-                            cache_key, e
-                        );
-                        e
-                    })
-                    .ok()
-            })
-    }
-
-    /// Get cached user playlists (returns None if not cached)
-    pub fn get_cached_playlists(&self) -> Option<Vec<Playlist>> {
-        self.load_cached_api_response("user_playlists")
-    }
-
-    /// Get cached user favorite albums (returns None if not cached)
-    pub fn get_cached_albums(&self) -> Option<Vec<Album>> {
-        self.load_cached_api_response("user_albums")
-    }
-
-    /// Get cached user favorite tracks (returns None if not cached)
-    pub fn get_cached_favorite_tracks(&self) -> Option<Vec<Track>> {
-        self.load_cached_api_response("user_favorite_tracks")
-    }
-
-    /// Get cached user mixes (returns None if not cached)
-    pub fn get_cached_mixes(&self) -> Option<Vec<Mix>> {
-        self.load_cached_api_response("user_mixes")
-    }
-
-    /// Get cached followed artists (returns None if not cached)
-    pub fn get_cached_followed_artists(&self) -> Option<Vec<Artist>> {
-        self.load_cached_api_response("user_followed_artists")
-    }
-
-    /// Get cached playlist tracks (returns None if not cached)
-    pub fn get_cached_playlist_tracks(&self, playlist_uuid: &str) -> Option<Vec<Track>> {
-        let key = format!("playlist_tracks_{}", playlist_uuid);
-        self.load_cached_api_response(&key)
-    }
-
     pub async fn get_user_playlists(
         &self,
         _limit: Option<u32>,
@@ -1269,8 +1190,6 @@ impl TidalAppClient {
             Ok(response) => {
                 let playlists: Vec<Playlist> =
                     response.items.into_iter().map(Playlist::from).collect();
-                // Cache the response for offline/instant startup
-                self.cache_api_response("user_playlists", &playlists);
                 Ok(playlists)
             }
             Err(e) => {
@@ -1345,8 +1264,6 @@ impl TidalAppClient {
             }
         }
 
-        // Cache the response for offline/instant startup
-        self.cache_api_response("user_favorite_tracks", &all_tracks);
         Ok(all_tracks)
     }
 
@@ -1414,8 +1331,6 @@ impl TidalAppClient {
             }
         }
 
-        // Cache the response for offline/instant startup
-        self.cache_api_response("user_albums", &all_albums);
         Ok(all_albums)
     }
 
@@ -1498,10 +1413,6 @@ impl TidalAppClient {
                 break;
             }
         }
-
-        // Cache the playlist tracks for offline/instant access
-        let cache_key = format!("playlist_tracks_{}", playlist_uuid);
-        self.cache_api_response(&cache_key, &all_tracks);
 
         Ok(all_tracks)
     }
@@ -1596,9 +1507,6 @@ impl TidalAppClient {
                     .into_iter()
                     .map(|item| Track::from(item.item))
                     .collect();
-                // Cache the album tracks for offline/instant access
-                let cache_key = format!("album_tracks_{}", album_id);
-                self.cache_api_response(&cache_key, &tracks);
                 Ok(tracks)
             }
             Err(e) => {
@@ -2608,8 +2516,6 @@ impl TidalAppClient {
         mixes.retain(|m| seen.insert(m.id.clone()));
 
         info!("Found {} unique mixes from home feed", mixes.len());
-        // Cache the response for offline/instant startup
-        self.cache_api_response("user_mixes", &mixes);
         Ok(mixes)
     }
 
@@ -3257,8 +3163,6 @@ impl TidalAppClient {
         }
 
         info!("Loaded {} followed artists", artists.len());
-        // Cache the response for offline/instant startup
-        self.cache_api_response("user_followed_artists", &artists);
         Ok(artists)
     }
 
@@ -3300,7 +3204,6 @@ impl TidalAppClient {
             raw.into_iter().map(Self::from_tidlers_activity).collect();
 
         info!("Feed: loaded {} activities", activities.len());
-        self.cache_api_response("user_feed", &activities);
         Ok(activities)
     }
 
