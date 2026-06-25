@@ -154,7 +154,6 @@ impl AppModel {
         );
 
         let collection_section = widget::Column::new()
-            .push(text(fl!("collection")).size(12))
             .push(albums_btn)
             .push(explore_btn)
             .push(feed_btn)
