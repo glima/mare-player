@@ -142,7 +142,14 @@ struct ApiTrackData {
     #[serde(default)]
     explicit: bool,
     audio_quality: Option<String>,
-    artist: ApiTrackArtist,
+    /// Null for some video items in playlists (and occasionally curated lists),
+    /// so this must stay optional or the whole response fails to deserialize.
+    /// Falls back to the first entry of `artists` when null.
+    #[serde(default)]
+    artist: Option<ApiTrackArtist>,
+    /// Full artist list; used as a fallback when the singular `artist` is null.
+    #[serde(default)]
+    artists: Vec<ApiTrackArtist>,
     /// Null for video items in playlists (and occasionally curated lists), so
     /// this must stay optional or the whole response fails to deserialize.
     #[serde(default)]
@@ -181,16 +188,22 @@ impl From<ApiTrackData> for Track {
             ),
             None => (None, None, t.image_id.map(|id| tidal_cover_url(&id))),
         };
+        // Primary artist: the singular `artist`, falling back to the first of
+        // the `artists` list when it's null (e.g. video items in playlists).
+        let (artist_name, artist_id) = match t.artist.or_else(|| t.artists.into_iter().next()) {
+            Some(a) => (
+                a.name.unwrap_or_else(|| "Unknown Artist".to_string()),
+                Some(a.id.to_string()),
+            ),
+            None => ("Unknown Artist".to_string(), None),
+        };
         Track {
             id: t.id.to_string(),
             title: t.title,
             duration: t.duration as u32,
             track_number: t.track_number,
-            artist_name: t
-                .artist
-                .name
-                .unwrap_or_else(|| "Unknown Artist".to_string()),
-            artist_id: Some(t.artist.id.to_string()),
+            artist_name,
+            artist_id,
             album_name,
             album_id,
             cover_url,
@@ -3315,5 +3328,68 @@ mod tests {
             )
         );
         assert_eq!(tracks[1].artist_name, "Another Artist");
+    }
+
+    #[test]
+    fn playlist_items_with_a_null_artist_video_still_parse() {
+        // The real-world failure from "Classic Hip-Hop Videos" under Explore:
+        // a video item whose singular `artist` is null. It must fall back to
+        // the `artists` list, and an item with neither must still parse.
+        let json = r#"{
+            "totalNumberOfItems": 2,
+            "items": [
+                {
+                    "item": {
+                        "id": 456,
+                        "title": "A Music Video",
+                        "duration": 240,
+                        "artist": null,
+                        "artists": [{ "id": 7, "name": "Video Artist" }],
+                        "album": null,
+                        "imageId": "7bd9a4c2-424a-49cf-afd9-31f6e526a71e"
+                    },
+                    "type": "video"
+                },
+                {
+                    "item": {
+                        "id": 789,
+                        "title": "An Artist-less Video",
+                        "duration": 100,
+                        "artist": null,
+                        "album": null
+                    },
+                    "type": "video"
+                }
+            ]
+        }"#;
+
+        let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
+            serde_json::from_str(json).expect("null-artist video item should parse");
+
+        let tracks: Vec<Track> = parsed
+            .items
+            .into_iter()
+            .filter_map(|w| {
+                let is_video = w.item_type.as_deref() == Some("video");
+                w.item.map(|it| {
+                    let mut t = Track::from(it);
+                    t.is_video = is_video;
+                    t
+                })
+            })
+            .collect();
+
+        assert_eq!(tracks.len(), 2);
+
+        // Null `artist` falls back to the first of `artists`.
+        assert_eq!(tracks[0].title, "A Music Video");
+        assert_eq!(tracks[0].artist_name, "Video Artist");
+        assert_eq!(tracks[0].artist_id.as_deref(), Some("7"));
+        assert!(tracks[0].is_video);
+
+        // No artist at all degrades gracefully rather than failing the parse.
+        assert_eq!(tracks[1].title, "An Artist-less Video");
+        assert_eq!(tracks[1].artist_name, "Unknown Artist");
+        assert_eq!(tracks[1].artist_id, None);
     }
 }
