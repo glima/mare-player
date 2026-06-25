@@ -55,14 +55,6 @@ reqwest = { version = "0.13.1", default-features = false, features = ["json", "r
 # Random number generation for shuffle
 rand = "0.9"
 
-# Pure Rust audio decoding — only the codecs/formats TIDAL actually uses
-symphonia = { version = "0.6", default-features = false, features = [
-    "flac", "aac", "mp3", "isomp4", "opt-simd-sse", "opt-simd-avx",
-] }
-
-# PulseAudio output (via pipewire-pulse on modern Linux)
-libpulse-binding = "2.30.1"
-
 # FFT for real spectrum analysis
 rustfft = "6.4.1"
 
@@ -72,17 +64,13 @@ rustfft = "6.4.1"
 # global allocator and the FTS extension, neither of which the cache needs.
 turso = { version = "0.6.1", default-features = false }
 
-# GStreamer — video playback for TIDAL music videos (DRM-free HLS H.264/AAC).
-# Used only on the video path; audio tracks still go through the symphonia engine.
+# GStreamer — the playback engine for all audio tracks and music videos
+# (decoding, streaming, output, volume/replay-gain, seeking, gapless). Audio
+# uses playbin with a tee'd PCM tap into the spectrum analyzer; video adds an
+# RGBA appsink. Requires the runtime plugin set (base/good/bad + libav).
 gstreamer = "0.25"
 gstreamer-app = "0.25"
 gstreamer-video = "0.25"
-
-# DASH manifest parsing only (we do our own HTTP downloading)
-dash-mpd = { version = "0.19.3", default-features = false }
-
-# Regex for sanitizing DASH manifests
-regex = "1.10"
 
 # D-Bus for MPRIS media player interface
 zbus = { version = "5", default-features = false, features = ["tokio"] }
@@ -139,7 +127,7 @@ name = "cosmic-applet-mare"
 copyright = "© Maré Player authors"
 license-file = "LICENSE"
 section = "sound"
-depends = "libc6, libdbus-1-3, libpulse0, libxkbcommon0, libsecret-1-0"
+depends = "libc6, libdbus-1-3, libxkbcommon0, libsecret-1-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav"
 assets = [
     ["target/release/cosmic-applet-mare", "usr/bin/", "755"],
     ["resources/app.desktop", "usr/share/applications/io.github.cosmic-applet-mare.desktop", "644"],
@@ -171,9 +159,13 @@ assets = [
 [package.metadata.generate-rpm.requires]
 glibc = "*"
 dbus-libs = "*"
-pulseaudio-libs = "*"
 libxkbcommon = "*"
 libsecret = "*"
+gstreamer1 = "*"
+gstreamer1-plugins-base = "*"
+gstreamer1-plugins-good = "*"
+# Note: gstreamer1-plugins-bad-free + gstreamer1-libav (the latter from RPM
+# Fusion) are needed for the full TIDAL codec set (AAC/MP3 via libav).
 
 [package.metadata.generate-rpm.variants.standalone]
 name = "mare-player"

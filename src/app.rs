@@ -11,10 +11,7 @@ use crate::config::Config;
 use crate::image_cache::ImageCache;
 #[cfg(not(feature = "panel-applet"))]
 use crate::menu;
-use crate::tidal::{
-    client::TidalAppClient,
-    player::{PlaybackState, Player},
-};
+use crate::tidal::{client::TidalAppClient, player::PlaybackState};
 use crate::views::visualizer::VisualizerState;
 use cosmic::cosmic_config::{self, CosmicConfigEntry};
 use cosmic::iced::keyboard::Key;
@@ -69,33 +66,13 @@ impl cosmic::Application for AppModel {
             })
             .unwrap_or_default();
 
-        // Initialize audio player
+        // Initialize the spectrum analyzer that the now-playing visualizer
+        // reads. The playback pipeline's PCM tap feeds it; created at 44.1 kHz
+        // with one band per visualizer bar (no oversampling).
         let mut visualizer_state = VisualizerState::new();
-        let player = match Player::new() {
-            Ok(p) => {
-                tracing::info!("Audio player initialized");
-                // Apply saved volume from config
-                let saved_volume = config.volume_level.clamp(0.0, 1.0);
-                if let Err(e) = p.set_volume(saved_volume) {
-                    tracing::warn!(
-                        "Failed to set initial volume to {:.0}%: {}",
-                        saved_volume * 100.0,
-                        e
-                    );
-                } else {
-                    tracing::info!("Restored volume to {:.0}%", saved_volume * 100.0);
-                }
-                // Give the visualizer widget a direct handle to the spectrum
-                // analyzer so it can self-animate without going through
-                // update() → view().
-                visualizer_state.set_analyzer(p.spectrum_analyzer());
-                Some(p)
-            }
-            Err(e) => {
-                tracing::warn!("Failed to initialize audio player: {}", e);
-                None
-            }
-        };
+        visualizer_state.set_analyzer(crate::audio::spectrum::SharedSpectrumAnalyzer::with_bands(
+            44100, 12,
+        ));
 
         let image_cache_max_mb = config.image_cache_max_mb;
         let audio_cache_max_mb = config.audio_cache_max_mb;
@@ -165,8 +142,9 @@ impl cosmic::Application for AppModel {
             is_loading: true,
             error_message: None,
             session_restore_attempted: false,
-            player,
             video_player: None,
+            media_player: None,
+            gst_transitions_seen: 0,
             video_controls_shown_at: None,
             playback_state: PlaybackState::Stopped,
             now_playing: None,

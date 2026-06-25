@@ -285,7 +285,7 @@ impl AppModel {
     /// music video is playing (replacing album art + track info + spectrum).
     fn video_frame_element<'a>(
         &self,
-        video: &crate::video::VideoPlayer,
+        video: &crate::playback::MediaPlayer,
         height: Length,
         fit: cosmic::iced::ContentFit,
         radius: [f32; 4],
@@ -327,7 +327,7 @@ impl AppModel {
     /// again [`VIDEO_CONTROLS_TIMEOUT`] after the last interaction.
     fn video_theater<'a>(
         &'a self,
-        video: &crate::video::VideoPlayer,
+        video: &crate::playback::MediaPlayer,
         info: Element<'a, Message>,
         controls: Element<'a, Message>,
     ) -> Element<'a, Message> {

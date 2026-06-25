@@ -56,8 +56,7 @@
       <description>
         <p>Initial release of Maré Player.</p>
         <ul>
-          <li>Hi-Res audio streaming — FLAC up to 24-bit/192 kHz via DASH, decoded with symphonia</li>
-          <li>PulseAudio output (pipewire-pulse compatible)</li>
+          <li>Hi-Res audio streaming — FLAC up to 24-bit/192 kHz via DASH</li>
           <li>Real-time FFT spectrum visualizer in the now-playing bar</li>
           <li>MPRIS D-Bus integration — media keys, playerctl, KDE Connect</li>
           <li>Library browsing — playlists, albums, artists, favorite tracks, mixes &amp; radio</li>

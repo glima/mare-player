@@ -27,7 +27,7 @@ use crate::tidal::models::{
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
 use crate::tidal::play_reporter::{InProgressPlay, PlayReporter};
-use crate::tidal::player::{NowPlaying, PlaybackState, Player};
+use crate::tidal::player::{NowPlaying, PlaybackState};
 use crate::views::visualizer::VisualizerState;
 use cosmic::widget::image::Handle;
 
@@ -255,11 +255,18 @@ pub struct AppModel {
     pub(crate) error_message: Option<String>,
     /// Whether we've attempted to restore the session
     pub(crate) session_restore_attempted: bool,
-    /// Audio player
-    pub(crate) player: Option<Player>,
-    /// Active video pipeline (GStreamer), when a music video is playing.
+    /// Active video pipeline, when a music video is playing. Holds a
+    /// video-kind [`MediaPlayer`](crate::playback::MediaPlayer) (same unified
+    /// GStreamer engine as audio, with a video sink attached).
     /// `Some` ⇒ the now-playing pane shows live video instead of the spectrum.
-    pub(crate) video_player: Option<crate::video::VideoPlayer>,
+    pub(crate) video_player: Option<crate::playback::MediaPlayer>,
+    /// Active GStreamer audio pipeline. `Some` ⇒ an audio track is streaming
+    /// through `MediaPlayer`.
+    pub(crate) media_player: Option<crate::playback::MediaPlayer>,
+    /// Number of gapless transitions already reflected in the queue/metadata
+    /// for the current `media_player`. Compared against `MediaPlayer::transitions`
+    /// to detect when a preloaded track has started playing.
+    pub(crate) gst_transitions_seen: u64,
     /// When the video-mode overlay controls were last shown (by interaction).
     /// They fade out a few seconds after the last pointer movement.
     pub(crate) video_controls_shown_at: Option<std::time::Instant>,

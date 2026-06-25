@@ -40,18 +40,17 @@ impl AppModel {
         // fetched (race between async fetch and the 50 ms tick).
         // Tear down any in-flight video before (re)starting playback.
         self.stop_video();
+        // Tear down any in-flight GStreamer audio pipeline (dropping it sets
+        // the pipeline to Null). The next track builds a fresh one.
+        self.media_player = None;
 
         self.playback_position = 0.0;
         self.loading_progress = 0.0;
         self.playback_state = PlaybackState::Loading;
 
-        // Music videos play through the GStreamer pipeline, not the audio
-        // engine.  Stop the audio engine so the two never overlap, then resolve
-        // the video's HLS URL.
+        // Music videos play through a video pipeline; tear down any audio
+        // pipeline first so the two never overlap, then resolve the HLS URL.
         if track.is_video {
-            if let Some(player) = &mut self.player {
-                let _ = player.stop();
-            }
             self.visualizer_state.set_active(false);
             let video_id = track.id.clone();
             let client = self.tidal_client.clone();
@@ -65,13 +64,6 @@ impl AppModel {
                 },
                 |result| cosmic::Action::App(Message::VideoUrlReceived(result)),
             );
-        }
-
-        // Drain any stale engine events (e.g. a queued StateChanged(Playing)
-        // from the previous track) so they don't flip us back out of Loading
-        // on the next tick.
-        if let Some(player) = &self.player {
-            let _ = player.process_events();
         }
 
         let track_id = track.id.clone();
@@ -261,143 +253,177 @@ impl AppModel {
         result: Result<(Track, PlaybackUrl), String>,
     ) -> Task<cosmic::Action<Message>> {
         match result {
-            Ok((track, playback_url)) => {
-                if let Some(player) = &mut self.player {
-                    let now_playing = NowPlaying {
-                        track_id: track.id.clone(),
-                        title: track.title.clone(),
-                        artist: track.artist_name.clone(),
-                        album: track.album_name.clone(),
-                        cover_url: track.cover_url.clone(),
-                        duration: track.duration as f64,
-                        playlist_name: self
-                            .playback_source
-                            .as_ref()
-                            .map(|s| s.display_name.clone()),
-                    };
-
-                    let replay_gain_db = playback_url.replay_gain_db();
-
-                    // Handle playback based on URL type.
-                    //
-                    // For CachedFile we skip `audio_cache_path_for` entirely:
-                    // that method calls `reserve_room` which can trigger
-                    // eviction even though no new file will be written.
-                    // Calling it on every cache-hit skip was inflating the
-                    // eviction pressure and could nuke the whole cache when
-                    // the in-memory byte counter drifted.
-                    let play_result = if playback_url.is_cached() {
-                        // Cached file on disk - instant playback, no network.
-                        // Protect the file from eviction while it's playing.
-                        let path = playback_url.as_url();
-                        {
-                            let client = self.tidal_client.blocking_lock();
-                            client
-                                .audio_cache()
-                                .protect_path(std::path::Path::new(&path));
-                        }
-                        tracing::info!("Playing from cache: {}", path);
-                        player.play_file(&path, now_playing.clone(), replay_gain_db)
-                    } else if playback_url.is_dash() {
-                        // DASH manifest - use specialized DASH player.
-                        // Compute cache path (triggers reserve_room for the
-                        // incoming download).
-                        let cache_path = {
-                            let client = self.tidal_client.blocking_lock();
-                            let p = client.audio_cache_path_for(&track.id);
-                            client.audio_cache().protect_path(&p);
-                            p.to_string_lossy().to_string()
-                        };
-                        let manifest_path = playback_url.as_url();
-                        tracing::info!(
-                            "Playing HiRes DASH manifest: {} (caching to {})",
-                            manifest_path,
-                            cache_path
-                        );
-                        player.play_dash_cached(
-                            &manifest_path,
-                            now_playing.clone(),
-                            Some(cache_path),
-                            replay_gain_db,
-                        )
-                    } else {
-                        // Direct URL - use regular player.
-                        // Compute cache path (triggers reserve_room for the
-                        // incoming download).
-                        let cache_path = {
-                            let client = self.tidal_client.blocking_lock();
-                            let p = client.audio_cache_path_for(&track.id);
-                            client.audio_cache().protect_path(&p);
-                            p.to_string_lossy().to_string()
-                        };
-                        let url = playback_url.as_url();
-                        tracing::info!(
-                            "Playing URL: {} (caching to {})",
-                            &url[..url.len().min(60)],
-                            cache_path
-                        );
-                        player.play_cached(
-                            &url,
-                            now_playing.clone(),
-                            Some(cache_path),
-                            replay_gain_db,
-                        )
-                    };
-
-                    if let Err(e) = play_result {
-                        tracing::error!("Playback failed: {}", e);
-                        self.error_message = Some(format!("Playback failed: {}", e));
-                    } else {
-                        tracing::info!(
-                            "Playback started - staying in Loading until engine is ready"
-                        );
-                        // Don't set Playing here — the engine will send
-                        // StateChanged(Loading) and then StateChanged(Playing)
-                        // once buffering finishes.  Setting Playing prematurely
-                        // causes the tick handler to read the old track's
-                        // position for a few frames.
-                        self.playback_state = PlaybackState::Loading;
-                        self.now_playing = Some(now_playing);
-                        self.playback_position = 0.0;
-                        self.visualizer_state.set_active(false);
-
-                        // Record this track in the local play history
-                        self.play_history.record(&track);
-                        self.persist_play_history();
-
-                        // Open a TIDAL play-attribution session for this
-                        // track.  Finalises the previous session (if any),
-                        // so quick skips still report the prior listen if
-                        // it met the threshold.
-                        self.open_play_session(&track);
-
-                        // Update MPRIS state
-                        let mpris_task = self.update_mpris_state();
-
-                        // Load cover image for panel button display
-                        if let Some(cover_url) = &track.cover_url
-                            && !self.loaded_images.contains_key(cover_url)
-                            && !self.pending_image_loads.contains(cover_url)
-                        {
-                            return Task::batch(vec![
-                                mpris_task,
-                                self.load_images_for_urls(vec![cover_url.clone()]),
-                            ]);
-                        }
-                        return mpris_task;
-                    }
-                } else {
-                    tracing::error!("Player not available");
-                    self.error_message = Some("Player not available".to_string());
-                }
-                Task::none()
-            }
+            Ok((track, playback_url)) => self.start_gst_audio(track, playback_url),
             Err(e) => {
                 tracing::error!("Failed to get playback URL: {}", e);
                 self.error_message = Some(format!("Failed to get playback URL: {}", e));
                 Task::none()
             }
         }
+    }
+
+    /// Start an audio track through the GStreamer [`MediaPlayer`].
+    ///
+    /// Builds a GStreamer URI from the
+    /// resolved [`PlaybackUrl`], starts the pipeline with the track's album
+    /// replay gain feeding the `rg` volume element and the shared spectrum
+    /// analyzer driving the visualizer, then updates now-playing, history,
+    /// the play-attribution session, and MPRIS.
+    ///
+    /// Song disk-caching is intentionally skipped here: capturing the encoded
+    /// stream (multi-segment DASH especially) is hard and is deferred.
+    /// Previously-cached files still play instantly via a `file://` URI.
+    fn start_gst_audio(
+        &mut self,
+        track: Track,
+        playback_url: PlaybackUrl,
+    ) -> Task<cosmic::Action<Message>> {
+        let now_playing = NowPlaying {
+            track_id: track.id.clone(),
+            title: track.title.clone(),
+            artist: track.artist_name.clone(),
+            album: track.album_name.clone(),
+            cover_url: track.cover_url.clone(),
+            duration: track.duration as f64,
+            playlist_name: self
+                .playback_source
+                .as_ref()
+                .map(|s| s.display_name.clone()),
+        };
+
+        // Tracks carry TIDAL's authored album replay gain; unity (0 dB) when
+        // the API didn't provide one.
+        let replay_gain_db = playback_url.replay_gain_db().unwrap_or(0.0);
+
+        // Build a GStreamer URI. DASH manifests and cached files are on disk
+        // (file://); direct qualities are already http(s) URLs.
+        let url_str = playback_url.as_url();
+        let uri = if playback_url.is_dash() || playback_url.is_cached() {
+            let path = std::path::Path::new(&url_str);
+            // Protect a cached file from eviction while it's playing.
+            if playback_url.is_cached() {
+                let client = self.tidal_client.blocking_lock();
+                client.audio_cache().protect_path(path);
+            }
+            crate::playback::file_uri(path)
+        } else {
+            url_str
+        };
+
+        tracing::info!(
+            "GStreamer audio: {} - {} ({})",
+            track.artist_name,
+            track.title,
+            if playback_url.is_dash() {
+                "DASH"
+            } else if playback_url.is_cached() {
+                "cached"
+            } else {
+                "direct"
+            },
+        );
+
+        let analyzer = self.visualizer_state.analyzer();
+        match crate::playback::MediaPlayer::new_audio(&uri, analyzer, replay_gain_db) {
+            Ok(mp) => {
+                mp.set_volume(self.volume_level as f64);
+                self.media_player = Some(mp);
+                self.gst_transitions_seen = 0;
+                self.playback_state = PlaybackState::Playing;
+                self.now_playing = Some(now_playing);
+                self.playback_position = 0.0;
+                self.visualizer_state.set_active(true);
+
+                // Record in local play history and open a TIDAL
+                // play-attribution session (finalises the previous one).
+                self.play_history.record(&track);
+                self.persist_play_history();
+                self.open_play_session(&track);
+
+                // Stage the next track for gapless playback.
+                let preload_task = Task::done(cosmic::Action::App(Message::PreloadNextTrack));
+                let mpris_task = self.update_mpris_state();
+                let mut tasks = vec![preload_task, mpris_task];
+                if let Some(cover_url) = &track.cover_url
+                    && !self.loaded_images.contains_key(cover_url)
+                    && !self.pending_image_loads.contains(cover_url)
+                {
+                    tasks.push(self.load_images_for_urls(vec![cover_url.clone()]));
+                }
+                Task::batch(tasks)
+            }
+            Err(e) => {
+                tracing::error!("GStreamer audio playback failed: {}", e);
+                self.error_message = Some(format!("Playback failed: {}", e));
+                self.playback_state = PlaybackState::Stopped;
+                self.now_playing = None;
+                Task::none()
+            }
+        }
+    }
+
+    /// Advance the queue and now-playing metadata after a gapless transition
+    /// into the preloaded next track. Shared by the symphonia `PreloadConsumed`
+    /// event and the GStreamer `about-to-finish` path. Determines the new index
+    /// per loop mode, updates now-playing/history/session, and stages the
+    /// following track's preload.
+    fn handle_gapless_advance(&mut self) -> Task<cosmic::Action<Message>> {
+        use crate::tidal::mpris::LoopStatus;
+        let new_index = match self.loop_status {
+            LoopStatus::Track => Some(self.playback_queue_index),
+            LoopStatus::Playlist => {
+                let next = self.playback_queue_index + 1;
+                if next < self.playback_queue.len() {
+                    Some(next)
+                } else {
+                    Some(0)
+                }
+            }
+            LoopStatus::None => {
+                let next = self.playback_queue_index + 1;
+                if next < self.playback_queue.len() {
+                    Some(next)
+                } else {
+                    None
+                }
+            }
+        };
+
+        if let Some(idx) = new_index
+            && let Some(track) = self.playback_queue.get(idx).cloned()
+        {
+            self.playback_queue_index = idx;
+            self.now_playing = Some(NowPlaying {
+                track_id: track.id.clone(),
+                title: track.title.clone(),
+                artist: track.artist_name.clone(),
+                album: track.album_name.clone(),
+                duration: track.duration as f64,
+                cover_url: track.cover_url.clone(),
+                playlist_name: self
+                    .now_playing
+                    .as_ref()
+                    .and_then(|np| np.playlist_name.clone()),
+            });
+            self.playback_position = 0.0;
+            self.playback_state = PlaybackState::Playing;
+
+            self.play_history.record(&track);
+            self.persist_play_history();
+            self.open_play_session(&track);
+
+            let preload_task = Task::done(cosmic::Action::App(Message::PreloadNextTrack));
+            let mpris_task = self.update_mpris_state();
+            let mut tasks = vec![preload_task, mpris_task];
+            if let Some(cover_url) = &track.cover_url
+                && !self.loaded_images.contains_key(cover_url)
+                && !self.pending_image_loads.contains(cover_url)
+            {
+                tasks.push(self.load_images_for_urls(vec![cover_url.clone()]));
+            }
+            return Task::batch(tasks);
+        }
+        Task::none()
     }
 
     /// Handle the resolved HLS URL for a music video: start the GStreamer
@@ -408,7 +434,11 @@ impl AppModel {
     ) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, url)) => {
-                match crate::video::VideoPlayer::new(&url, self.visualizer_state.analyzer()) {
+                match crate::playback::MediaPlayer::new_video(
+                    &url,
+                    self.visualizer_state.analyzer(),
+                    self.config.video_preamp_db,
+                ) {
                     Ok(video) => {
                         video.set_volume(self.volume_level as f64);
                         self.video_player = Some(video);
@@ -492,19 +522,13 @@ impl AppModel {
             && let Some(target_pos) = self.pending_seek.take()
         {
             tracing::info!("SeekDebounced: executing seek to {:.2}s", target_pos);
-            let start = std::time::Instant::now();
             if let Some(video) = &self.video_player {
                 video.seek_secs(target_pos);
                 return self.update_mpris_state();
             }
-            if let Some(player) = &self.player {
-                if let Err(e) = player.seek_absolute(target_pos) {
-                    self.error_message = Some(format!("Seek failed: {}", e));
-                    tracing::error!("Seek failed after {:?}: {}", start.elapsed(), e);
-                } else {
-                    tracing::info!("Seek completed in {:?}", start.elapsed());
-                    return self.update_mpris_state();
-                }
+            if let Some(mp) = &self.media_player {
+                mp.seek_secs(target_pos);
+                return self.update_mpris_state();
             }
         }
         Task::none()
@@ -533,26 +557,25 @@ impl AppModel {
             return self.update_mpris_state();
         }
 
-        if let Some(player) = &self.player {
-            // Determine new state BEFORE toggling (to avoid race condition)
-            // toggle_pause sends async command to playback thread, so we can't
-            // rely on is_playing() immediately after
+        // GStreamer audio path: same direct pipeline control as video.
+        if let Some(mp) = &self.media_player {
             let new_state = match self.playback_state {
-                PlaybackState::Playing => PlaybackState::Paused,
-                PlaybackState::Paused => PlaybackState::Playing,
-                other => other, // Don't change if stopped/loading
+                PlaybackState::Playing => {
+                    mp.pause();
+                    PlaybackState::Paused
+                }
+                PlaybackState::Paused => {
+                    mp.resume();
+                    PlaybackState::Playing
+                }
+                other => other,
             };
-
-            if let Err(e) = player.toggle_pause() {
-                tracing::error!("Playback control failed: {}", e);
-                self.error_message = Some(format!("Playback control failed: {}", e));
-            } else {
-                let is_playing = new_state == PlaybackState::Playing;
-                self.playback_state = new_state;
-                self.visualizer_state.set_active(is_playing);
-                return self.update_mpris_state();
-            }
+            self.playback_state = new_state;
+            self.visualizer_state
+                .set_active(new_state == PlaybackState::Playing);
+            return self.update_mpris_state();
         }
+
         Task::none()
     }
 
@@ -570,8 +593,8 @@ impl AppModel {
             self.visualizer_state.set_active(false);
             return self.update_mpris_state();
         }
-        if let Some(player) = &mut self.player {
-            let _ = player.stop();
+        // Dropping the audio pipeline sets it to Null.
+        if self.media_player.take().is_some() {
             self.playback_state = PlaybackState::Stopped;
             self.now_playing = None;
             self.playback_position = 0.0;
@@ -632,27 +655,32 @@ impl AppModel {
             return Task::none();
         }
 
-        // Update playback position and process engine events.
-        if (self.playback_state == PlaybackState::Playing
-            || self.playback_state == PlaybackState::Loading)
-            && let Some(player) = &self.player
-        {
-            // Update playback position (only meaningful when actually playing)
+        // GStreamer audio path: position comes from the pipeline, and we
+        // advance on EOS the same way the symphonia engine's TrackEnded does.
+        if self.media_player.is_some() {
+            // Drain the bus first so EOS/errors/transitions are observed.
+            let errored = self.media_player.as_ref().is_some_and(|mp| mp.poll());
+            let eos = self.media_player.as_ref().is_some_and(|mp| mp.is_eos());
+            let ended = errored || eos;
+
+            // Gapless transition: a staged next track started playing without
+            // a pipeline rebuild. Advance the queue + metadata to match.
+            let transitions = self.media_player.as_ref().map_or(0, |mp| mp.transitions());
+            if transitions > self.gst_transitions_seen {
+                self.gst_transitions_seen = transitions;
+                tracing::info!("GStreamer gapless transition observed");
+                return self.handle_gapless_advance();
+            }
+
             if self.playback_state == PlaybackState::Playing
-                && let Some(pos) = player.get_position()
+                && let Some(pos) = self.media_player.as_ref().and_then(|mp| mp.position_secs())
             {
                 self.playback_position = pos;
-                // Keep the TIDAL play-attribution session's high-water-mark
-                // position fresh; cheap when no session is open.  Inlined
-                // because the surrounding `let Some(player) = &self.player`
-                // borrow prevents calling `&mut self` methods on `self`.
+                // Keep the play-attribution session's high-water mark fresh.
                 if let Some(p) = &mut self.current_play {
                     p.observe_position(pos);
                 }
                 // Drive the karaoke-style highlight in the lyrics view.
-                // Only relevant when the lyrics view is open for the
-                // currently-playing track and we have synced lines;
-                // cheap O(log n) lookup otherwise.
                 if matches!(self.view_state, crate::state::ViewState::Lyrics)
                     && let (Some(track), Some(lyrics)) = (
                         self.playback_queue.get(self.playback_queue_index),
@@ -670,146 +698,40 @@ impl AppModel {
                 }
             }
 
-            // Process player events
-            for event in player.process_events() {
-                match event {
-                    crate::tidal::player::PlayerEvent::TrackEnded => {
-                        // Auto-advance — behaviour depends on loop status.
-                        match self.loop_status {
-                            LoopStatus::Track => {
-                                // Repeat the current track
-                                return self.play_track_at_index(self.playback_queue_index);
-                            }
-                            _ => {
-                                let next_index = self.playback_queue_index + 1;
-                                if next_index < self.playback_queue.len() {
-                                    return Task::done(cosmic::Action::App(Message::NextTrack));
-                                } else if self.loop_status == LoopStatus::Playlist {
-                                    // Wrap around to the beginning
-                                    self.playback_queue_index = 0;
-                                    return self.play_track_at_index(0);
-                                } else {
-                                    // End of queue
-                                    self.playback_state = PlaybackState::Stopped;
-                                    self.now_playing = None;
-                                    self.visualizer_state.set_active(false);
-                                }
-                            }
+            if ended {
+                tracing::info!(
+                    "GStreamer audio ended (errored={errored}, eos={eos}, state={:?})",
+                    self.playback_state
+                );
+                self.media_player = None;
+                match self.loop_status {
+                    LoopStatus::Track => {
+                        return self.play_track_at_index(self.playback_queue_index);
+                    }
+                    _ => {
+                        let next_index = self.playback_queue_index + 1;
+                        if next_index < self.playback_queue.len() {
+                            return Task::done(cosmic::Action::App(Message::NextTrack));
+                        } else if self.loop_status == LoopStatus::Playlist {
+                            self.playback_queue_index = 0;
+                            return self.play_track_at_index(0);
+                        } else {
+                            self.playback_state = PlaybackState::Stopped;
+                            self.now_playing = None;
+                            self.visualizer_state.set_active(false);
                         }
-                    }
-                    crate::tidal::player::PlayerEvent::PreloadConsumed => {
-                        // Gapless transition occurred — the preloaded track
-                        // started playing automatically.
-                        tracing::info!("Gapless transition: preloaded track now playing");
-
-                        // Determine the index of the track that just started,
-                        // respecting loop modes.
-                        use crate::tidal::mpris::LoopStatus;
-                        let new_index = match self.loop_status {
-                            LoopStatus::Track => {
-                                // Repeat-track: index stays the same
-                                Some(self.playback_queue_index)
-                            }
-                            LoopStatus::Playlist => {
-                                let next = self.playback_queue_index + 1;
-                                if next < self.playback_queue.len() {
-                                    Some(next)
-                                } else {
-                                    // Wrapped around to the start
-                                    Some(0)
-                                }
-                            }
-                            LoopStatus::None => {
-                                let next = self.playback_queue_index + 1;
-                                if next < self.playback_queue.len() {
-                                    Some(next)
-                                } else {
-                                    None // shouldn't happen — preload not sent
-                                }
-                            }
-                        };
-
-                        if let Some(idx) = new_index
-                            && let Some(track) = self.playback_queue.get(idx).cloned()
-                        {
-                            self.playback_queue_index = idx;
-                            self.now_playing = Some(crate::tidal::player::NowPlaying {
-                                track_id: track.id.clone(),
-                                title: track.title.clone(),
-                                artist: track.artist_name.clone(),
-                                album: track.album_name.clone(),
-                                duration: track.duration as f64,
-                                cover_url: track.cover_url.clone(),
-                                playlist_name: self
-                                    .now_playing
-                                    .as_ref()
-                                    .and_then(|np| np.playlist_name.clone()),
-                            });
-                            self.playback_position = 0.0;
-                            self.playback_state = PlaybackState::Playing;
-
-                            // Record this track in the local play history
-                            self.play_history.record(&track);
-                            self.persist_play_history();
-
-                            // Open a TIDAL play-attribution session for the
-                            // gaplessly-transitioned new track (finalises the
-                            // previous track's session as part of the open).
-                            self.open_play_session(&track);
-
-                            // Preload the *next* next track + update MPRIS
-                            let preload_task =
-                                Task::done(cosmic::Action::App(Message::PreloadNextTrack));
-                            let mpris_task = self.update_mpris_state();
-
-                            // Load cover art for the new track if needed
-                            let mut tasks = vec![preload_task, mpris_task];
-                            if let Some(cover_url) = &track.cover_url
-                                && !self.loaded_images.contains_key(cover_url)
-                                && !self.pending_image_loads.contains(cover_url)
-                            {
-                                tasks.push(self.load_images_for_urls(vec![cover_url.clone()]));
-                            }
-                            return Task::batch(tasks);
-                        }
-                    }
-                    crate::tidal::player::PlayerEvent::Error(e) => {
-                        tracing::error!("Playback error: {}", e);
-                        self.error_message = Some(format!("Playback error: {}", e));
-                    }
-                    crate::tidal::player::PlayerEvent::StateChanged(new_state) => {
-                        // Engine state transitions (e.g. Loading → Playing)
-                        // override the app-level state so the UI reflects
-                        // buffering vs actual playback.
-                        if new_state != self.playback_state {
-                            tracing::debug!(
-                                "Engine state: {:?} -> {:?}",
-                                self.playback_state,
-                                new_state
-                            );
-                            let was_loading = self.playback_state == PlaybackState::Loading;
-                            self.playback_state = new_state;
-                            let is_playing = new_state == PlaybackState::Playing;
-                            self.visualizer_state.set_active(is_playing);
-
-                            // Reset progress when we leave Loading
-                            if new_state != PlaybackState::Loading {
-                                self.loading_progress = 1.0;
-                            }
-
-                            // When a track transitions from Loading → Playing,
-                            // kick off preloading the next track for gapless
-                            // playback.
-                            if was_loading && is_playing {
-                                return Task::done(cosmic::Action::App(Message::PreloadNextTrack));
-                            }
-                        }
-                    }
-                    crate::tidal::player::PlayerEvent::LoadingProgress(progress) => {
-                        self.loading_progress = progress as f32;
                     }
                 }
             }
+
+            // Volume-bar auto-hide (mirrors the audio tail).
+            if let Some(shown_at) = self.volume_bar_shown_at
+                && shown_at.elapsed() > Duration::from_millis(1000)
+            {
+                self.show_volume_bar = false;
+                self.volume_bar_shown_at = None;
+            }
+            return Task::none();
         }
 
         // Check if volume bar should be hidden (after ~1 second)
@@ -830,15 +752,13 @@ impl AppModel {
         let new_volume = (self.volume_level + delta).clamp(0.0, 1.0);
         self.volume_level = new_volume;
 
-        // Apply to player
-        if let Some(player) = &self.player
-            && let Err(e) = player.set_volume(new_volume)
-        {
-            tracing::warn!("Failed to set volume: {}", e);
-        }
         // Apply to the video pipeline too, if one is active.
         if let Some(video) = &self.video_player {
             video.set_volume(new_volume as f64);
+        }
+        // Apply to the audio pipeline too, if one is active.
+        if let Some(mp) = &self.media_player {
+            mp.set_volume(new_volume as f64);
         }
 
         // Persist volume to config
@@ -936,51 +856,24 @@ impl AppModel {
         )
     }
 
-    /// Handle a preload URL response — feed it to the engine's preload buffer.
+    /// Handle a preload URL response — stage it into the pipeline for gapless
+    /// playback (consumed by about-to-finish).
     pub fn handle_preload_url_received(
         &mut self,
         result: Result<(Track, PlaybackUrl), String>,
     ) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, playback_url)) => {
-                if let Some(player) = &self.player {
-                    let replay_gain_db = playback_url.replay_gain_db();
-
-                    // Same guard as handle_playback_url_received: skip
-                    // audio_cache_path_for (and its reserve_room) for
-                    // cache hits so we never trigger spurious eviction.
-                    let preload_result = if playback_url.is_cached() {
-                        let path = playback_url.as_url();
-                        tracing::info!("Preloading from cache: {}", path);
-                        player.preload_file(&path, replay_gain_db)
-                    } else if playback_url.is_dash() {
-                        let cache_path = {
-                            let client = self.tidal_client.blocking_lock();
-                            let p = client.audio_cache_path_for(&track.id);
-                            p.to_string_lossy().to_string()
-                        };
-                        let manifest_path = playback_url.as_url();
-                        tracing::info!("Preloading HiRes DASH: {}", manifest_path);
-                        player.preload_dash(&manifest_path, Some(cache_path), replay_gain_db)
+                if let Some(mp) = &self.media_player {
+                    let rg = playback_url.replay_gain_db().unwrap_or(0.0);
+                    let url_str = playback_url.as_url();
+                    let uri = if playback_url.is_dash() || playback_url.is_cached() {
+                        crate::playback::file_uri(std::path::Path::new(&url_str))
                     } else {
-                        let cache_path = {
-                            let client = self.tidal_client.blocking_lock();
-                            let p = client.audio_cache_path_for(&track.id);
-                            p.to_string_lossy().to_string()
-                        };
-                        let url = playback_url.as_url();
-                        tracing::info!("Preloading URL: {}", &url[..url.len().min(60)]);
-                        player.preload_url(&url, Some(cache_path), replay_gain_db)
+                        url_str
                     };
-
-                    if let Err(e) = preload_result {
-                        tracing::warn!(
-                            "Preload failed (will fall back to normal transition): {}",
-                            e
-                        );
-                    } else {
-                        tracing::info!("Next track preloaded for gapless playback");
-                    }
+                    mp.set_next(uri, rg);
+                    tracing::info!("Gapless: staged next track '{}'", track.title);
                 }
             }
             Err(e) => {

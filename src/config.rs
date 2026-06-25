@@ -53,7 +53,7 @@ impl AsRef<str> for AudioQuality {
 
 /// Configuration for Maré Player
 #[derive(Debug, Clone, CosmicConfigEntry, PartialEq)]
-#[version = 1]
+#[version = 2]
 pub struct Config {
     /// Preferred audio quality for playback
     pub audio_quality: AudioQuality,
@@ -63,6 +63,13 @@ pub struct Config {
     pub audio_cache_max_mb: u32,
     /// Volume level (0.0 to 1.0), persisted across restarts
     pub volume_level: f32,
+    /// Fixed loudness pre-amp applied to music **videos**, in decibels.
+    ///
+    /// TIDAL authors replay-gain for audio tracks but **not** for videos, so
+    /// videos get a fixed pre-amp instead. TIDAL album gains cluster around
+    /// -7..-11 dB, so the -8 dB default brings videos roughly in line with
+    /// normalized tracks.
+    pub video_preamp_db: f32,
 }
 
 impl Default for Config {
@@ -72,6 +79,7 @@ impl Default for Config {
             image_cache_max_mb: 200,
             audio_cache_max_mb: 2000,
             volume_level: 1.0,
+            video_preamp_db: -8.0,
         }
     }
 }
