@@ -12,12 +12,16 @@
       your desktop.
     </p>
     <ul>
-      <li>Hi-Res audio — FLAC up to 24-bit/192 kHz via DASH</li>
-      <li>Library — playlists, albums, artists, favorites, mixes &amp; track radio</li>
+      <li>Hi-Res audio — FLAC up to 24-bit/192 kHz</li>
+      <li>Music video playback in an auto-hiding theater HUD</li>
+      <li>Gapless playback with volume normalization (replay-gain)</li>
       <li>Real-time spectrum visualizer</li>
+      <li>Library — playlists, albums, artists, favorites, mixes &amp; track radio</li>
+      <li>Explore TIDAL's curated pages and an activity feed of new releases</li>
+      <li>Search, time-synced lyrics, and local play history</li>
       <li>MPRIS integration — media keys, playerctl, KDE Connect</li>
       <li>Secure OAuth login with system keyring storage</li>
-      <li>Local song &amp; image caching with LRU eviction</li>
+      <li>Runs as a COSMIC panel applet or a standalone window</li>
     </ul>
   </description>
   <screenshots>
@@ -51,27 +55,4 @@
     <keyword>applet</keyword>
   </keywords>
   <content_rating type="oars-1.1" />
-  <releases>
-    <release version="0.1.0" date="2025-02-18">
-      <description>
-        <p>Initial release of Maré Player.</p>
-        <ul>
-          <li>Hi-Res audio streaming — FLAC up to 24-bit/192 kHz via DASH</li>
-          <li>Real-time FFT spectrum visualizer in the now-playing bar</li>
-          <li>MPRIS D-Bus integration — media keys, playerctl, KDE Connect</li>
-          <li>Library browsing — playlists, albums, artists, favorite tracks, mixes &amp; radio</li>
-          <li>Search across TIDAL's catalog (tracks, albums, artists, playlists)</li>
-          <li>Track radio — start a radio station from any track</li>
-          <li>Favorites — add/remove tracks, albums; follow/unfollow artists</li>
-          <li>Shuffle playback for playlists, albums, mixes, and favorites</li>
-          <li>Sharing via song.link URLs</li>
-          <li>Secure OAuth device-code authentication with system keyring storage</li>
-          <li>Persistent sessions with automatic token refresh</li>
-          <li>Disk caching for songs and images with configurable size limits and LRU eviction</li>
-          <li>Audio quality selection — Low, High, Lossless, or Hi-Res (Master)</li>
-          <li>Runs as a panel applet or standalone window</li>
-        </ul>
-      </description>
-    </release>
-  </releases>
 </component>
