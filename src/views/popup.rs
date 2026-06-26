@@ -573,20 +573,25 @@ impl AppModel {
 
         // Buttons row below - centered
         let buttons_row = widget::Row::new()
-            .push({
-                let tip = if is_favorite {
-                    fl!("tooltip-remove-from-favorites")
-                } else {
-                    fl!("tooltip-add-to-favorites")
-                };
-                let btn = button::icon(favorite_icon_handle(is_favorite))
-                    .tooltip(tip)
-                    .padding(4);
-                if let Some(track) = current_track {
-                    btn.on_press(Message::ToggleFavorite(track))
-                } else {
+            .push_maybe({
+                // Videos can't be favorited (TIDAL's track-favorites endpoint
+                // 404s on a video id), so omit the heart for them.
+                let is_video = current_track.as_ref().is_some_and(|t| t.is_video);
+                (!is_video).then(|| {
+                    let tip = if is_favorite {
+                        fl!("tooltip-remove-from-favorites")
+                    } else {
+                        fl!("tooltip-add-to-favorites")
+                    };
+                    let btn = button::icon(favorite_icon_handle(is_favorite))
+                        .tooltip(tip)
+                        .padding(4);
+                    let btn: Element<'_, Message> = match current_track.clone() {
+                        Some(track) => btn.on_press(Message::ToggleFavorite(track)).into(),
+                        None => btn.into(),
+                    };
                     btn
-                }
+                })
             })
             .push(
                 button::icon(widget::icon::from_name("media-skip-backward-symbolic"))
