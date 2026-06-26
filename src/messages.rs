@@ -211,6 +211,8 @@ pub enum Message {
     ArtistTopTracksLoaded(Result<Vec<Track>, String>),
     /// Artist albums (discography) loaded
     ArtistAlbumsLoaded(Result<Vec<Album>, String>),
+    /// Artist music videos loaded (playable tracks with `is_video`)
+    ArtistVideosLoaded(Result<Vec<Track>, String>),
 
     // Favorite tracks
     /// Load favorite tracks

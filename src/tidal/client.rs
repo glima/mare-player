@@ -1860,6 +1860,54 @@ impl TidalAppClient {
         }
     }
 
+    /// Get an artist's music videos as playable tracks (`is_video = true`).
+    ///
+    /// The video thumbnail comes from `imageId` via [`tidal_cover_url`], the
+    /// same cover path playlist/Explore/search video items use.
+    pub async fn get_artist_videos(
+        &self,
+        artist_id: &str,
+        limit: Option<u32>,
+    ) -> TidalResult<Vec<Track>> {
+        self.ensure_valid_token().await?;
+
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+
+        debug!("Getting videos for artist: {}", artist_id);
+
+        match client
+            .get_artist_videos(artist_id.to_string(), limit.map(|l| l as u64), None)
+            .await
+        {
+            Ok(response) => {
+                let videos = response
+                    .items
+                    .into_iter()
+                    .map(|v| Track {
+                        id: v.id.to_string(),
+                        title: v.title,
+                        duration: v.duration,
+                        track_number: v.track_number,
+                        artist_name: v.artist.name,
+                        artist_id: Some(v.artist.id.to_string()),
+                        album_name: v.album.as_ref().map(|a| a.title.clone()),
+                        album_id: v.album.as_ref().map(|a| a.id.to_string()),
+                        cover_url: v.image_id.as_deref().map(tidal_cover_url),
+                        explicit: v.explicit,
+                        audio_quality: None,
+                        is_video: true,
+                    })
+                    .collect();
+                Ok(videos)
+            }
+            Err(e) => {
+                error!("Failed to get artist videos: {:?}", e);
+                Err(TidalError::RequestFailed(format!("{:?}", e)))
+            }
+        }
+    }
+
     // =========================================================================
     // Album Detail (by ID)
     // =========================================================================

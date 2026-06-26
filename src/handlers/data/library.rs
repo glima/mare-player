@@ -664,6 +664,25 @@ impl AppModel {
         }
     }
 
+    /// Handle artist music videos loaded
+    pub fn handle_artist_videos_loaded(
+        &mut self,
+        result: Result<Vec<Track>, String>,
+    ) -> Task<cosmic::Action<Message>> {
+        match result {
+            Ok(videos) => {
+                let urls: Vec<String> = videos.iter().filter_map(|v| v.cover_url.clone()).collect();
+                self.selected_artist_videos = videos;
+                self.load_images_for_urls(urls)
+            }
+            Err(e) => {
+                tracing::error!("Failed to load artist videos: {}", e);
+                // Non-fatal: the videos section just stays hidden.
+                Task::none()
+            }
+        }
+    }
+
     /// Handle load favorite tracks request
     pub fn handle_load_favorite_tracks(&self) -> Task<cosmic::Action<Message>> {
         self.load_favorite_tracks()

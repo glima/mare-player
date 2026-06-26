@@ -137,6 +137,7 @@ impl cosmic::Application for AppModel {
             selected_artist: None,
             selected_artist_top_tracks: Vec::new(),
             selected_artist_albums: Vec::new(),
+            selected_artist_videos: Vec::new(),
             favorite_album_ids: HashSet::new(),
             followed_artist_ids: HashSet::new(),
             nav_stack: Vec::new(),
@@ -470,6 +471,7 @@ impl cosmic::Application for AppModel {
             | Message::SetVolume(_)
             | Message::ArtistTopTracksLoaded(_)
             | Message::ArtistAlbumsLoaded(_)
+            | Message::ArtistVideosLoaded(_)
             | Message::ToggleVolumePopup
             | Message::CloseVolumePopup
             | Message::Surface(_) => {}
@@ -664,6 +666,7 @@ impl cosmic::Application for AppModel {
             Message::ArtistInfoLoaded(result) => self.handle_artist_info_loaded(result),
             Message::ArtistTopTracksLoaded(result) => self.handle_artist_top_tracks_loaded(result),
             Message::ArtistAlbumsLoaded(result) => self.handle_artist_albums_loaded(result),
+            Message::ArtistVideosLoaded(result) => self.handle_artist_videos_loaded(result),
 
             // Data handlers - favorites
             Message::LoadFavoriteTracks => self.handle_load_favorite_tracks(),

@@ -495,6 +495,7 @@ impl AppModel {
         self.selected_artist = None;
         self.selected_artist_top_tracks.clear();
         self.selected_artist_albums.clear();
+        self.selected_artist_videos.clear();
         self.is_loading = true;
         self.view_state = ViewState::ArtistDetail;
 
@@ -503,12 +504,15 @@ impl AppModel {
         let client1 = self.tidal_client.clone();
         let client2 = self.tidal_client.clone();
         let client3 = self.tidal_client.clone();
+        let client4 = self.tidal_client.clone();
         let db1 = self.cache_db.clone();
         let db2 = self.cache_db.clone();
         let db3 = self.cache_db.clone();
+        let db4 = self.cache_db.clone();
         let id1 = artist_id.clone();
         let id2 = artist_id.clone();
         let id3 = artist_id.clone();
+        let id4 = artist_id.clone();
 
         let info_task = Task::perform(
             async move {
@@ -564,6 +568,24 @@ impl AppModel {
             |result| cosmic::Action::App(Message::ArtistAlbumsLoaded(result)),
         );
 
+        let videos_task = Task::perform(
+            async move {
+                let key = format!("artist:{id4}:videos");
+                let result = {
+                    let client = client4.lock().await;
+                    client
+                        .get_artist_videos(&id4, Some(50))
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                if let Ok(ref videos) = result {
+                    crate::handlers::view_cache::cache_put(db4, &key, videos).await;
+                }
+                result
+            },
+            |result| cosmic::Action::App(Message::ArtistVideosLoaded(result)),
+        );
+
         let read_info = self.read_view_cache::<crate::tidal::models::Artist, _>(
             format!("artist:{artist_id}:info"),
             |a| Message::ArtistInfoLoaded(Ok(a)),
@@ -576,14 +598,20 @@ impl AppModel {
             format!("artist:{artist_id}:albums"),
             |a| Message::ArtistAlbumsLoaded(Ok(a)),
         );
+        let read_videos = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(
+            format!("artist:{artist_id}:videos"),
+            |v| Message::ArtistVideosLoaded(Ok(v)),
+        );
 
         Task::batch(vec![
             read_info,
             read_tracks,
             read_albums,
+            read_videos,
             info_task,
             tracks_task,
             albums_task,
+            videos_task,
         ])
     }
 

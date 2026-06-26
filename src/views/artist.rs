@@ -76,6 +76,11 @@ impl AppModel {
             content_col = content_col.push(self.view_artist_top_tracks_section());
         }
 
+        // Music videos section
+        if !self.selected_artist_videos.is_empty() {
+            content_col = content_col.push(self.view_artist_videos_section());
+        }
+
         // Discography (albums) section
         if !self.selected_artist_albums.is_empty() {
             content_col = content_col.push(self.view_artist_albums_section());
@@ -205,6 +210,37 @@ impl AppModel {
             .push(track_list)
             .spacing(6)
             .into()
+    }
+
+    /// Render the music videos section for the artist detail view.
+    ///
+    /// Videos are few, so this is a plain per-row list (not the virtual list
+    /// the top-tracks section uses). Each row reuses [`AppModel::track_row`],
+    /// so the video badge and click-to-play come for free.
+    fn view_artist_videos_section(&self) -> Element<'_, Message> {
+        let section_header = text(fl!("videos")).size(15);
+
+        let source = self.selected_artist.as_ref().map(|a| {
+            crate::tidal::models::PlaybackSource::artist(
+                a.id.clone(),
+                fl!("artist-top-tracks-context", artist = a.name.clone()),
+            )
+        });
+
+        let videos: Arc<[_]> = self.selected_artist_videos.clone().into();
+        let mut col = widget::Column::new().push(section_header).spacing(6);
+        for (index, video) in videos.iter().enumerate() {
+            col = col.push(self.track_row(
+                video,
+                index,
+                &TrackRowOptions {
+                    tracks: Arc::clone(&videos),
+                    source: source.clone(),
+                    ..Default::default()
+                },
+            ));
+        }
+        col.into()
     }
 
     /// Render the discography (albums) section for the artist detail view.

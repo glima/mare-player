@@ -248,6 +248,8 @@ pub struct AppModel {
     pub(crate) selected_artist_top_tracks: Vec<Track>,
     /// Selected artist's albums (discography)
     pub(crate) selected_artist_albums: Vec<Album>,
+    /// The selected artist's music videos (playable tracks with `is_video`).
+    pub(crate) selected_artist_videos: Vec<Track>,
     /// Set of album IDs that are in user's favorites
     pub(crate) favorite_album_ids: HashSet<String>,
     /// Set of artist IDs that the user follows
