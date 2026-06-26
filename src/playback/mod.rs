@@ -89,6 +89,20 @@ pub fn file_uri(path: &std::path::Path) -> String {
         .unwrap_or_else(|_| format!("file://{}", path.display()))
 }
 
+/// Convert a *perceptual* volume (0.0..=1.0, what the UI slider shows) into the
+/// **linear gain** playbin's `volume` property expects.
+///
+/// playbin/pulsesink treat `volume` as a linear gain and map it back to a
+/// **cubic** value for the mixer display (pavucontrol/wiremix). Cubing the
+/// perceptual value here cancels that out, so the mixer shows the same
+/// percentage as our slider and the loudness tapers evenly toward silence
+/// instead of cliffing to zero near the bottom — matching how the previous
+/// engine drove the PulseAudio stream volume.
+pub fn perceptual_to_gst_volume(perceptual: f64) -> f64 {
+    let v = perceptual.clamp(0.0, 1.0);
+    v * v * v
+}
+
 /// What kind of media a [`MediaPlayer`] is playing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaKind {
@@ -611,8 +625,12 @@ impl MediaPlayer {
     }
 
     /// Set user output volume (0.0..=1.0). Composes on top of replay gain.
+    ///
+    /// `volume` is the perceptual slider level; see [`perceptual_to_gst_volume`]
+    /// for why it's cubed before reaching playbin.
     pub fn set_volume(&self, volume: f64) {
-        self.playbin.set_property("volume", volume.clamp(0.0, 1.0));
+        self.playbin
+            .set_property("volume", perceptual_to_gst_volume(volume));
     }
 
     /// Update the replay-gain / pre-amp multiplier from a dB value.
@@ -678,6 +696,18 @@ mod tests {
     fn media_kind_has_video() {
         assert!(MediaKind::Video.has_video());
         assert!(!MediaKind::Audio.has_video());
+    }
+
+    #[test]
+    fn perceptual_volume_is_cubed_and_clamped() {
+        // Endpoints are preserved; mid-slider tapers cubically so the mixer
+        // displays the same percentage as the slider.
+        assert!((perceptual_to_gst_volume(0.0) - 0.0).abs() < 1e-9);
+        assert!((perceptual_to_gst_volume(1.0) - 1.0).abs() < 1e-9);
+        assert!((perceptual_to_gst_volume(0.5) - 0.125).abs() < 1e-9);
+        // Out-of-range inputs clamp.
+        assert_eq!(perceptual_to_gst_volume(-1.0), 0.0);
+        assert_eq!(perceptual_to_gst_volume(2.0), 1.0);
     }
 
     /// Drive a synthetic `videotestsrc` through the same
