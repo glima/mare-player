@@ -63,6 +63,7 @@ feed-older = Starsze
 albums = Albumy
 artists = Artyści
 playlists = Playlisty
+videos = Wideo
 profiles = Profile
 tracks = Utwory
 favorite-tracks = Ulubione utwory

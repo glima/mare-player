@@ -63,6 +63,7 @@ feed-older = Раніше
 albums = Альбоми
 artists = Виконавці
 playlists = Плейлисти
+videos = Відео
 profiles = Профілі
 tracks = Треки
 favorite-tracks = Улюблені треки

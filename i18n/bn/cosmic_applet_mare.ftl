@@ -63,6 +63,7 @@ feed-older = পুরানো
 albums = অ্যালবাম
 artists = শিল্পী
 playlists = প্লেলিস্ট
+videos = ভিডিও
 profiles = প্রোফাইল
 tracks = ট্র্যাক
 favorite-tracks = প্রিয় ট্র্যাক

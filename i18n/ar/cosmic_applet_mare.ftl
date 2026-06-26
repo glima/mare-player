@@ -63,6 +63,7 @@ feed-older = أقدم
 albums = الألبومات
 artists = الفنانون
 playlists = قوائم التشغيل
+videos = فيديوهات
 profiles = الملفات الشخصية
 tracks = المقاطع
 favorite-tracks = المقاطع المفضلة

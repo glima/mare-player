@@ -63,6 +63,7 @@ feed-older = Lebih Lama
 albums = Album
 artists = Artis
 playlists = Daftar Putar
+videos = Video
 profiles = Profil
 tracks = Lagu
 favorite-tracks = Lagu Favorit

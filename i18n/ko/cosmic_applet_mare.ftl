@@ -63,6 +63,7 @@ feed-older = 이전
 albums = 앨범
 artists = 아티스트
 playlists = 재생목록
+videos = 비디오
 profiles = 프로필
 tracks = 트랙
 favorite-tracks = 즐겨찾기 트랙

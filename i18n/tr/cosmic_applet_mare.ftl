@@ -63,6 +63,7 @@ feed-older = Daha Eski
 albums = Albümler
 artists = Sanatçılar
 playlists = Çalma Listeleri
+videos = Videolar
 profiles = Profiller
 tracks = Parçalar
 favorite-tracks = Favori Parçalar

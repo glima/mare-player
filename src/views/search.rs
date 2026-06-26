@@ -79,6 +79,32 @@ impl AppModel {
                     }
                 }
 
+                // Videos section (playable music videos)
+                if !results.videos.is_empty() {
+                    items_col = items_col.push(widget::space::vertical().height(8));
+                    items_col = items_col.push(text(fl!("videos")).size(12));
+                    let search_videos: Arc<[_]> = results
+                        .videos
+                        .iter()
+                        .take(5)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .into();
+                    for (index, video) in search_videos.iter().enumerate() {
+                        items_col = items_col.push(self.track_row(
+                            video,
+                            index,
+                            &TrackRowOptions {
+                                tracks: Arc::clone(&search_videos),
+                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
+                                    "context-search"
+                                ))),
+                                ..Default::default()
+                            },
+                        ));
+                    }
+                }
+
                 // Albums section
                 if !results.albums.is_empty() {
                     items_col = items_col.push(widget::space::vertical().height(8));

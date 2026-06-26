@@ -1147,6 +1147,7 @@ impl TidalAppClient {
                 SearchType::Albums,
                 SearchType::Artists,
                 SearchType::Playlists,
+                SearchType::Videos,
             ],
             limit,
             ..Default::default()
@@ -1175,6 +1176,35 @@ impl TidalAppClient {
                 if let Some(playlists) = results.playlists {
                     search_results.playlists =
                         playlists.items.into_iter().map(Playlist::from).collect();
+                }
+
+                // Convert videos into playable tracks (is_video = true). Videos
+                // have no album; their thumbnail is the `image` UUID, mirroring
+                // how playlist/Explore video items get their cover.
+                if let Some(videos) = results.videos {
+                    search_results.videos = videos
+                        .items
+                        .into_iter()
+                        .map(|v| {
+                            let artist = v.artists.first();
+                            Track {
+                                id: v.id.to_string(),
+                                title: v.title,
+                                duration: v.duration as u32,
+                                track_number: v.track_number.unwrap_or(0),
+                                artist_name: artist
+                                    .and_then(|a| a.name.clone())
+                                    .unwrap_or_else(|| "Unknown Artist".to_string()),
+                                artist_id: artist.and_then(|a| a.id).map(|id| id.to_string()),
+                                album_name: v.album.as_ref().map(|a| a.title.clone()),
+                                album_id: v.album.as_ref().map(|a| a.id.to_string()),
+                                cover_url: v.image.as_deref().map(tidal_cover_url),
+                                explicit: v.explicit,
+                                audio_quality: None,
+                                is_video: true,
+                            }
+                        })
+                        .collect();
                 }
 
                 Ok(search_results)

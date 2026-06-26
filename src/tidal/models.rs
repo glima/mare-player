@@ -397,6 +397,10 @@ pub struct SearchResults {
     pub artists: Vec<Artist>,
     /// Matching playlists
     pub playlists: Vec<Playlist>,
+    /// Matching music videos (each is a playable [`Track`] with `is_video`).
+    /// `#[serde(default)]` keeps older cached search payloads deserializable.
+    #[serde(default)]
+    pub videos: Vec<Track>,
 }
 
 // ── Playback source ──────────────────────────────────────────────────
@@ -529,11 +533,16 @@ impl SearchResults {
             && self.albums.is_empty()
             && self.artists.is_empty()
             && self.playlists.is_empty()
+            && self.videos.is_empty()
     }
 
     /// Total number of results across all categories
     pub fn total_count(&self) -> usize {
-        self.tracks.len() + self.albums.len() + self.artists.len() + self.playlists.len()
+        self.tracks.len()
+            + self.albums.len()
+            + self.artists.len()
+            + self.playlists.len()
+            + self.videos.len()
     }
 }
 
@@ -863,6 +872,30 @@ fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn search_results_videos_roundtrip_and_serde_default() {
+        // Videos round-trip through the cache serialization.
+        let mut r = SearchResults::default();
+        r.videos.push(Track {
+            id: "42".into(),
+            title: "A Music Video".into(),
+            is_video: true,
+            ..Default::default()
+        });
+        let json = serde_json::to_string(&r).expect("serialize");
+        let back: SearchResults = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.videos.len(), 1);
+        assert!(back.videos[0].is_video);
+        assert!(!back.is_empty());
+
+        // Older cached payloads (pre-videos) must still deserialize — the
+        // `#[serde(default)]` fills an empty Vec rather than failing the read.
+        let old = r#"{"tracks":[],"albums":[],"artists":[],"playlists":[]}"#;
+        let parsed: SearchResults = serde_json::from_str(old).expect("deserialize legacy");
+        assert!(parsed.videos.is_empty());
+        assert!(parsed.is_empty());
+    }
 
     #[test]
     fn test_track_duration_display() {
@@ -1195,6 +1228,7 @@ mod tests {
             albums: vec![Album::default()],
             artists: vec![Artist::default(), Artist::default(), Artist::default()],
             playlists: vec![Playlist::default()],
+            videos: vec![],
         };
         assert!(!results.is_empty());
         assert_eq!(results.total_count(), 7);

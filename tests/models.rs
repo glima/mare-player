@@ -608,6 +608,7 @@ mod search_results {
             albums: vec![],
             artists: vec![],
             playlists: vec![],
+            videos: vec![],
         };
         assert!(sr.is_empty());
     }
@@ -619,6 +620,7 @@ mod search_results {
             albums: vec![],
             artists: vec![],
             playlists: vec![],
+            videos: vec![],
         };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
@@ -631,6 +633,7 @@ mod search_results {
             albums: vec![Album::default()],
             artists: vec![],
             playlists: vec![],
+            videos: vec![],
         };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
@@ -643,6 +646,7 @@ mod search_results {
             albums: vec![],
             artists: vec![Artist::default()],
             playlists: vec![],
+            videos: vec![],
         };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
@@ -655,6 +659,7 @@ mod search_results {
             albums: vec![],
             artists: vec![],
             playlists: vec![Playlist::default()],
+            videos: vec![],
         };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
@@ -667,6 +672,7 @@ mod search_results {
             albums: vec![Album::default(), Album::default()],
             artists: vec![Artist::default()],
             playlists: vec![Playlist::default(), Playlist::default()],
+            videos: vec![],
         };
         assert_eq!(sr.total_count(), 8);
         assert!(!sr.is_empty());
@@ -689,6 +695,7 @@ mod search_results {
             albums: vec![],
             artists: vec![],
             playlists: vec![],
+            videos: vec![],
         };
         let sr2 = sr.clone();
         assert_eq!(sr2.total_count(), 1);
@@ -714,6 +721,7 @@ mod search_results {
             albums,
             artists: vec![],
             playlists: vec![],
+            videos: vec![],
         };
         assert_eq!(sr.total_count(), 250);
         assert!(!sr.is_empty());
@@ -964,6 +972,7 @@ mod scenarios {
                 title: "Search Playlist".to_string(),
                 ..Default::default()
             }],
+            videos: vec![],
         };
 
         // Serialize each component individually (SearchResults doesn't derive Serialize)

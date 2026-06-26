@@ -63,6 +63,7 @@ feed-older = それ以前
 albums = アルバム
 artists = アーティスト
 playlists = プレイリスト
+videos = ビデオ
 profiles = プロフィール
 tracks = トラック
 favorite-tracks = お気に入りのトラック
