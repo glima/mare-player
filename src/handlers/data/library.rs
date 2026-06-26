@@ -203,16 +203,79 @@ impl AppModel {
     /// See [`TidalAppClient::get_track_lyrics`](crate::tidal::client::TidalAppClient::get_track_lyrics).
     pub(crate) fn load_track_lyrics(&self, track_id: String) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
+        let db = self.cache_db.clone();
+        let key = format!("lyrics:{track_id}");
         Task::perform(
             async move {
-                let client = client.lock().await;
-                client
-                    .get_track_lyrics(&track_id)
-                    .await
-                    .map_err(|e| e.to_string())
+                let result = {
+                    let client = client.lock().await;
+                    client
+                        .get_track_lyrics(&track_id)
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                // Cache the result (including "no lyrics") so the lyrics view
+                // and the now-playing icon check read it instantly next time.
+                if let Ok(ref lyrics) = result {
+                    crate::handlers::view_cache::cache_put(db, &key, lyrics).await;
+                }
+                result
             },
             |result| cosmic::Action::App(Message::TrackLyricsLoaded(result)),
         )
+    }
+
+    /// Refresh the now-playing lyrics-availability flag for `track`, so the
+    /// now-playing bar only shows the lyrics icon when the track actually has
+    /// lyrics. Reads the DB lyrics cache first and only hits the network on a
+    /// miss (caching the result, including "no lyrics").
+    pub(crate) fn refresh_now_playing_lyrics(
+        &mut self,
+        track: &Track,
+    ) -> Task<cosmic::Action<Message>> {
+        let track_id = track.id.clone();
+        // Unknown until the check returns — hide the icon in the meantime.
+        self.now_playing_lyrics = None;
+        let client = self.tidal_client.clone();
+        let db = self.cache_db.clone();
+        let key = format!("lyrics:{track_id}");
+        Task::perform(
+            async move {
+                // DB cache first; only hit the network on a miss.
+                if let Some(db) = &db
+                    && let Some(bytes) = db.get_view(&key).await
+                    && let Ok(lyrics) =
+                        serde_json::from_slice::<crate::tidal::models::TrackLyrics>(&bytes)
+                {
+                    return (track_id, !lyrics.is_empty());
+                }
+                let lyrics = {
+                    let client = client.lock().await;
+                    client.get_track_lyrics(&track_id).await.ok()
+                };
+                let has = match lyrics {
+                    Some(l) => {
+                        crate::handlers::view_cache::cache_put(db, &key, &l).await;
+                        !l.is_empty()
+                    }
+                    None => false,
+                };
+                (track_id, has)
+            },
+            |(id, has)| cosmic::Action::App(Message::NowPlayingLyricsChecked(id, has)),
+        )
+    }
+
+    /// Store the result of a now-playing lyrics-availability check: when it's
+    /// still the current track, update the flag the now-playing bar reads.
+    pub fn handle_now_playing_lyrics_checked(&mut self, track_id: String, has_lyrics: bool) {
+        if self
+            .now_playing
+            .as_ref()
+            .is_some_and(|np| np.track_id == track_id)
+        {
+            self.now_playing_lyrics = Some((track_id, has_lyrics));
+        }
     }
 
     /// Load albums by the track's artist (for "More Albums by {Artist}" section).

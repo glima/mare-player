@@ -124,6 +124,7 @@ impl cosmic::Application for AppModel {
             selected_lyrics_track: None,
             selected_track_lyrics: None,
             current_lyric_index: None,
+            now_playing_lyrics: None,
             selected_detail_track: None,
             track_detail_artist_albums: Vec::new(),
             track_detail_related_artists: Vec::new(),
@@ -602,6 +603,10 @@ impl cosmic::Application for AppModel {
             // Data handlers - track lyrics
             Message::ShowLyrics(track) => self.handle_show_lyrics(track),
             Message::TrackLyricsLoaded(result) => self.handle_track_lyrics_loaded(result),
+            Message::NowPlayingLyricsChecked(track_id, has) => {
+                self.handle_now_playing_lyrics_checked(track_id, has);
+                Task::none()
+            }
 
             // Data handlers - track detail (recommendations)
             Message::ShowTrackDetail(track) => self.handle_show_track_detail(track),

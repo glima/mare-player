@@ -375,7 +375,14 @@ impl AppModel {
         self.selected_track_lyrics = None;
         self.current_lyric_index = None;
         self.view_state = ViewState::Lyrics;
-        self.load_track_lyrics(track_id)
+        // Paint last-seen lyrics from the DB instantly, then refresh from TIDAL.
+        Task::batch([
+            self.read_view_cache::<crate::tidal::models::TrackLyrics, _>(
+                format!("lyrics:{track_id}"),
+                |l| Message::TrackLyricsLoaded(Ok(l)),
+            ),
+            self.load_track_lyrics(track_id),
+        ])
     }
 
     /// Handle show track detail view (recommendations seeded from a track).

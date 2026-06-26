@@ -219,6 +219,11 @@ pub struct AppModel {
     /// tick from `playback_position`.  `None` before the first line
     /// fires or when the lyrics view isn't synced.
     pub(crate) current_lyric_index: Option<usize>,
+    /// Lyrics availability for the currently-playing track, as
+    /// `(track_id, has_lyrics)`. `None` until the background check for the
+    /// current track returns. Drives whether the now-playing bar shows the
+    /// lyrics icon at all. Backed by the DB lyrics cache.
+    pub(crate) now_playing_lyrics: Option<(String, bool)>,
     /// The track whose detail/recommendations view is open
     pub(crate) selected_detail_track: Option<Track>,
     /// "More Albums by {Artist}" for the track detail view

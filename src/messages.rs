@@ -149,6 +149,10 @@ pub enum Message {
     /// Lyrics fetch completed (`Ok(TrackLyrics::default())` for tracks
     /// with no lyrics; only `Err` for genuine network/parse failures).
     TrackLyricsLoaded(Result<crate::tidal::models::TrackLyrics, String>),
+    /// Background availability check for the now-playing track finished:
+    /// `(track_id, has_lyrics)`. Drives whether the now-playing bar shows the
+    /// lyrics icon.
+    NowPlayingLyricsChecked(String, bool),
 
     // Track Detail (recommendations from a track)
     /// Show track detail view (more albums by artist, related albums, related artists)

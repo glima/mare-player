@@ -697,7 +697,7 @@ impl ExplorePage {
 /// Time offsets are stored in milliseconds; the timestamp is the moment
 /// the line should *start* being highlighted during playback.  The end
 /// time is implicit (the start of the next line, or end of track).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LrcLine {
     /// Start time in milliseconds from the beginning of the track.
     pub time_ms: u64,
@@ -712,7 +712,7 @@ pub struct LrcLine {
 /// timestamped `subtitles` field.  Either may be empty depending on the
 /// provider's data — instrumental tracks tend to have neither; older
 /// catalog entries often have plain text but no LRC sync.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TrackLyrics {
     /// Provider attribution string (e.g. "MusixMatch", "TIDAL").
     pub provider: Option<String>,

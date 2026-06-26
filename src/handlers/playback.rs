@@ -350,6 +350,7 @@ impl AppModel {
                 {
                     tasks.push(self.load_images_for_urls(vec![cover_url.clone()]));
                 }
+                tasks.push(self.refresh_now_playing_lyrics(&track));
                 Task::batch(tasks)
             }
             Err(e) => {
@@ -421,6 +422,7 @@ impl AppModel {
             {
                 tasks.push(self.load_images_for_urls(vec![cover_url.clone()]));
             }
+            tasks.push(self.refresh_now_playing_lyrics(&track));
             return Task::batch(tasks);
         }
         Task::none()
@@ -465,7 +467,10 @@ impl AppModel {
                         self.play_history.record(&track);
                         self.persist_play_history();
                         tracing::info!("Video playback started: {}", track.title);
-                        return self.update_mpris_state();
+                        return Task::batch([
+                            self.update_mpris_state(),
+                            self.refresh_now_playing_lyrics(&track),
+                        ]);
                     }
                     Err(e) => {
                         tracing::error!("Failed to start video pipeline: {}", e);

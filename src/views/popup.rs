@@ -396,6 +396,25 @@ impl AppModel {
             .into()
     }
 
+    /// The now-playing-bar lyrics button, shown only once we've confirmed the
+    /// current track actually has lyrics (otherwise the icon is hidden).
+    fn now_playing_lyrics_button(&self) -> Option<Element<'_, Message>> {
+        let track = self.playback_queue.get(self.playback_queue_index)?;
+        match &self.now_playing_lyrics {
+            Some((id, true)) if *id == track.id => {}
+            _ => return None,
+        }
+        let mut li = icon::from_svg_bytes(LYRICS_SVG);
+        li.symbolic = true;
+        Some(
+            button::icon(li)
+                .tooltip(fl!("tooltip-show-lyrics"))
+                .padding(4)
+                .on_press(Message::ShowLyrics(track.clone()))
+                .into(),
+        )
+    }
+
     /// Render the now-playing bar shown at the bottom of the popup.
     fn view_now_playing_bar(&self, np: &crate::tidal::player::NowPlaying) -> Element<'_, Message> {
         let play_pause_icon = if self.playback_state == PlaybackState::Playing {
@@ -620,21 +639,7 @@ impl AppModel {
                     btn
                 }
             })
-            .push({
-                // Lyrics view entry point.  Disabled (no on_press) when
-                // there's no currently-playing track to attribute to.
-                let track_for_lyrics = self.playback_queue.get(self.playback_queue_index).cloned();
-                let mut li = icon::from_svg_bytes(LYRICS_SVG);
-                li.symbolic = true;
-                let btn = button::icon(li)
-                    .tooltip(fl!("tooltip-show-lyrics"))
-                    .padding(4);
-                if let Some(track) = track_for_lyrics {
-                    btn.on_press(Message::ShowLyrics(track))
-                } else {
-                    btn
-                }
-            })
+            .push_maybe(self.now_playing_lyrics_button())
             .push({
                 let btn = button::icon(widget::icon::from_name("emblem-shared-symbolic"))
                     .tooltip(fl!("tooltip-share"))
