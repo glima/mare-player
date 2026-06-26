@@ -7,6 +7,15 @@ authors = ["Maré Player authors"]
 description = "Maré Player — a COSMIC desktop applet for TIDAL music streaming"
 repository = "https://github.com/glima/mare-player"
 
+# `mare-video-window` is an out-of-process companion that renders a popped-out
+# music video in its own real toplevel window (a panel applet can't spawn one).
+# It links only GStreamer, talks to the applet over a stdin/stdout pipe, and is
+# a workspace member so it shares the lockfile. The cargo-fuzz crate keeps its
+# own (separate) workspace, so it's excluded here.
+[workspace]
+members = ["mare-video-window"]
+exclude = ["fuzz"]
+
 [package.metadata.cargo-machete]
 # libcosmic re-exports its public API under the `cosmic` namespace, so
 # cargo-machete cannot detect that it is used (no `use libcosmic::…` anywhere).
@@ -130,6 +139,7 @@ section = "sound"
 depends = "libc6, libdbus-1-3, libxkbcommon0, libsecret-1-0, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-libav"
 assets = [
     ["target/release/cosmic-applet-mare", "usr/bin/", "755"],
+    ["target/release/mare-video-window", "usr/bin/", "755"],
     ["resources/app.desktop", "usr/share/applications/io.github.cosmic-applet-mare.desktop", "644"],
     ["resources/app.metainfo.xml", "usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", "644"],
     ["resources/icon.svg", "usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", "644"],
@@ -150,6 +160,7 @@ assets = [
 name = "cosmic-applet-mare"
 assets = [
     { source = "target/release/cosmic-applet-mare", dest = "/usr/bin/", mode = "755" },
+    { source = "target/release/mare-video-window", dest = "/usr/bin/", mode = "755" },
     { source = "resources/app.desktop", dest = "/usr/share/applications/io.github.cosmic-applet-mare.desktop", mode = "644" },
     { source = "resources/app.metainfo.xml", dest = "/usr/share/metainfo/io.github.cosmic-applet-mare.metainfo.xml", mode = "644" },
     { source = "resources/icon.svg", dest = "/usr/share/icons/hicolor/scalable/apps/io.github.cosmic-applet-mare.svg", mode = "644" },

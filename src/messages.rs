@@ -256,6 +256,12 @@ pub enum Message {
     TogglePlayPause,
     /// Stop playback
     StopPlayback,
+    /// Toggle the video pop-out: play the video in a separate child window
+    /// (panel-applet only), or close it and return to inline theater mode.
+    ToggleVideoWindow,
+    /// A raw event line from the popped-out video child's stdout
+    /// (`position <s>`, `eos`, or `closed`).
+    VideoWindowEvent(String),
     /// Seek to position (0.0 to 100.0 percent) - debounced
     SeekTo(f64),
     /// Execute debounced seek (version)

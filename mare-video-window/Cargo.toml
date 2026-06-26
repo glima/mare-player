@@ -1,0 +1,18 @@
+[package]
+name = "mare-video-window"
+version = "0.2.7"
+edition = "2024"
+license = "MIT"
+authors = ["Maré Player authors"]
+description = "Maré Player — out-of-process video window companion"
+repository = "https://github.com/glima/mare-player"
+
+[[bin]]
+name = "mare-video-window"
+path = "src/main.rs"
+
+[dependencies]
+# Only GStreamer (which re-exports glib). No TIDAL, no auth, no GUI toolkit:
+# the parent applet hands down a resolved video URL and this just plays it in
+# a real toplevel window (the video sink owns the window), driven over a pipe.
+gstreamer = "0.25"

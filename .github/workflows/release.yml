@@ -82,6 +82,10 @@ jobs:
           # copy it to the expected name
           if [ "${{ matrix.variant }}" = "standalone" ]; then
             cp target/release/cosmic-applet-mare target/release/${{ matrix.binary }}
+          else
+            # Applet: also build the out-of-process video-window companion
+            # (referenced by the applet .deb/.rpm assets and bundled below).
+            cargo build --release -p mare-video-window
           fi
 
       - name: Build .deb package
@@ -98,6 +102,10 @@ jobs:
           DIR=${{ matrix.pkg_name }}
           mkdir -p "$DIR"
           cp target/release/${{ matrix.binary }} "$DIR/"
+          # Applet bundles the out-of-process video-window companion too.
+          if [ "${{ matrix.variant }}" = "applet" ]; then
+            cp target/release/mare-video-window "$DIR/"
+          fi
           cp resources/app.desktop "$DIR/${{ env.APP_ID }}.desktop"
           cp resources/app.metainfo.xml "$DIR/${{ env.APP_ID }}.metainfo.xml"
           cp resources/icon.svg "$DIR/${{ env.APP_ID }}.svg"

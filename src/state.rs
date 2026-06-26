@@ -267,6 +267,21 @@ pub struct AppModel {
     /// GStreamer engine as audio, with a video sink attached).
     /// `Some` ⇒ the now-playing pane shows live video instead of the spectrum.
     pub(crate) video_player: Option<crate::playback::MediaPlayer>,
+    /// When a video is "popped out" into its own child window, the handle to
+    /// that `mare-video-window` process. `Some` ⇒ the now-playing panel shows
+    /// the audio-style bar and the video plays in the separate window; panel
+    /// transport delegates to the child over its stdin pipe. Panel-applet only.
+    pub(crate) video_window: Option<crate::playback::VideoWindowChild>,
+    /// Resolved HLS URL of the current music video. Stored so we can (a) hand it
+    /// to the child on pop-out and (b) rebuild the inline player on pop-in.
+    /// Set in `handle_video_url_received`.
+    pub(crate) current_video_url: Option<String>,
+    /// Receiver half of the child's stdout-event channel, drained by a
+    /// subscription (mirrors the MPRIS pattern). Wired at init.
+    pub(crate) video_window_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
+    /// Sender half of the child's stdout-event channel, cloned into each child
+    /// at spawn time so its reader thread can forward lines back to the app.
+    pub(crate) video_window_tx: tokio::sync::mpsc::UnboundedSender<String>,
     /// Active GStreamer audio pipeline. `Some` ⇒ an audio track is streaming
     /// through `MediaPlayer`.
     pub(crate) media_player: Option<crate::playback::MediaPlayer>,
@@ -277,6 +292,11 @@ pub struct AppModel {
     /// When the video-mode overlay controls were last shown (by interaction).
     /// They fade out a few seconds after the last pointer movement.
     pub(crate) video_controls_shown_at: Option<std::time::Instant>,
+    /// Resume target after a video pop-in: `(position_secs, set_at)`. While set,
+    /// the tick holds the displayed position here instead of letting the fresh
+    /// pipeline's pre-seek `0:00` flash on the slider; cleared once the deferred
+    /// seek lands (or after a short timeout fallback).
+    pub(crate) video_resume_target: Option<(f64, std::time::Instant)>,
     /// Current playback state
     pub(crate) playback_state: PlaybackState,
     /// Currently playing track info

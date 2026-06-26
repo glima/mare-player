@@ -46,6 +46,29 @@ pub const LYRICS_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 1
 </svg>"##;
 
 // =============================================================================
+// Pop-out (open in separate window) Icon
+// =============================================================================
+
+/// "Open in a separate window" icon for the video pop-out button.
+///
+/// The classic external-link glyph: a panel with an arrow leaving its
+/// top-right corner. Same stroke-based symbolic style as [`RADIO_SVG`].
+pub const POPOUT_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M9.5 2.5H13.5V6.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<line x1="13.5" y1="2.5" x2="7.5" y2="8.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round"/>
+</svg>"##;
+
+/// "Bring back inline" icon for the video pop-in button — the mirror of
+/// [`POPOUT_SVG`]: the same panel, but the arrow now points *into* its
+/// bottom-left interior instead of leaving the top-right corner.
+pub const POPIN_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M11.5 8.5H7.5V4.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<line x1="7.5" y1="8.5" x2="13.5" y2="2.5" stroke="#232323" stroke-width="1.3" stroke-linecap="round"/>
+</svg>"##;
+
+// =============================================================================
 // Favorite (Heart) Icon
 // =============================================================================
 

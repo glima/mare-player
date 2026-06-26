@@ -1,5 +1,6 @@
 name := 'cosmic-applet-mare'
 standalone-name := 'mare-player'
+video-window-name := 'mare-video-window'
 appid := 'io.github.cosmic-applet-mare'
 features := env('FEATURES', '--all-features')
 rootdir := ''
@@ -13,6 +14,7 @@ cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 appdata-dst := base-dir / 'share' / 'appdata' / appid + '.metainfo.xml'
 bin-dst := base-dir / 'bin' / name
 standalone-bin-dst := base-dir / 'bin' / standalone-name
+video-window-bin-dst := base-dir / 'bin' / video-window-name
 desktop-dst := base-dir / 'share' / 'applications' / appid + '.desktop'
 icon-dst := base-dir / 'share' / 'icons' / 'hicolor' / 'scalable' / 'apps' / appid + '.svg'
 icon-symbolic-dst := base-dir / 'share' / 'icons' / 'hicolor' / 'symbolic' / 'apps' / appid + '-symbolic.svg'
@@ -35,8 +37,10 @@ clean-dist: clean clean-vendor
 build-debug *args:
     cargo build {{ args }}
 
-# Compiles with release profile
+# Compiles with release profile (applet + the mare-video-window companion that
+# renders popped-out videos out of process)
 build-release *args: (build-debug '--release' args)
+    cargo build --release -p {{ video-window-name }} {{ args }}
 
 # Compiles release profile with vendored dependencies
 build-vendored *args: vendor-extract (build-release '--frozen --offline' args)
@@ -50,6 +54,7 @@ build-deb: build-release
 build-rpm: build-release
     command -v cargo-generate-rpm || cargo install cargo-generate-rpm
     strip -s {{ cargo-target-dir / 'release' / name }}
+    strip -s {{ cargo-target-dir / 'release' / video-window-name }}
     cargo generate-rpm
 
 # Compiles standalone (no panel applet) with debug profile, renames binary
@@ -210,6 +215,7 @@ run-standalone-debug *args: build-debug-standalone
 [private]
 _install profile:
     install -Dm0755 {{ cargo-target-dir / profile / name }} {{ bin-dst }}
+    install -Dm0755 {{ cargo-target-dir / profile / video-window-name }} {{ video-window-bin-dst }}
     install -Dm0644 resources/app.desktop {{ desktop-dst }}
     install -Dm0644 resources/app.metainfo.xml {{ appdata-dst }}
     install -Dm0644 resources/icon.svg {{ icon-dst }}
@@ -262,7 +268,7 @@ install-standalone-debug: (_install-standalone 'debug')
 
 # Uninstalls installed files
 uninstall:
-    rm -f {{ bin-dst }} {{ standalone-bin-dst }} {{ desktop-dst }} {{ icon-dst }} {{ icon-symbolic-dst }} {{ icon-scalable-symbolic-dst }}
+    rm -f {{ bin-dst }} {{ video-window-bin-dst }} {{ standalone-bin-dst }} {{ desktop-dst }} {{ icon-dst }} {{ icon-symbolic-dst }} {{ icon-scalable-symbolic-dst }}
 
 # Check that all locale .ftl files have the same keys as the English reference
 i18n-check:

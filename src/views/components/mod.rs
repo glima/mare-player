@@ -45,7 +45,7 @@ pub use constants::{
     THUMBNAIL_SIZE, VOLUME_BAR_WIDTH, VOLUME_STEP, scroll_to_volume_delta,
 };
 
-pub use icons::{LYRICS_SVG, RADIO_SVG, favorite_icon_handle};
+pub use icons::{LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favorite_icon_handle};
 
 pub use list_helpers::{
     TrackRowOptions, app_icon_element, branded_text, branded_title, fading_card_column,

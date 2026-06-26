@@ -38,6 +38,9 @@ use gstreamer_video::prelude::*;
 
 use crate::audio::spectrum::SharedSpectrumAnalyzer;
 
+mod video_window;
+pub use video_window::VideoWindowChild;
+
 /// A single decoded video frame in tightly-packed RGBA8.
 #[derive(Clone)]
 pub struct VideoFrame {
@@ -417,7 +420,7 @@ impl MediaPlayer {
         analyzer: Option<SharedSpectrumAnalyzer>,
         replay_gain_db: f32,
     ) -> Result<Self, String> {
-        Self::build(uri, MediaKind::Audio, analyzer, replay_gain_db)
+        Self::build(uri, MediaKind::Audio, analyzer, replay_gain_db, None)
     }
 
     /// Start playing a **video** stream (HLS `.m3u8`) from `uri`.
@@ -429,7 +432,27 @@ impl MediaPlayer {
         analyzer: Option<SharedSpectrumAnalyzer>,
         replay_gain_db: f32,
     ) -> Result<Self, String> {
-        Self::build(uri, MediaKind::Video, analyzer, replay_gain_db)
+        Self::build(uri, MediaKind::Video, analyzer, replay_gain_db, None)
+    }
+
+    /// Start a **video** stream that resumes at `position_secs` (e.g. video
+    /// pop-in). Unlike [`new_video`](Self::new_video), the pipeline starts
+    /// *paused*: it waits until the HLS stream is seekable, seeks to the
+    /// position, and only then begins playing — so nothing plays from 0:00
+    /// first (which would otherwise flash + jump when the seek lands).
+    pub fn new_video_at(
+        uri: &str,
+        analyzer: Option<SharedSpectrumAnalyzer>,
+        replay_gain_db: f32,
+        position_secs: f64,
+    ) -> Result<Self, String> {
+        Self::build(
+            uri,
+            MediaKind::Video,
+            analyzer,
+            replay_gain_db,
+            Some(position_secs),
+        )
     }
 
     fn build(
@@ -437,6 +460,7 @@ impl MediaPlayer {
         kind: MediaKind,
         analyzer: Option<SharedSpectrumAnalyzer>,
         replay_gain_db: f32,
+        resume_at: Option<f64>,
     ) -> Result<Self, String> {
         gst::init().map_err(|e| format!("gstreamer init failed: {e}"))?;
 
@@ -483,9 +507,28 @@ impl MediaPlayer {
             });
         }
 
+        // For a resume (video pop-in) start *paused* and defer the play until
+        // after the seek lands, so nothing plays from 0:00 first. Otherwise
+        // start playing immediately.
+        let resume = resume_at.filter(|&s| s > 0.5);
+        let start_state = if resume.is_some() {
+            gst::State::Paused
+        } else {
+            gst::State::Playing
+        };
+        // While a resume seek is pending, keep `intended_playing` false: the
+        // `poll()` buffering handler only forces PLAYING when it's set, so this
+        // stops the app's tick from racing the resume by un-pausing the
+        // pipeline before the seek lands. The resume thread sets it true.
+        let intended_playing = Arc::new(AtomicBool::new(resume.is_none()));
         playbin
-            .set_state(gst::State::Playing)
+            .set_state(start_state)
             .map_err(|e| format!("failed to start playback: {e}"))?;
+        if let Some(pos) = resume {
+            let pb = playbin.clone();
+            let intended = Arc::clone(&intended_playing);
+            std::thread::spawn(move || resume_seek_then_play(&pb, pos, intended));
+        }
 
         Ok(Self {
             playbin,
@@ -495,7 +538,7 @@ impl MediaPlayer {
             seq,
             eos,
             errored: Arc::new(AtomicBool::new(false)),
-            intended_playing: Arc::new(AtomicBool::new(true)),
+            intended_playing,
             next_uri,
             transitions: Arc::new(AtomicU64::new(0)),
             first_stream_seen: Arc::new(AtomicBool::new(false)),
@@ -664,6 +707,77 @@ impl MediaPlayer {
             .playbin
             .seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, pos);
     }
+}
+
+/// Resume a *paused*, freshly-built pipeline at `secs`: wait until it's
+/// seekable, seek, then start playing.
+///
+/// A seek issued before the stream is seekable is silently dropped — and for
+/// **HLS** the stream isn't seekable until its media playlist has been fetched
+/// and parsed (a network round-trip after preroll). Seeking the prerolled,
+/// *paused* pipeline (rather than one already playing from 0:00) lands reliably
+/// in a single flush and avoids the play-from-start flash + jump. Runs on a
+/// short-lived background thread; logs progress via `tracing`.
+fn resume_seek_then_play(pb: &gst::Element, secs: f64, intended: std::sync::Arc<AtomicBool>) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(15);
+    let mut waited_ms = 0u64;
+    loop {
+        // Block briefly for the async preroll to PAUSED to settle.
+        let _ = pb.state(Some(gst::ClockTime::from_mseconds(250)));
+        let dur = pb.query_duration::<gst::ClockTime>();
+        if dur.is_some_and(|d| d.nseconds() > 0) {
+            tracing::info!(
+                "seek-resume: seekable after {}ms (duration={:?}s), seeking to {:.1}s",
+                waited_ms,
+                dur.map(|d| d.seconds()),
+                secs
+            );
+            break;
+        }
+        if std::time::Instant::now() >= deadline {
+            tracing::warn!(
+                "seek-resume: not seekable after {}ms; seeking anyway to {:.1}s",
+                waited_ms,
+                secs
+            );
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(150));
+        waited_ms += 150;
+    }
+    // Seek the prerolled, *paused* pipeline, verifying the position actually
+    // moved (a single flush seek can still be dropped before the demuxer has
+    // the target segment) and retrying a few times if not.
+    let target = gst::ClockTime::from_mseconds((secs.max(0.0) * 1000.0) as u64);
+    let mut landed = false;
+    for attempt in 1..=8 {
+        let ok = pb.seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, target);
+        // Wait for this flush-seek's preroll to settle, then read the position.
+        let _ = pb.state(Some(gst::ClockTime::from_seconds(5)));
+        let cur = pb
+            .query_position::<gst::ClockTime>()
+            .map(|p| p.seconds() as f64);
+        tracing::info!(
+            "seek-resume: attempt {} seek_ok={} pos={:?} (target {:.1}s)",
+            attempt,
+            ok.is_ok(),
+            cur,
+            secs
+        );
+        if cur.is_some_and(|c| c + 2.0 >= secs) {
+            landed = true;
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    // Hand control back to the normal play/pause + buffering logic, then roll.
+    intended.store(true, Ordering::Release);
+    let _ = pb.set_state(gst::State::Playing);
+    tracing::info!(
+        "seek-resume: now playing (landed={}, target {:.1}s)",
+        landed,
+        secs
+    );
 }
 
 impl Drop for MediaPlayer {

@@ -41,7 +41,7 @@ jobs:
         uses: taiki-e/install-action@8e6bcdad38b75e3ed7b36872031a94f7c61006cc # cargo-nextest
 
       - name: Build
-        run: cargo build --verbose
+        run: cargo build --workspace --verbose
 
       - name: Check/sanitize
         run: just check

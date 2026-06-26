@@ -45,6 +45,7 @@ impl AppModel {
         self.media_player = None;
 
         self.playback_position = 0.0;
+        self.video_resume_target = None;
         self.loading_progress = 0.0;
         self.playback_state = PlaybackState::Loading;
 
@@ -68,6 +69,9 @@ impl AppModel {
 
         let track_id = track.id.clone();
         let client = self.tidal_client.clone();
+        // Switching to an audio track: if a video was popped out into its own
+        // window, kill it — there's no video to show anymore.
+        self.close_video_window_if_open();
         Task::perform(
             async move {
                 let client = client.lock().await;
@@ -436,6 +440,37 @@ impl AppModel {
     ) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, url)) => {
+                self.current_video_url = Some(url.clone());
+
+                // If the video is popped out, hand the new stream to the child
+                // window instead of building an inline pipeline.
+                if self.video_window.is_some() {
+                    if let Some(child) = self.video_window.as_mut() {
+                        child.send(&format!("play 0 {url}"));
+                    }
+                    self.playback_state = PlaybackState::Playing;
+                    self.playback_position = 0.0;
+                    self.now_playing = Some(NowPlaying {
+                        track_id: track.id.clone(),
+                        title: track.title.clone(),
+                        artist: track.artist_name.clone(),
+                        album: track.album_name.clone(),
+                        cover_url: track.cover_url.clone(),
+                        duration: track.duration as f64,
+                        playlist_name: self
+                            .playback_source
+                            .as_ref()
+                            .map(|s| s.display_name.clone()),
+                    });
+                    self.play_history.record(&track);
+                    self.persist_play_history();
+                    tracing::info!("Video handed to pop-out window: {}", track.title);
+                    return Task::batch([
+                        self.update_mpris_state(),
+                        self.refresh_now_playing_lyrics(&track),
+                    ]);
+                }
+
                 match crate::playback::MediaPlayer::new_video(
                     &url,
                     self.visualizer_state.analyzer(),
@@ -527,6 +562,13 @@ impl AppModel {
             && let Some(target_pos) = self.pending_seek.take()
         {
             tracing::info!("SeekDebounced: executing seek to {:.2}s", target_pos);
+            // Popped-out video: forward the seek to the child window.
+            if self.video_window.is_some() {
+                if let Some(child) = self.video_window.as_mut() {
+                    child.send(&format!("seek {target_pos:.3}"));
+                }
+                return self.update_mpris_state();
+            }
             if let Some(video) = &self.video_player {
                 video.seek_secs(target_pos);
                 return self.update_mpris_state();
@@ -541,6 +583,24 @@ impl AppModel {
 
     /// Handle toggle play/pause
     pub fn handle_toggle_play_pause(&mut self) -> Task<cosmic::Action<Message>> {
+        // Popped-out video: drive the child over its stdin pipe.
+        if self.video_window.is_some() {
+            let new_state = match self.playback_state {
+                PlaybackState::Playing => PlaybackState::Paused,
+                PlaybackState::Paused => PlaybackState::Playing,
+                other => other,
+            };
+            if let Some(child) = self.video_window.as_mut() {
+                match new_state {
+                    PlaybackState::Paused => child.send("pause"),
+                    PlaybackState::Playing => child.send("resume"),
+                    _ => {}
+                }
+            }
+            self.playback_state = new_state;
+            return self.update_mpris_state();
+        }
+
         // Video path: drive the GStreamer pipeline directly.
         if let Some(video) = &self.video_player {
             let new_state = match self.playback_state {
@@ -590,12 +650,22 @@ impl AppModel {
         // before tearing down playback state.  Reports the listen if it
         // crossed the threshold.
         self.finalize_and_report_play_session();
+        // Popped-out video: kill the child window and stop.
+        if self.video_window.is_some() {
+            self.close_video_window_if_open();
+            self.playback_state = PlaybackState::Stopped;
+            self.now_playing = None;
+            self.playback_position = 0.0;
+            self.visualizer_state.set_active(false);
+            return self.update_mpris_state();
+        }
         if self.video_player.is_some() {
             self.stop_video();
             self.playback_state = PlaybackState::Stopped;
             self.now_playing = None;
             self.playback_position = 0.0;
             self.visualizer_state.set_active(false);
+            self.close_video_window_if_open();
             return self.update_mpris_state();
         }
         // Dropping the audio pipeline sets it to Null.
@@ -607,6 +677,187 @@ impl AppModel {
             return self.update_mpris_state();
         }
         Task::none()
+    }
+
+    /// Toggle the video pop-out: hand the current video to a separate child
+    /// window (`mare-video-window`) and tear down inline playback, or kill the
+    /// child and resume the video inline.
+    pub fn handle_toggle_video_window(&mut self) -> Task<cosmic::Action<Message>> {
+        // Already popped out → kill the child and resume inline from the last
+        // reported position.
+        if self.video_window.is_some() {
+            let pos = self.playback_position;
+            self.close_video_window_if_open();
+            if let Some(url) = self.current_video_url.clone() {
+                return self.resume_inline_video(&url, pos);
+            }
+            return Task::none();
+        }
+
+        // Pop out: only meaningful while a video is playing inline and we know
+        // its URL.
+        if self.video_player.is_none() {
+            return Task::none();
+        }
+        let Some(url) = self.current_video_url.clone() else {
+            return Task::none();
+        };
+        let pos = self.playback_position;
+        let vol = self.volume_level;
+        let preamp = self.config.video_preamp_db;
+
+        // Tear down the inline pipeline first: the child owns audio+video while
+        // popped out, so the parent must not also decode (echo + drift).
+        self.stop_video();
+
+        match crate::playback::VideoWindowChild::spawn(
+            &url,
+            pos,
+            vol,
+            preamp,
+            self.video_window_tx.clone(),
+        ) {
+            Some(child) => {
+                self.video_window = Some(child);
+                tracing::info!("Video popped out into child window at {:.1}s", pos);
+                Task::none()
+            }
+            None => {
+                // Couldn't launch the companion — stay inline.
+                tracing::error!("could not launch mare-video-window; staying inline");
+                self.resume_inline_video(&url, pos)
+            }
+        }
+    }
+
+    /// Rebuild the inline video [`MediaPlayer`] for `url`, seeking to `pos`.
+    /// Used when popping a video back in (button, window-closed, or failed
+    /// spawn).
+    pub(crate) fn resume_inline_video(
+        &mut self,
+        url: &str,
+        pos: f64,
+    ) -> Task<cosmic::Action<Message>> {
+        match crate::playback::MediaPlayer::new_video_at(
+            url,
+            self.visualizer_state.analyzer(),
+            self.config.video_preamp_db,
+            pos,
+        ) {
+            Ok(video) => {
+                tracing::info!("Resuming video inline at {:.1}s", pos);
+                video.set_volume(self.volume_level as f64);
+                self.video_player = Some(video);
+                self.video_controls_shown_at = Some(std::time::Instant::now());
+                self.playback_state = PlaybackState::Playing;
+                self.playback_position = pos;
+                // Hold the slider at `pos` until the deferred seek lands, so the
+                // fresh pipeline's pre-seek 0:00 doesn't flash on the bar.
+                self.video_resume_target = Some((pos, std::time::Instant::now()));
+                self.visualizer_state.set_active(true);
+                self.update_mpris_state()
+            }
+            Err(e) => {
+                tracing::error!("Failed to resume inline video: {}", e);
+                self.error_message = Some(format!("Failed to play video: {}", e));
+                self.playback_state = PlaybackState::Stopped;
+                self.now_playing = None;
+                Task::none()
+            }
+        }
+    }
+
+    /// Handle a raw event line from the popped-out video child's stdout.
+    /// Lines are `position <secs>`, `eos`, or `closed`.
+    pub fn handle_video_window_event(&mut self, line: String) -> Task<cosmic::Action<Message>> {
+        // Ignore late events after the child was already torn down.
+        if self.video_window.is_none() {
+            return Task::none();
+        }
+        let (kind, rest) = match line.split_once(' ') {
+            Some((k, r)) => (k, r.trim()),
+            None => (line.as_str(), ""),
+        };
+        match kind {
+            "position" => {
+                if let Ok(pos) = rest.parse::<f64>() {
+                    self.playback_position = pos;
+                    // Keep the play-attribution session's high-water mark fresh.
+                    if let Some(p) = &mut self.current_play {
+                        p.observe_position(pos);
+                    }
+                    // Drive the karaoke-style highlight in the lyrics view.
+                    if matches!(self.view_state, crate::state::ViewState::Lyrics)
+                        && let (Some(track), Some(lyrics)) = (
+                            self.playback_queue.get(self.playback_queue_index),
+                            self.selected_track_lyrics.as_ref(),
+                        )
+                        && self
+                            .selected_lyrics_track
+                            .as_ref()
+                            .is_some_and(|t| t.id == track.id)
+                    {
+                        let next = lyrics.line_index_at(pos);
+                        if next != self.current_lyric_index {
+                            self.current_lyric_index = next;
+                        }
+                    }
+                }
+                Task::none()
+            }
+            "eos" => self.handle_video_window_eos(),
+            "closed" => {
+                // The user closed the child window → pop back in and resume
+                // inline from the last reported position.
+                let pos = self.playback_position;
+                self.video_window = None;
+                tracing::info!("Video window closed by user; resuming inline");
+                if let Some(url) = self.current_video_url.clone() {
+                    self.resume_inline_video(&url, pos)
+                } else {
+                    Task::none()
+                }
+            }
+            _ => Task::none(),
+        }
+    }
+
+    /// Advance the queue when the popped-out video reaches its end, mirroring
+    /// the inline video tick's end-of-stream handling. The child stays alive
+    /// for video→video transitions (the new URL is sent via `play`); it is
+    /// killed when the next track is audio or the queue ends.
+    fn handle_video_window_eos(&mut self) -> Task<cosmic::Action<Message>> {
+        match self.loop_status {
+            LoopStatus::Track => self.play_track_at_index(self.playback_queue_index),
+            _ => {
+                let next_index = self.playback_queue_index + 1;
+                if next_index < self.playback_queue.len() {
+                    self.playback_queue_index = next_index;
+                    self.play_track_at_index(next_index)
+                } else if self.loop_status == LoopStatus::Playlist {
+                    self.playback_queue_index = 0;
+                    self.play_track_at_index(0)
+                } else {
+                    // End of a video playlist: stop and dismiss the child window.
+                    self.close_video_window_if_open();
+                    self.playback_state = PlaybackState::Stopped;
+                    self.now_playing = None;
+                    self.playback_position = 0.0;
+                    self.visualizer_state.set_active(false);
+                    self.update_mpris_state()
+                }
+            }
+        }
+    }
+
+    /// Kill the popped-out video child if one is running. No-op otherwise.
+    /// Used when video playback ends, switches to audio, or stops.
+    pub(crate) fn close_video_window_if_open(&mut self) {
+        if let Some(mut child) = self.video_window.take() {
+            child.send("quit");
+            child.kill();
+            tracing::info!("Video child window closed");
+        }
     }
 
     /// Handle playback tick — updates position, processes engine events, and
@@ -624,7 +875,23 @@ impl AppModel {
                 && let Some(video) = &self.video_player
                 && let Some(pos) = video.position_secs()
             {
-                self.playback_position = pos;
+                // After a pop-in we hold the slider at the resume target until
+                // the deferred seek lands (the pipeline reports ~0 until then),
+                // with a timeout fallback so a failed seek can't freeze it.
+                match self.video_resume_target {
+                    Some((target, since))
+                        if pos + 1.0 < target && since.elapsed() < Duration::from_secs(6) =>
+                    {
+                        self.playback_position = target;
+                    }
+                    Some(_) => {
+                        self.video_resume_target = None;
+                        self.playback_position = pos;
+                    }
+                    None => {
+                        self.playback_position = pos;
+                    }
+                }
             }
             let ended = self
                 .video_player
@@ -644,8 +911,13 @@ impl AppModel {
                             self.playback_queue_index = 0;
                             return self.play_track_at_index(0);
                         } else {
+                            // Video playlist ended: stop and close the pop-out
+                            // window if it's open.
                             self.playback_state = PlaybackState::Stopped;
                             self.now_playing = None;
+                            self.visualizer_state.set_active(false);
+                            self.close_video_window_if_open();
+                            return Task::none();
                         }
                     }
                 }
@@ -760,6 +1032,10 @@ impl AppModel {
         // Apply to the video pipeline too, if one is active.
         if let Some(video) = &self.video_player {
             video.set_volume(new_volume as f64);
+        }
+        // Apply to the popped-out video child, if one is running.
+        if let Some(child) = self.video_window.as_mut() {
+            child.send(&format!("volume {new_volume}"));
         }
         // Apply to the audio pipeline too, if one is active.
         if let Some(mp) = &self.media_player {

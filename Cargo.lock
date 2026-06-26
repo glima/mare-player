@@ -3972,6 +3972,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "mare-video-window"
+version = "0.2.7"
+dependencies = [
+ "gstreamer",
+]
+
+[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

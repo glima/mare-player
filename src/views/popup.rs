@@ -29,6 +29,8 @@ use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
 use crate::tidal::player::PlaybackState;
 use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, RADIO_SVG, favorite_icon_handle};
+#[cfg(feature = "panel-applet")]
+use crate::views::components::{POPIN_SVG, POPOUT_SVG};
 
 /// Height (px) of the video region inside the now-playing bar when a video is
 /// playing — large enough to show the frame full-width while the track list
@@ -396,6 +398,40 @@ impl AppModel {
             .into()
     }
 
+    /// The now-playing-bar video pop-out toggle button — shown only while a
+    /// video is playing (panel-applet only). Opens the video in a separate
+    /// child window, or (when already popped out) returns it inline.
+    fn pop_out_video_button(&self) -> Option<Element<'_, Message>> {
+        #[cfg(not(feature = "panel-applet"))]
+        {
+            None
+        }
+        #[cfg(feature = "panel-applet")]
+        {
+            // Show the toggle whenever a video is the current playback, whether
+            // it's inline (`video_player`) or popped out (`video_window`).
+            if self.video_player.is_none() && self.video_window.is_none() {
+                return None;
+            }
+            let popped = self.video_window.is_some();
+            // Popped out → show the "bring back inline" arrow (pointing into the
+            // panel); inline → show the "pop out" arrow (leaving the panel).
+            let mut pi = icon::from_svg_bytes(if popped { POPIN_SVG } else { POPOUT_SVG });
+            pi.symbolic = true;
+            Some(
+                button::icon(pi)
+                    .tooltip(if popped {
+                        fl!("tooltip-video-inline")
+                    } else {
+                        fl!("tooltip-video-popout")
+                    })
+                    .padding(4)
+                    .on_press(Message::ToggleVideoWindow)
+                    .into(),
+            )
+        }
+    }
+
     /// The now-playing-bar "go to track radio" button. Hidden for videos,
     /// which have no TIDAL track radio (the /tracks/{id}/mix endpoint 404s).
     fn now_playing_radio_button(&self) -> Option<Element<'_, Message>> {
@@ -659,7 +695,8 @@ impl AppModel {
                 } else {
                     btn
                 }
-            });
+            })
+            .push_maybe(self.pop_out_video_button());
 
         // In standalone mode, append a volume button with a popover slider.
         // Panel-applet mode uses scroll wheel on the panel icon instead.
@@ -765,8 +802,12 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // Video mode: replace the compact bar with a full-area theater whose
-        // overlay (track info + controls) auto-hides.
-        if let Some(video) = &self.video_player {
+        // overlay (track info + controls) auto-hides. When the video is popped
+        // out into its own window, `video_player` is None so this falls through
+        // to the audio-style bar instead.
+        if let Some(video) = &self.video_player
+            && self.video_window.is_none()
+        {
             let controls = widget::Column::new()
                 .push(centered_buttons)
                 .push(progress_row)

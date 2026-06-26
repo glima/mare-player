@@ -85,6 +85,10 @@ impl cosmic::Application for AppModel {
         let client = TidalAppClient::new_with_audio_cache_mb(audio_cache_max_mb);
         let play_history = crate::tidal::play_history::PlayHistory::new();
 
+        // Channel for events streamed back from the popped-out video child
+        // process (`mare-video-window`); drained by a subscription.
+        let (video_window_tx, video_window_rx) = tokio::sync::mpsc::unbounded_channel::<String>();
+
         // `app` is only mutated in standalone mode (`app.set_window_title`);
         // in panel-applet mode the binding is never written.
         #[allow(unused_mut)]
@@ -145,9 +149,14 @@ impl cosmic::Application for AppModel {
             error_message: None,
             session_restore_attempted: false,
             video_player: None,
+            video_window: None,
+            current_video_url: None,
+            video_window_rx: Some(Arc::new(Mutex::new(video_window_rx))),
+            video_window_tx,
             media_player: None,
             gst_transitions_seen: 0,
             video_controls_shown_at: None,
+            video_resume_target: None,
             playback_state: PlaybackState::Stopped,
             now_playing: None,
             playback_position: 0.0,
@@ -440,6 +449,34 @@ impl cosmic::Application for AppModel {
             ));
         }
 
+        // Popped-out video child events: drain the channel fed by the child's
+        // stdout reader thread and dispatch `VideoWindowEvent` per line.
+        if let Some(rx) = &self.video_window_rx {
+            struct VideoRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>);
+
+            impl std::hash::Hash for VideoRx {
+                fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                    Arc::as_ptr(&self.0).hash(state);
+                }
+            }
+
+            subs.push(Subscription::run_with(
+                VideoRx(rx.clone()),
+                |data: &VideoRx| {
+                    let rx = data.0.clone();
+                    cosmic::iced::stream::channel(16, async move |mut channel| {
+                        let mut rx = rx.lock().await;
+                        while let Some(line) = rx.recv().await {
+                            if channel.send(Message::VideoWindowEvent(line)).await.is_err() {
+                                break;
+                            }
+                        }
+                        futures_util::future::pending().await
+                    })
+                },
+            ));
+        }
+
         Subscription::batch(subs)
     }
 
@@ -469,6 +506,7 @@ impl cosmic::Application for AppModel {
             | Message::FavoriteTracksFilterChanged(_)
             | Message::AdjustVolume(_)
             | Message::SetVolume(_)
+            | Message::VideoWindowEvent(_)
             | Message::ArtistTopTracksLoaded(_)
             | Message::ArtistAlbumsLoaded(_)
             | Message::ArtistVideosLoaded(_)
@@ -738,6 +776,8 @@ impl cosmic::Application for AppModel {
             Message::SeekDebounced(version) => self.handle_seek_debounced(version),
             Message::TogglePlayPause => self.handle_toggle_play_pause(),
             Message::StopPlayback => self.handle_stop_playback(),
+            Message::ToggleVideoWindow => self.handle_toggle_video_window(),
+            Message::VideoWindowEvent(line) => self.handle_video_window_event(line),
             Message::PlaybackTick => self.handle_playback_tick(),
 
             // Misc handlers - errors and images
