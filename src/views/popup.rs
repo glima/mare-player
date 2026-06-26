@@ -396,6 +396,24 @@ impl AppModel {
             .into()
     }
 
+    /// The now-playing-bar "go to track radio" button. Hidden for videos,
+    /// which have no TIDAL track radio (the /tracks/{id}/mix endpoint 404s).
+    fn now_playing_radio_button(&self) -> Option<Element<'_, Message>> {
+        let track = self.playback_queue.get(self.playback_queue_index)?;
+        if track.is_video {
+            return None;
+        }
+        let mut ri = icon::from_svg_bytes(RADIO_SVG);
+        ri.symbolic = true;
+        Some(
+            button::icon(ri)
+                .tooltip(fl!("tooltip-go-to-track-radio"))
+                .padding(4)
+                .on_press(Message::ShowTrackRadio(track.clone()))
+                .into(),
+        )
+    }
+
     /// The now-playing-bar lyrics button, shown only once we've confirmed the
     /// current track actually has lyrics (otherwise the icon is hidden).
     fn now_playing_lyrics_button(&self) -> Option<Element<'_, Message>> {
@@ -554,8 +572,6 @@ impl AppModel {
         };
 
         // Buttons row below - centered
-        let track_for_radio = self.playback_queue.get(self.playback_queue_index).cloned();
-
         let buttons_row = widget::Row::new()
             .push({
                 let tip = if is_favorite {
@@ -627,18 +643,7 @@ impl AppModel {
                     .on_press(Message::StopPlayback)
                     .padding(4),
             )
-            .push({
-                let mut ri = icon::from_svg_bytes(RADIO_SVG);
-                ri.symbolic = true;
-                let btn = button::icon(ri)
-                    .tooltip(fl!("tooltip-go-to-track-radio"))
-                    .padding(4);
-                if let Some(track) = track_for_radio {
-                    btn.on_press(Message::ShowTrackRadio(track))
-                } else {
-                    btn
-                }
-            })
+            .push_maybe(self.now_playing_radio_button())
             .push_maybe(self.now_playing_lyrics_button())
             .push({
                 let btn = button::icon(widget::icon::from_name("emblem-shared-symbolic"))

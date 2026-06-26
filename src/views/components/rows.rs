@@ -120,9 +120,11 @@ pub(crate) fn build_track_row<'a>(
     .width(Length::Fixed(opts.duration_column_width()))
     .align_x(Alignment::End);
 
-    // "Go to track radio" button — shows similar tracks for this track
-    // Hidden inside the track radio view to prevent recursive radios.
-    let trailing = if opts.show_radio_button {
+    // "Go to track radio" button — shows similar tracks for this track.
+    // Hidden inside the track radio view (to prevent recursive radios) and for
+    // videos (TIDAL has no track radio for them — the /tracks/{id}/mix
+    // endpoint 404s on a video id).
+    let trailing = if opts.show_radio_button && !track.is_video {
         let mut radio_icon = icon::from_svg_bytes(RADIO_SVG);
         radio_icon.symbolic = true;
         let radio_btn = button::icon(radio_icon)
