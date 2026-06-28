@@ -137,10 +137,12 @@ jobs:
       attestations: write
 
     steps:
-      - name: Checkout (for tag annotation)
+      - name: Checkout (tag annotation + commit changelog)
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          fetch-depth: 1
+          # Full history + tags so we can build a changelog from the commits
+          # between this tag and the previous release.
+          fetch-depth: 0
           ref: ${{ github.ref }}
 
       - name: Resolve release name
@@ -175,12 +177,46 @@ jobs:
             release/SHA256SUMS
           bundle-path: release/attestation.sigstore.json
 
+      - name: Generate release notes from commits
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${TAG}^" 2>/dev/null || true)
+          if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="$TAG"; fi
+
+          # Emit a markdown section for commits whose conventional-commit type
+          # matches $1; strips the `type(scope):` prefix and bullets each line.
+          section() {
+            local body
+            body=$(git log "$RANGE" --no-merges --pretty='%s' \
+              | grep -iE "^($1)(\([^)]*\))?!?:" \
+              | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?:[[:space:]]*//' \
+              | sed -E 's/^(.)/- \U\1/' || true)
+            [ -n "$body" ] && printf '## %s\n\n%s\n\n' "$2" "$body" || true
+          }
+
+          {
+            section 'feat' '✨ Features'
+            section 'fix' '🐛 Bug Fixes'
+            section 'ui' '🎨 UI & UX'
+            section 'perf' '⚡ Performance'
+            section 'build|chore|refactor|test' '🔧 Maintenance & Dependencies'
+            section 'ci' '🤖 CI'
+            section 'docs' '📝 Documentation'
+            if [ -n "$PREV" ]; then
+              printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+                "$GITHUB_REPOSITORY" "$PREV" "$TAG"
+            fi
+          } > RELEASE_NOTES.md
+          echo '----- generated release notes -----'
+          cat RELEASE_NOTES.md
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v2
         with:
           name: ${{ steps.meta.outputs.release_name }}
           draft: false
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
           files: |
             release/*.deb
             release/*.rpm
