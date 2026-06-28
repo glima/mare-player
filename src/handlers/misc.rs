@@ -193,7 +193,8 @@ impl AppModel {
         let track_title = track.title.clone();
         let album_id = track.album_id.clone();
         let album_title = track.album_name.clone();
-        self.view_state = ViewState::SharePrompt(track_id, track_title, album_id, album_title);
+        self.view_state =
+            ViewState::SharePrompt(track_id, track_title, album_id, album_title, track.is_video);
     }
 
     /// Handle share track
@@ -201,11 +202,22 @@ impl AppModel {
         &mut self,
         track_id: String,
         track_title: String,
+        is_video: bool,
     ) -> Task<cosmic::Action<Message>> {
-        let tidal_url = format!("https://tidal.com/browse/track/{}", track_id);
-        tracing::info!("Generating song.link for track: {}", track_title);
         // Return to previous view
         self.view_state = ViewState::Main;
+
+        if is_video {
+            // song.link (Odesli) indexes songs/albums, not music videos, so a
+            // `/track/<video_id>` lookup 400s. Share the direct TIDAL video
+            // link instead (copied + opened, no cross-platform resolution).
+            let url = format!("https://tidal.com/browse/video/{}", track_id);
+            tracing::info!("Sharing TIDAL video link for: {}", track_title);
+            return self.copy_and_open_share(url);
+        }
+
+        let tidal_url = format!("https://tidal.com/browse/track/{}", track_id);
+        tracing::info!("Generating song.link for track: {}", track_title);
         Task::perform(
             async move { crate::helpers::generate_songlink(&tidal_url).await },
             |result| cosmic::Action::App(Message::ShareLinkGenerated(result)),
@@ -233,6 +245,31 @@ impl AppModel {
         self.view_state = ViewState::Main;
     }
 
+    /// Copy `url` to the clipboard, open it in the browser, and show a brief
+    /// confirmation. Shared by the song.link result handler and the direct
+    /// video-link share path.
+    fn copy_and_open_share(&mut self, url: String) -> Task<cosmic::Action<Message>> {
+        let url_for_clipboard = url.clone();
+        let url_for_browser = url.clone();
+        tokio::spawn(async move {
+            if let Err(e) = crate::helpers::copy_to_clipboard(&url_for_clipboard).await {
+                tracing::warn!("Failed to copy to clipboard: {}", e);
+            }
+        });
+        tokio::spawn(async move {
+            if let Err(e) = crate::helpers::open_in_browser(&url_for_browser).await {
+                tracing::warn!("Failed to open in browser: {}", e);
+            }
+        });
+        self.error_message = Some(format!("Link copied & opened: {}", url));
+        Task::perform(
+            async {
+                tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+            },
+            |_| cosmic::Action::App(Message::ClearError),
+        )
+    }
+
     /// Handle share link generated
     pub fn handle_share_link_generated(
         &mut self,
@@ -241,28 +278,7 @@ impl AppModel {
         match result {
             Ok(url) => {
                 tracing::info!("Song.link generated: {}", url);
-                // Copy to clipboard and open in browser
-                let url_for_clipboard = url.clone();
-                let url_for_browser = url.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = crate::helpers::copy_to_clipboard(&url_for_clipboard).await {
-                        tracing::warn!("Failed to copy to clipboard: {}", e);
-                    }
-                });
-                tokio::spawn(async move {
-                    if let Err(e) = crate::helpers::open_in_browser(&url_for_browser).await {
-                        tracing::warn!("Failed to open in browser: {}", e);
-                    }
-                });
-                // Show success message briefly
-                self.error_message = Some(format!("Link copied & opened: {}", url));
-                // Clear the message after a delay
-                Task::perform(
-                    async {
-                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                    },
-                    |_| cosmic::Action::App(Message::ClearError),
-                )
+                self.copy_and_open_share(url)
             }
             Err(e) => {
                 tracing::error!("Failed to generate share link: {}", e);

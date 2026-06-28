@@ -811,8 +811,8 @@ impl cosmic::Application for AppModel {
                 self.handle_show_share_prompt(track);
                 Task::none()
             }
-            Message::ShareTrack(track_id, track_title) => {
-                self.handle_share_track(track_id, track_title)
+            Message::ShareTrack(track_id, track_title, is_video) => {
+                self.handle_share_track(track_id, track_title, is_video)
             }
             Message::ShareAlbum(album_id, album_title) => {
                 self.handle_share_album(album_id, album_title)

@@ -447,6 +447,6 @@ pub enum ViewState {
     Profiles,
     /// Settings view
     Settings,
-    /// Share prompt dialog (track_id, track_title, album_id, album_title)
-    SharePrompt(String, String, Option<String>, Option<String>),
+    /// Share prompt dialog (track_id, track_title, album_id, album_title, is_video)
+    SharePrompt(String, String, Option<String>, Option<String>, bool),
 }

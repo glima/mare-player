@@ -26,6 +26,7 @@ impl AppModel {
         track_title: String,
         album_id: Option<String>,
         album_title: Option<String>,
+        is_video: bool,
     ) -> Element<'_, Message> {
         let header = widget::Row::new()
             .push(
@@ -46,7 +47,7 @@ impl AppModel {
             .size(14)
             .wrapping(Wrapping::None);
         let track_btn = button::custom(fading_suggested_text(track_label))
-            .on_press(Message::ShareTrack(track_id, track_title))
+            .on_press(Message::ShareTrack(track_id, track_title, is_video))
             .width(Length::Fill)
             .class(cosmic::theme::Button::Suggested);
 
@@ -74,7 +75,9 @@ impl AppModel {
             .push(track_btn);
 
         if let Some(album) = album_btn {
-            content = content.push(widget::space::vertical().height(8)).push(album);
+            content = content
+                .push(widget::space::vertical().height(8))
+                .push(album);
         }
 
         content.spacing(4).padding(12).width(Length::Fill).into()

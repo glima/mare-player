@@ -296,8 +296,9 @@ pub enum Message {
     // Sharing (song.link integration)
     /// Show share prompt for current track
     ShowSharePrompt(Track),
-    /// Share a track via song.link (track_id, track_title)
-    ShareTrack(String, String),
+    /// Share a track: audio via song.link, a music video via a direct TIDAL
+    /// video link (song.link doesn't index videos). (track_id, track_title, is_video)
+    ShareTrack(String, String, bool),
     /// Share an album via song.link (album_id, album_title)
     ShareAlbum(String, String),
     /// Cancel share dialog

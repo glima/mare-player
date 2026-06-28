@@ -167,12 +167,13 @@ impl AppModel {
             ViewState::History => self.view_history(),
             ViewState::Profiles => self.view_profiles(),
             ViewState::Settings => self.view_settings(),
-            ViewState::SharePrompt(track_id, track_title, album_id, album_title) => self
+            ViewState::SharePrompt(track_id, track_title, album_id, album_title, is_video) => self
                 .view_share_prompt(
                     track_id.clone(),
                     track_title.clone(),
                     album_id.clone(),
                     album_title.clone(),
+                    *is_video,
                 ),
         }
     }
