@@ -18,7 +18,7 @@ via the `panel-applet` feature flag (enabled by default).
 <table align="center">
 <tr>
 <td align="center"><img src="resources/screenshot_applet.png" alt="Panel applet popup" width="320" /></td>
-<td align="center"><img src="resources/screenshot_standalone.png" alt="Standalone window" width="600" /></td>
+<td align="center"><img src="resources/screenshot_standalone.png" alt="Standalone mode window (playing video)" width="600" /></td>
 </tr>
 <tr>
 <td align="center"><sub>Panel Applet mode</sub></td>
