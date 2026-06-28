@@ -2677,8 +2677,16 @@ impl TidalAppClient {
     /// sub-page slug (genre/mood/decade) obtained from a [`PageLink`].  A
     /// full `apiPath` like `pages/genre_hip_hop` is normalised to its slug.
     ///
-    /// tidlers has no pages API, so this is a hand-built request mirroring the
+    /// tidlers now exposes a pages API (`TidalClient::get_page`), but it
+    /// deserializes into a strict `PageResponse` whose `PageModule` makes
+    /// `description`, `width`, and `pagedList` non-optional — so one unexpected
+    /// module (e.g. a promo banner without a paged list) would fail the whole
+    /// page, unlike this defensive hand-built parse. So we keep mirroring the
     /// official web client (`GET /v1/pages/{path}?deviceType=BROWSER&...`).
+    ///
+    /// TODO: adopt `client.get_page(slug)` once tidlers makes those page-module
+    /// fields optional (or otherwise degrades gracefully), dropping this
+    /// hand-rolled request + header spoofing + slug normalisation.
     pub async fn get_explore_page(&self, path: &str) -> TidalResult<ExplorePage> {
         self.ensure_valid_token().await?;
 

@@ -93,6 +93,7 @@ impl Track {
 /// Convert from tidlers Track type (full track response)
 impl From<tidlers::client::models::track::Track> for Track {
     fn from(t: tidlers::client::models::track::Track) -> Self {
+        let album = t.album;
         Self {
             id: t.id.to_string(),
             title: t.title,
@@ -100,9 +101,12 @@ impl From<tidlers::client::models::track::Track> for Track {
             track_number: t.track_number,
             artist_name: t.artist.name,
             artist_id: Some(t.artist.id.to_string()),
-            album_name: Some(t.album.title.clone()),
-            album_id: Some(t.album.id.to_string()),
-            cover_url: t.album.cover.as_deref().map(tidal_cover_url),
+            album_name: album.as_ref().map(|a| a.title.clone()),
+            album_id: album.as_ref().map(|a| a.id.to_string()),
+            cover_url: album
+                .as_ref()
+                .and_then(|a| a.cover.as_deref())
+                .map(tidal_cover_url),
             explicit: t.explicit,
             audio_quality: Some(t.audio_quality),
             is_video: false,
@@ -130,9 +134,9 @@ impl From<tidlers::client::models::search::SearchTrackHit> for Track {
             track_number: t.track_number.unwrap_or(0),
             artist_name,
             artist_id,
-            album_name: Some(t.album.title),
-            album_id: Some(t.album.id.to_string()),
-            cover_url: Some(tidal_cover_url(&t.album.cover)),
+            album_name: t.album.as_ref().map(|a| a.title.clone()),
+            album_id: t.album.as_ref().map(|a| a.id.to_string()),
+            cover_url: t.album.as_ref().map(|a| tidal_cover_url(&a.cover)),
             explicit: t.explicit,
             audio_quality: t.audio_quality,
             is_video: false,
