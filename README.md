@@ -22,7 +22,7 @@ via the `panel-applet` feature flag (enabled by default).
 </tr>
 <tr>
 <td align="center"><sub>Panel Applet mode</sub></td>
-<td align="center"><sub>Standalone Window mode</sub></td>
+<td align="center"><sub>Standalone Window mode (playing video)</sub></td>
 </tr>
 </table>
 
