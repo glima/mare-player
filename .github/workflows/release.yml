@@ -11,6 +11,8 @@ permissions: read-all
 env:
   CARGO_TERM_COLOR: always
   APP_ID: io.github.cosmic-applet-mare
+  # Retry transient crates.io/registry download failures instead of failing.
+  CARGO_NET_RETRY: "10"
 
 jobs:
   build:

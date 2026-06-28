@@ -11,6 +11,10 @@ on:
 
 permissions: read-all
 
+env:
+  # Retry transient crates.io/registry download failures instead of failing.
+  CARGO_NET_RETRY: "10"
+
 jobs:
   analyze:
     name: Analyze (Rust)

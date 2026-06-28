@@ -10,6 +10,9 @@ permissions: read-all
 
 env:
   CARGO_TERM_COLOR: always
+  # Retry transient crates.io/registry download failures (e.g. a dropped TLS
+  # connection: `curl [55] SSL_ERROR_SYSCALL`) instead of failing the job.
+  CARGO_NET_RETRY: "10"
 
 jobs:
   build:
