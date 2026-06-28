@@ -273,16 +273,19 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         renderer: &cosmic::Renderer,
         limits: &cosmic::iced::core::layout::Limits,
     ) -> cosmic::iced::core::layout::Node {
-        // First pass: measure the child with unbounded width to learn its
-        // natural (unconstrained) width.
+        // Measure the child's natural (unconstrained) width on a
+        // *throwaway* tree. Probing on a separate tree keeps the real
+        // child laid out exactly once.
         let unbounded = cosmic::iced::core::layout::Limits::NONE.max_height(limits.max().height);
-        let natural =
-            self.child
-                .as_widget_mut()
-                .layout(&mut tree.children[0], renderer, &unbounded);
-        let natural_width = natural.bounds().width;
+        let mut probe = cosmic::iced::core::widget::Tree::new(self.child.as_widget());
+        let natural_width = self
+            .child
+            .as_widget_mut()
+            .layout(&mut probe, renderer, &unbounded)
+            .bounds()
+            .width;
 
-        // Second pass: real layout with the actual (constrained) limits.
+        // Real layout with the actual (constrained) limits.
         let node =
             cosmic::iced::core::layout::contained(limits, self.width, self.height, |limits| {
                 self.child
@@ -309,8 +312,8 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         cursor: cosmic::iced::core::mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        use cosmic::iced::Color;
         use cosmic::iced::core::Renderer as _;
+        use cosmic::iced::Color;
 
         let bounds = layout.bounds();
         let Some(clipped) = bounds.intersection(viewport) else {
