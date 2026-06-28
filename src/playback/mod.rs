@@ -14,7 +14,7 @@
 //! │                      ! tee
 //! │                        ├─ queue ! autoaudiosink          (audible)
 //! │                        └─ queue ! appsink(F32LE/stereo)  (PCM → analyzer)
-//! └── video-sink = bin:  videoconvert ! videoscale ! appsink(RGBA, fixed)  [video only]
+//! └── video-sink = bin:  videoconvert ! videoscale ! appsink(RGBA, fixed-w)  [video only]
 //! ```
 //!
 //! - `volume(name=rg)` carries **replay-gain normalization**: tracks use
@@ -65,13 +65,15 @@ const TAP_RATE: i32 = 44_100;
 /// [`SharedSpectrumAnalyzer::push_stereo_samples`] expects.
 const TAP_CHANNELS: i32 = 2;
 
-/// Fixed size every video frame is scaled to before it reaches the UI.
+/// Fixed width every embedded video frame is scaled to before it reaches the
+/// UI; the height follows the stream's aspect ratio so the inline view fits the
+/// picture with no letterboxing. (The pop-out window plays full, native pixels
+/// separately.)
 ///
-/// Adaptive streaming switches resolutions mid-playback; scaling to one
-/// constant 16:9 size keeps the wgpu image atlas seeing a single stable
-/// texture instead of reallocating on every variant switch.
+/// Adaptive streaming switches resolutions mid-playback, but the variants share
+/// an aspect ratio, so scaling to one constant width keeps the wgpu image atlas
+/// seeing a stable texture instead of reallocating on every variant switch.
 const FRAME_W: i32 = 640;
-const FRAME_H: i32 = 360;
 
 /// Convert a replay-gain value in decibels to a linear `volume` multiplier.
 ///
@@ -307,16 +309,19 @@ fn build_audio_sink_bin(
 }
 
 /// Build the video-sink bin: `videoconvert ! videoscale ! appsink` yielding
-/// fixed-size RGBA frames into the shared [`FrameBuffer`].
+/// fixed-width RGBA frames (height follows the stream's aspect ratio) into the
+/// shared [`FrameBuffer`].
 fn build_video_sink_bin(
     frame: FrameBuffer,
     seq: Arc<AtomicU64>,
     eos: Arc<AtomicBool>,
 ) -> Result<gst::Element, String> {
+    // Constrain only the width; leaving the height free lets videoscale pick a
+    // DAR-preserving height (square pixels), so the frame carries the picture's
+    // true aspect ratio with no baked-in letterbox bars.
     let caps = gst_video::VideoCapsBuilder::new()
         .format(gst_video::VideoFormat::Rgba)
         .width(FRAME_W)
-        .height(FRAME_H)
         .pixel_aspect_ratio(gst::Fraction::new(1, 1))
         .build();
     let appsink = gst_app::AppSink::builder()

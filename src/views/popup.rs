@@ -32,10 +32,10 @@ use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, RADIO_SVG, favo
 #[cfg(feature = "panel-applet")]
 use crate::views::components::{POPIN_SVG, POPOUT_SVG};
 
-/// Height (px) of the video region inside the now-playing bar when a video is
-/// playing — large enough to show the frame full-width while the track list
-/// stays visible above.
-const VIDEO_REGION_HEIGHT: f32 = 300.0;
+/// Placeholder height (px) for the embedded video area before the first frame
+/// arrives. Once frames flow, the area shrinks to the video's true aspect ratio
+/// so there are no letterbox bars (the pop-out window shows full pixels).
+const VIDEO_LOADING_HEIGHT: f32 = 180.0;
 
 /// How long the video-mode overlay controls stay visible after the last
 /// pointer interaction before fading out.
@@ -285,11 +285,13 @@ impl AppModel {
 
     /// Build the live video-frame element shown in the now-playing pane while a
     /// music video is playing (replacing album art + track info + spectrum).
+    ///
+    /// The frame fills the available width and the height follows its aspect
+    /// ratio (`ContentFit::Contain` with a `Shrink` height), so the embedded
+    /// area hugs the picture rather than padding it with black bars.
     fn video_frame_element<'a>(
         &self,
         video: &crate::playback::MediaPlayer,
-        height: Length,
-        fit: cosmic::iced::ContentFit,
         radius: [f32; 4],
     ) -> Element<'a, Message> {
         let frame = video
@@ -302,14 +304,14 @@ impl AppModel {
                 cosmic::widget::image::Handle::from_rgba(f.width, f.height, (*f.rgba).clone());
             cosmic::widget::image(handle)
                 .width(Length::Fill)
-                .height(height)
-                .content_fit(fit)
+                .height(Length::Shrink)
+                .content_fit(cosmic::iced::ContentFit::Contain)
                 .border_radius(radius)
                 .into()
         } else {
             container(text(fl!("loading")).size(12))
                 .width(Length::Fill)
-                .height(height)
+                .height(Length::Fixed(VIDEO_LOADING_HEIGHT))
                 .align_x(Alignment::Center)
                 .align_y(Alignment::Center)
                 .into()
@@ -337,9 +339,9 @@ impl AppModel {
         let radius = cosmic::theme::active().cosmic().corner_radii.radius_m;
         let corner = radius[0];
 
-        // Base layer: the video, filling the bar region edge-to-edge.
-        let surface =
-            self.video_frame_element(video, Length::Fill, cosmic::iced::ContentFit::Cover, radius);
+        // Base layer: the video, filling the width with its height following
+        // the picture's aspect ratio (no letterboxing).
+        let surface = self.video_frame_element(video, radius);
 
         // Overlay layer: controls pinned to the bottom on a translucent strip,
         // shown only while recently interacted with.  Its bottom corners are
@@ -390,11 +392,11 @@ impl AppModel {
         // still pass through to the control buttons.
         let interactive = widget::mouse_area(stack).on_move(|_| Message::VideoInteraction);
 
-        // Sized to the now-playing bar region (the track list stays above); the
+        // Sized to the video's aspect ratio (the track list stays above); the
         // backdrop stays transparent so the rounded corners reveal the popup.
         container(interactive)
             .width(Length::Fill)
-            .height(Length::Fixed(VIDEO_REGION_HEIGHT))
+            .height(Length::Shrink)
             .into()
     }
 

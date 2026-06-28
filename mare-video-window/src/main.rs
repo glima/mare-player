@@ -182,12 +182,12 @@ fn main() {
         playbin.set_property("video-sink", &videosink);
     }
 
-    // This is the sole-window player, shown full-size (not the inline 640x360
-    // thumbnail), so request the best the stream offers. The HLS master
-    // manifest carries several resolution variants; playbin's adaptive demuxer
-    // normally picks one from measured bandwidth. Declaring a very high
-    // `connection-speed` (kbps) biases it to the top (highest-resolution)
-    // variant instead of a smaller one.
+    // This is the sole-window player, shown full-size at native resolution
+    // (the inline view downscales to a fixed width), so request the best the
+    // stream offers. The HLS master manifest carries several resolution
+    // variants; playbin's adaptive demuxer normally picks one from measured
+    // bandwidth. Declaring a very high `connection-speed` (kbps) biases it to
+    // the top (highest-resolution) variant instead of a smaller one.
     set_uint_property(&playbin, "connection-speed", 100_000_000);
 
     // Bias the *initial* variant high too. The windowing sink sizes its window
