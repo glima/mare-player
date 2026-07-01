@@ -960,11 +960,11 @@ impl TidalAppClient {
     pub async fn start_oauth_flow(&mut self) -> TidalResult<DeviceCodeInfo> {
         info!("Starting OAuth device code flow");
 
-        let mut auth = TidalAuth::with_oauth();
-        // Pin to the "Android Automotive HiRes" client — the credentials
-        // upstream tidlers ships are rejected by TIDAL at /token.
-        auth.set_client_id("fX2JxdmntZWK0ixT".to_string());
-        auth.set_client_secret("1Nn9AfDAjxrgJFJbKNWLeAyKGVGmINuXPPLHVXAvxAg=".to_string());
+        // tidlers' default OAuth client is entitled to lossless/hi-res playback
+        // (playbackinfopostpaywall returns FLAC). Some TIDAL clients are capped
+        // at HIGH/AAC regardless of the account tier, so which client we
+        // authenticate as matters -- don't override it.
+        let auth = TidalAuth::with_oauth();
         let client = TidalClient::new(&auth);
 
         match client.get_oauth_link().await {
