@@ -75,14 +75,13 @@ impl cosmic::Application for AppModel {
         ));
 
         let image_cache_max_mb = config.image_cache_max_mb;
-        let audio_cache_max_mb = config.audio_cache_max_mb;
         let saved_volume = config.volume_level.clamp(0.0, 1.0);
 
-        // The TidalAppClient is built up-front (it owns the audio/API disk
-        // caches and is shared via an Arc). Play history is loaded from the
+        // The TidalAppClient is built up-front (it owns the DASH-manifest disk
+        // cache and is shared via an Arc). Play history is loaded from the
         // cache database asynchronously once it opens (see
         // `Message::CacheDbReady`); it starts empty here.
-        let client = TidalAppClient::new_with_audio_cache_mb(audio_cache_max_mb);
+        let client = TidalAppClient::new();
         let play_history = crate::tidal::play_history::PlayHistory::new();
 
         // Channel for events streamed back from the popped-out video child
@@ -793,14 +792,6 @@ impl cosmic::Application for AppModel {
 
             // Misc handlers - settings
             Message::SetAudioQuality(quality) => self.handle_set_audio_quality(quality),
-            Message::SetAudioCacheMaxMb(mb) => {
-                self.handle_set_audio_cache_max_mb(mb);
-                Task::none()
-            }
-            Message::ClearAudioCache => {
-                self.handle_clear_audio_cache();
-                Task::none()
-            }
             Message::ClearHistory => {
                 self.handle_clear_history();
                 Task::none()

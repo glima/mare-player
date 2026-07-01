@@ -30,7 +30,7 @@ via the `panel-applet` feature flag (enabled by default).
 
 - **Hi-Res Audio Playback** — Stream FLAC up to 24-bit/192 kHz (DASH),
   played through GStreamer (PipeWire/PulseAudio output)
-- **Music Video Playback** — Play TIDAL music videos (HLS, H.264/AAC)
+- **Music Video Playback** — Stream TIDAL music videos (HLS, H.264/AAC)
   through a GStreamer pipeline, shown in an auto-hiding "theater" HUD
   with the same clickable title/artist/context and transport controls
   as the audio bar
@@ -70,8 +70,9 @@ via the `panel-applet` feature flag (enabled by default).
 - **Secure Authentication** — OAuth device-code flow with credentials
   stored in the system keyring
 - **Persistent Sessions** — Automatic token refresh across reboots
-- **Disk Caching** — Songs and images are cached locally with
-  configurable size limits and LRU eviction
+- **Disk Caching** — Artwork is cached on disk with a configurable size
+  limit and LRU eviction; library data (playlists, albums, history,
+  lyrics) is cached in an embedded database for instant startup
 - **Audio Quality Selection** — Low, High, Lossless, or Hi-Res
   (Master)
 
@@ -166,7 +167,7 @@ just install-standalone
 - **MPRIS** — Use media keys or any MPRIS controller (e.g.
   `playerctl play-pause`)
 - **Sharing** — Share the currently playing track via song.link
-- **Settings** — Audio quality, cache management, and account info via
+- **Settings** — Audio quality and account info via
   the gear icon
 
 ## Configuration
@@ -177,7 +178,6 @@ settings:
 | Setting | Description | Default |
 |---|---|---|
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
-| Song Cache Limit | Max disk space for cached songs | 2 GB |
 | Image Cache Limit | Max disk space for cached artwork | 200 MB |
 
 The playback volume is also persisted across restarts.

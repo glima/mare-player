@@ -309,10 +309,6 @@ pub enum Message {
     // Settings
     /// Set audio quality preference
     SetAudioQuality(AudioQuality),
-    /// Set maximum audio cache size in megabytes
-    SetAudioCacheMaxMb(u32),
-    /// Clear the audio cache (downloaded songs)
-    ClearAudioCache,
     /// Clear the local play history
     ClearHistory,
 

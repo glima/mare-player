@@ -315,12 +315,6 @@ mod config_default {
     }
 
     #[test]
-    fn default_audio_cache_max_mb_is_2000() {
-        let cfg = Config::default();
-        assert_eq!(cfg.audio_cache_max_mb, 2000);
-    }
-
-    #[test]
     fn default_volume_level_is_1() {
         let cfg = Config::default();
         assert!((cfg.volume_level - 1.0).abs() < f32::EPSILON);
@@ -340,7 +334,6 @@ mod config_default {
     fn default_cache_sizes_are_positive() {
         let cfg = Config::default();
         assert!(cfg.image_cache_max_mb > 0);
-        assert!(cfg.audio_cache_max_mb > 0);
     }
 }
 
@@ -403,13 +396,6 @@ mod config_fields {
         let mut cfg = Config::default();
         cfg.image_cache_max_mb = 0;
         assert_eq!(cfg.image_cache_max_mb, 0);
-    }
-
-    #[test]
-    fn audio_cache_max_mb_can_be_set_to_large_value() {
-        let mut cfg = Config::default();
-        cfg.audio_cache_max_mb = 10000;
-        assert_eq!(cfg.audio_cache_max_mb, 10000);
     }
 
     #[test]

@@ -299,17 +299,11 @@ impl AppModel {
         // the API didn't provide one.
         let replay_gain_db = playback_url.replay_gain_db().unwrap_or(0.0);
 
-        // Build a GStreamer URI. DASH manifests and cached files are on disk
-        // (file://); direct qualities are already http(s) URLs.
+        // Build a GStreamer URI. DASH manifests are written to disk (file://);
+        // direct qualities are already http(s) URLs GStreamer streams.
         let url_str = playback_url.as_url();
-        let uri = if playback_url.is_dash() || playback_url.is_cached() {
-            let path = std::path::Path::new(&url_str);
-            // Protect a cached file from eviction while it's playing.
-            if playback_url.is_cached() {
-                let client = self.tidal_client.blocking_lock();
-                client.audio_cache().protect_path(path);
-            }
-            crate::playback::file_uri(path)
+        let uri = if playback_url.is_dash() {
+            crate::playback::file_uri(std::path::Path::new(&url_str))
         } else {
             url_str
         };
@@ -320,8 +314,6 @@ impl AppModel {
             track.title,
             if playback_url.is_dash() {
                 "DASH"
-            } else if playback_url.is_cached() {
-                "cached"
             } else {
                 "direct"
             },
@@ -1148,7 +1140,7 @@ impl AppModel {
                 if let Some(mp) = &self.media_player {
                     let rg = playback_url.replay_gain_db().unwrap_or(0.0);
                     let url_str = playback_url.as_url();
-                    let uri = if playback_url.is_dash() || playback_url.is_cached() {
+                    let uri = if playback_url.is_dash() {
                         crate::playback::file_uri(std::path::Path::new(&url_str))
                     } else {
                         url_str

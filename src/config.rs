@@ -59,8 +59,6 @@ pub struct Config {
     pub audio_quality: AudioQuality,
     /// Maximum image cache size in megabytes
     pub image_cache_max_mb: u32,
-    /// Maximum audio/song cache size in megabytes (cached songs for offline-like replay)
-    pub audio_cache_max_mb: u32,
     /// Volume level (0.0 to 1.0), persisted across restarts
     pub volume_level: f32,
     /// Fixed loudness pre-amp applied to music **videos**, in decibels.
@@ -77,7 +75,6 @@ impl Default for Config {
         Self {
             audio_quality: AudioQuality::HiRes,
             image_cache_max_mb: 200,
-            audio_cache_max_mb: 2000,
             volume_level: 1.0,
             video_preamp_db: -8.0,
         }

@@ -15,19 +15,6 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::auth::AuthState;
 
-/// Available audio cache size presets in megabytes
-static CACHE_SIZE_OPTIONS: &[(u32, &str)] = &[
-    (500, "500 MB"),
-    (1000, "1 GB"),
-    (2000, "2 GB"),
-    (5000, "5 GB"),
-    (10000, "10 GB"),
-    (20000, "20 GB"),
-];
-
-/// Labels for the cache size dropdown (must be static for lifetime)
-static CACHE_SIZE_LABELS: &[&str] = &["500 MB", "1 GB", "2 GB", "5 GB", "10 GB", "20 GB"];
-
 /// Available audio quality options
 static QUALITY_OPTIONS: &[AudioQuality] = &[
     AudioQuality::Low,
@@ -85,68 +72,6 @@ impl AppModel {
                     AudioQuality::HiRes => fl!("quality-description-hires"),
                 })
                 .size(11),
-            )
-            .spacing(8);
-
-        // Cache section
-        // Audio cache info (songs cached on disk)
-        let audio_cache_size_mb = {
-            let client = self.tidal_client.blocking_lock();
-            client.audio_cache_size() / (1024 * 1024)
-        };
-
-        let audio_cache_max_mb = self.config.audio_cache_max_mb as u64;
-
-        // Find the currently-selected cache size preset index
-        let cache_size_idx = CACHE_SIZE_OPTIONS
-            .iter()
-            .position(|(mb, _)| *mb as u64 == audio_cache_max_mb)
-            .unwrap_or_else(|| {
-                // Pick the closest option
-                CACHE_SIZE_OPTIONS
-                    .iter()
-                    .enumerate()
-                    .min_by_key(|(_, (mb, _))| {
-                        (*mb as i64 - audio_cache_max_mb as i64).unsigned_abs()
-                    })
-                    .map(|(i, _)| i)
-                    .unwrap_or(2)
-            });
-
-        let cache_section = widget::Column::new()
-            .push(text(fl!("cache")).size(14))
-            .push(
-                widget::Row::new()
-                    .push(text(fl!("song-cache")).size(12))
-                    .push(widget::space::horizontal())
-                    .push(
-                        text(fl!(
-                            "song-cache-size",
-                            used = audio_cache_size_mb.to_string(),
-                            max = audio_cache_max_mb.to_string()
-                        ))
-                        .size(12),
-                    ),
-            )
-            .push(
-                widget::Row::new()
-                    .push(text(fl!("song-cache-limit")).size(12))
-                    .push(widget::space::horizontal())
-                    .push(
-                        button::destructive(fl!("clear-cache")).on_press(Message::ClearAudioCache),
-                    )
-                    .push(
-                        widget::dropdown(CACHE_SIZE_LABELS, Some(cache_size_idx), |idx| {
-                            let mb = CACHE_SIZE_OPTIONS
-                                .get(idx)
-                                .map(|(mb, _)| *mb)
-                                .unwrap_or(2000);
-                            Message::SetAudioCacheMaxMb(mb)
-                        })
-                        .width(Length::Fixed(120.0)),
-                    )
-                    .spacing(8)
-                    .align_y(Alignment::Center),
             )
             .spacing(8);
 
@@ -279,8 +204,6 @@ impl AppModel {
             .push(account_section)
             .push(widget::space::vertical().height(8))
             .push(quality_section)
-            .push(widget::space::vertical().height(8))
-            .push(cache_section)
             .push(widget::space::vertical().height(8))
             .push(about_section)
             .spacing(8)

@@ -43,13 +43,6 @@ mod playback_url_as_url {
     }
 
     #[test]
-    fn cached_file_returns_path_as_string() {
-        let path = PathBuf::from("/cache/audio/song.dat");
-        let url = PlaybackUrl::CachedFile(path.clone(), None);
-        assert_eq!(url.as_url(), path.to_string_lossy().to_string());
-    }
-
-    #[test]
     fn direct_empty_url() {
         let url = PlaybackUrl::Direct(String::new(), None);
         assert_eq!(url.as_url(), "");
@@ -60,13 +53,6 @@ mod playback_url_as_url {
         let path = PathBuf::from("relative/path/manifest.mpd");
         let url = PlaybackUrl::DashManifest(path, None);
         assert_eq!(url.as_url(), "relative/path/manifest.mpd");
-    }
-
-    #[test]
-    fn cached_file_relative_path() {
-        let path = PathBuf::from("cache/song.flac");
-        let url = PlaybackUrl::CachedFile(path, None);
-        assert_eq!(url.as_url(), "cache/song.flac");
     }
 }
 
@@ -87,38 +73,6 @@ mod playback_url_is_dash {
     fn dash_manifest_is_dash() {
         let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/manifest.mpd"), None);
         assert!(url.is_dash());
-    }
-
-    #[test]
-    fn cached_file_is_not_dash() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/cache/song.dat"), None);
-        assert!(!url.is_dash());
-    }
-}
-
-// ===========================================================================
-// PlaybackUrl — is_cached
-// ===========================================================================
-
-mod playback_url_is_cached {
-    use super::*;
-
-    #[test]
-    fn direct_is_not_cached() {
-        let url = PlaybackUrl::Direct("https://example.com/stream".to_string(), None);
-        assert!(!url.is_cached());
-    }
-
-    #[test]
-    fn dash_manifest_is_not_cached() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/manifest.mpd"), None);
-        assert!(!url.is_cached());
-    }
-
-    #[test]
-    fn cached_file_is_cached() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/cache/song.dat"), None);
-        assert!(url.is_cached());
     }
 }
 
@@ -145,19 +99,10 @@ mod playback_url_traits {
     }
 
     #[test]
-    fn cached_file_clone() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/cache/s.dat"), None);
-        let cloned = url.clone();
-        assert_eq!(url.as_url(), cloned.as_url());
-        assert!(cloned.is_cached());
-    }
-
-    #[test]
     fn debug_output_is_nonempty_for_all_variants() {
         let variants: Vec<PlaybackUrl> = vec![
             PlaybackUrl::Direct("url".to_string(), None),
             PlaybackUrl::DashManifest(PathBuf::from("path.mpd"), None),
-            PlaybackUrl::CachedFile(PathBuf::from("path.dat"), None),
         ];
         for v in &variants {
             let dbg = format!("{:?}", v);
@@ -182,16 +127,6 @@ mod playback_url_traits {
             "Debug should contain variant name"
         );
     }
-
-    #[test]
-    fn debug_cached_contains_variant_name() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("test.dat"), None);
-        let dbg = format!("{:?}", url);
-        assert!(
-            dbg.contains("CachedFile"),
-            "Debug should contain variant name"
-        );
-    }
 }
 
 // ===========================================================================
@@ -205,21 +140,12 @@ mod playback_url_exclusivity {
     fn direct_has_no_special_flags() {
         let url = PlaybackUrl::Direct("https://example.com".to_string(), None);
         assert!(!url.is_dash());
-        assert!(!url.is_cached());
     }
 
     #[test]
-    fn dash_is_dash_but_not_cached() {
+    fn dash_is_dash() {
         let url = PlaybackUrl::DashManifest(PathBuf::from("m.mpd"), None);
         assert!(url.is_dash());
-        assert!(!url.is_cached());
-    }
-
-    #[test]
-    fn cached_is_cached_but_not_dash() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("s.dat"), None);
-        assert!(!url.is_dash());
-        assert!(url.is_cached());
     }
 }
 
@@ -362,134 +288,9 @@ mod client_construction {
     }
 
     #[test]
-    fn new_with_audio_cache_mb_creates_client() {
-        let client = TidalAppClient::new_with_audio_cache_mb(500);
-        assert_eq!(*client.auth_state(), AuthState::NotAuthenticated);
-    }
-
-    #[test]
     fn default_creates_unauthenticated_client() {
         let client = TidalAppClient::default();
         assert_eq!(*client.auth_state(), AuthState::NotAuthenticated);
-    }
-
-    #[test]
-    fn new_with_zero_cache_mb() {
-        // Should not panic even with 0 MB cache
-        let client = TidalAppClient::new_with_audio_cache_mb(0);
-        assert_eq!(*client.auth_state(), AuthState::NotAuthenticated);
-    }
-
-    #[test]
-    fn new_with_large_cache_mb() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100_000);
-        assert_eq!(*client.auth_state(), AuthState::NotAuthenticated);
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — audio_cache_key
-// ===========================================================================
-
-mod client_audio_cache_key {
-    use super::*;
-
-    #[test]
-    fn cache_key_contains_track_id() {
-        let client = TidalAppClient::new();
-        let key = client.audio_cache_key("12345");
-        assert!(
-            key.contains("12345"),
-            "cache key should contain track ID, got: {key}"
-        );
-    }
-
-    #[test]
-    fn cache_key_contains_quality_indicator() {
-        let client = TidalAppClient::new();
-        let key = client.audio_cache_key("99999");
-        // Default quality is High for TidalAppClient::new()
-        assert!(
-            key.contains("High"),
-            "cache key should contain quality, got: {key}"
-        );
-    }
-
-    #[test]
-    fn cache_key_for_different_tracks_are_different() {
-        let client = TidalAppClient::new();
-        let key1 = client.audio_cache_key("111");
-        let key2 = client.audio_cache_key("222");
-        assert_ne!(key1, key2);
-    }
-
-    #[test]
-    fn cache_key_for_same_track_is_deterministic() {
-        let client = TidalAppClient::new();
-        let key1 = client.audio_cache_key("42");
-        let key2 = client.audio_cache_key("42");
-        assert_eq!(key1, key2);
-    }
-
-    #[test]
-    fn cache_key_with_empty_track_id() {
-        let client = TidalAppClient::new();
-        let key = client.audio_cache_key("");
-        // Should still produce something with the quality suffix
-        assert!(!key.is_empty());
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — audio cache size/max
-// ===========================================================================
-
-mod client_audio_cache_metrics {
-    use super::*;
-
-    #[test]
-    fn audio_cache_max_reflects_configured_mb() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
-        let max_bytes = client.audio_cache_max();
-        // 100 MB = 100 * 1024 * 1024 bytes
-        assert_eq!(max_bytes, 100 * 1024 * 1024);
-    }
-
-    #[test]
-    fn audio_cache_max_default_is_2000_mb() {
-        let client = TidalAppClient::new();
-        let max_bytes = client.audio_cache_max();
-        assert_eq!(max_bytes, 2000 * 1024 * 1024);
-    }
-
-    #[test]
-    fn audio_cache_size_returns_a_value() {
-        // The XDG cache directory may already contain data from a real
-        // installation, so we can only verify the call succeeds and
-        // returns a non-negative value (u64 is always >= 0).
-        let client = TidalAppClient::new_with_audio_cache_mb(10);
-        let _size = client.audio_cache_size();
-        // Just verify it doesn't panic
-    }
-
-    #[test]
-    fn clear_audio_cache_does_not_panic() {
-        let client = TidalAppClient::new_with_audio_cache_mb(10);
-        client.clear_audio_cache();
-        // Should not panic
-    }
-
-    #[test]
-    fn clear_then_size_is_zero_or_near_zero() {
-        let client = TidalAppClient::new_with_audio_cache_mb(10);
-        client.clear_audio_cache();
-        let size = client.audio_cache_size();
-        // After clearing, should be 0 (or very small if directory metadata counts)
-        assert!(
-            size < 1024,
-            "after clear, cache size should be near 0, got {}",
-            size
-        );
     }
 }
 
@@ -510,66 +311,6 @@ mod client_auth_state {
     fn default_client_is_not_authenticated() {
         let client = TidalAppClient::default();
         assert_eq!(*client.auth_state(), AuthState::NotAuthenticated);
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — audio_cache accessor
-// ===========================================================================
-
-mod client_cache_accessors {
-    use super::*;
-
-    #[test]
-    fn audio_cache_accessor_does_not_panic() {
-        let client = TidalAppClient::new();
-        let _cache = client.audio_cache();
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — get_cached_audio_path / audio_cache_path_for
-// ===========================================================================
-
-mod client_audio_cache_paths {
-    use super::*;
-
-    #[test]
-    fn get_cached_audio_path_for_nonexistent_track_is_none() {
-        let client = TidalAppClient::new();
-        let result = client.get_cached_audio_path("nonexistent-track-99999999");
-        assert!(
-            result.is_none(),
-            "should be None for a track that was never cached"
-        );
-    }
-
-    #[test]
-    fn audio_cache_path_for_returns_a_valid_path() {
-        let client = TidalAppClient::new();
-        let path = client.audio_cache_path_for("test-track-123");
-        // Should return a path with .dat extension
-        assert!(
-            path.to_string_lossy().contains(".dat"),
-            "cache path should have .dat extension, got: {:?}",
-            path
-        );
-    }
-
-    #[test]
-    fn audio_cache_path_for_is_deterministic() {
-        let client = TidalAppClient::new();
-        let path1 = client.audio_cache_path_for("track-abc");
-        let path2 = client.audio_cache_path_for("track-abc");
-        assert_eq!(path1, path2);
-    }
-
-    #[test]
-    fn audio_cache_path_for_different_tracks_differ() {
-        let client = TidalAppClient::new();
-        let path1 = client.audio_cache_path_for("track-aaa");
-        let path2 = client.audio_cache_path_for("track-bbb");
-        assert_ne!(path1, path2);
     }
 }
 
@@ -1302,31 +1043,6 @@ mod parse_mix_from_json {
 }
 
 // ===========================================================================
-// TidalAppClient — audio_cache_path_for writable path
-// ===========================================================================
-
-mod client_save_and_retrieve_cache {
-    use super::*;
-
-    #[test]
-    fn cache_path_for_returns_writable_path() {
-        let client = TidalAppClient::new_with_audio_cache_mb(100);
-        let path = client.audio_cache_path_for("write-test-track");
-
-        // Ensure parent directory exists (audio_cache_path_for should handle this)
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).unwrap();
-        }
-
-        std::fs::write(&path, b"test data").unwrap();
-        assert!(path.exists());
-
-        // Cleanup
-        let _ = std::fs::remove_file(&path);
-    }
-}
-
-// ===========================================================================
 // PlaybackUrl — replay_gain_db
 // ===========================================================================
 
@@ -1357,19 +1073,6 @@ mod playback_url_replay_gain {
         let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-3.2));
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-3.2)).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn cached_file_none_replay_gain() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/cache/s.dat"), None);
-        assert_eq!(url.replay_gain_db(), None);
-    }
-
-    #[test]
-    fn cached_file_some_replay_gain() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/cache/s.dat"), Some(2.5));
-        let rg = url.replay_gain_db().unwrap();
-        assert!((rg - 2.5).abs() < f32::EPSILON);
     }
 
     #[test]
@@ -1409,7 +1112,7 @@ mod playback_url_replay_gain {
 
     #[test]
     fn replay_gain_small_fractional() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/c/s.dat"), Some(-0.001));
+        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-0.001));
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-0.001)).abs() < f32::EPSILON);
     }
@@ -1423,236 +1126,6 @@ mod playback_url_replay_gain {
 }
 
 // ===========================================================================
-// TidalAppClient — save / load replay_gain sidecar
-// ===========================================================================
-
-mod client_replay_gain {
-    use super::*;
-    use tempfile::TempDir;
-
-    /// Each test gets an isolated cache dir so parallel test binaries (and a
-    /// running app instance) never collide on shared replay-gain sidecars.
-    /// The returned `TempDir` must be kept alive for the test's duration.
-    fn isolated_client(audio_mb: u32) -> (TidalAppClient, TempDir) {
-        let tmp = TempDir::new().expect("failed to create temp dir");
-        let client = TidalAppClient::new_with_cache_dir(tmp.path(), audio_mb);
-        (client, tmp)
-    }
-
-    #[test]
-    fn save_then_load_replay_gain() {
-        let (client, _tmp) = isolated_client(100);
-        let track_id = "rg-save-load-test-001";
-
-        client.save_replay_gain(track_id, -7.4);
-
-        let loaded = client.load_replay_gain(track_id);
-        assert!(loaded.is_some(), "should find saved replay gain");
-        let rg = loaded.unwrap();
-        assert!((rg - (-7.4)).abs() < 0.01, "expected -7.4, got {rg}");
-
-        // Cleanup: remove the sidecar file
-        let key = client.audio_cache_key(track_id);
-        let path = client.audio_cache().hashed_path(&key, "rg");
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn load_replay_gain_nonexistent_returns_none() {
-        let (client, _tmp) = isolated_client(100);
-        let loaded = client.load_replay_gain("rg-nonexistent-track-xyz");
-        assert!(loaded.is_none());
-    }
-
-    #[test]
-    fn save_replay_gain_zero() {
-        let (client, _tmp) = isolated_client(100);
-        let track_id = "rg-zero-test-002";
-
-        client.save_replay_gain(track_id, 0.0);
-
-        let loaded = client.load_replay_gain(track_id);
-        assert!(loaded.is_some());
-        let rg = loaded.unwrap();
-        assert!(rg.abs() < 0.01, "expected ~0.0, got {rg}");
-
-        // Cleanup
-        let key = client.audio_cache_key(track_id);
-        let path = client.audio_cache().hashed_path(&key, "rg");
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn save_replay_gain_positive() {
-        let (client, _tmp) = isolated_client(100);
-        let track_id = "rg-positive-test-003";
-
-        client.save_replay_gain(track_id, 3.5);
-
-        let loaded = client.load_replay_gain(track_id);
-        assert!(loaded.is_some());
-        let rg = loaded.unwrap();
-        assert!((rg - 3.5).abs() < 0.01, "expected 3.5, got {rg}");
-
-        // Cleanup
-        let key = client.audio_cache_key(track_id);
-        let path = client.audio_cache().hashed_path(&key, "rg");
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn save_replay_gain_overwrites_previous() {
-        let (client, _tmp) = isolated_client(100);
-        let track_id = "rg-overwrite-test-004";
-
-        client.save_replay_gain(track_id, -5.0);
-        client.save_replay_gain(track_id, -9.2);
-
-        let loaded = client.load_replay_gain(track_id);
-        assert!(loaded.is_some());
-        let rg = loaded.unwrap();
-        assert!((rg - (-9.2)).abs() < 0.01, "expected -9.2, got {rg}");
-
-        // Cleanup
-        let key = client.audio_cache_key(track_id);
-        let path = client.audio_cache().hashed_path(&key, "rg");
-        let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn replay_gain_for_different_tracks_are_independent() {
-        let (client, _tmp) = isolated_client(100);
-        let track_a = "rg-independent-a-005";
-        let track_b = "rg-independent-b-005";
-
-        client.save_replay_gain(track_a, -3.0);
-        client.save_replay_gain(track_b, -8.0);
-
-        let rg_a = client.load_replay_gain(track_a).unwrap();
-        let rg_b = client.load_replay_gain(track_b).unwrap();
-        assert!((rg_a - (-3.0)).abs() < 0.01);
-        assert!((rg_b - (-8.0)).abs() < 0.01);
-
-        // Cleanup
-        for tid in [track_a, track_b] {
-            let key = client.audio_cache_key(tid);
-            let path = client.audio_cache().hashed_path(&key, "rg");
-            let _ = std::fs::remove_file(&path);
-        }
-    }
-
-    #[test]
-    fn save_replay_gain_large_negative() {
-        let (client, _tmp) = isolated_client(100);
-        let track_id = "rg-large-neg-006";
-
-        client.save_replay_gain(track_id, -51.0);
-
-        let loaded = client.load_replay_gain(track_id).unwrap();
-        assert!((loaded - (-51.0)).abs() < 0.01);
-
-        // Cleanup
-        let key = client.audio_cache_key(track_id);
-        let path = client.audio_cache().hashed_path(&key, "rg");
-        let _ = std::fs::remove_file(&path);
-    }
-}
-
-// ===========================================================================
-// TidalAppClient — additional cache edge cases
-// ===========================================================================
-
-mod client_cache_edge_cases {
-    use super::*;
-    use tempfile::TempDir;
-
-    /// Helper: create a `TidalAppClient` backed by an isolated temp directory.
-    /// The returned `TempDir` must be kept alive for the duration of the test.
-    fn isolated_client(audio_mb: u32) -> (TidalAppClient, TempDir) {
-        let tmp = TempDir::new().expect("failed to create temp dir");
-        let client = TidalAppClient::new_with_cache_dir(tmp.path(), audio_mb);
-        (client, tmp)
-    }
-
-    #[test]
-    fn get_cached_audio_path_returns_none_for_unknown_track() {
-        let (client, _tmp) = isolated_client(100);
-        let cached = client.get_cached_audio_path("definitely-not-cached-track-xyz-999");
-        assert!(cached.is_none());
-    }
-
-    #[test]
-    fn audio_cache_path_for_is_deterministic() {
-        let (client, _tmp) = isolated_client(100);
-        let path1 = client.audio_cache_path_for("deterministic-track");
-        let path2 = client.audio_cache_path_for("deterministic-track");
-        assert_eq!(path1, path2);
-    }
-
-    #[test]
-    fn audio_cache_path_for_different_tracks_differ() {
-        let (client, _tmp) = isolated_client(100);
-        let path_a = client.audio_cache_path_for("track-alpha");
-        let path_b = client.audio_cache_path_for("track-beta");
-        assert_ne!(path_a, path_b);
-    }
-
-    #[test]
-    fn audio_cache_key_includes_quality_indicator() {
-        let (client, _tmp) = isolated_client(100);
-        let key = client.audio_cache_key("some-track");
-        assert!(
-            key.contains("some-track"),
-            "key should contain the track id: {key}"
-        );
-        // The default quality is High
-        assert!(
-            key.contains("High"),
-            "key should contain quality indicator: {key}"
-        );
-    }
-
-    #[test]
-    fn audio_cache_size_after_clear_is_small() {
-        let (client, _tmp) = isolated_client(100);
-        client.clear_audio_cache();
-        let size = client.audio_cache_size();
-        assert!(
-            size < 4096,
-            "cache size after clear should be ~0, got {size}"
-        );
-    }
-
-    #[test]
-    fn audio_cache_max_reflects_configured_mb() {
-        let (client, _tmp) = isolated_client(500);
-        let max_bytes = client.audio_cache_max();
-        let expected = 500u64 * 1024 * 1024;
-        assert_eq!(max_bytes, expected);
-    }
-
-    #[test]
-    fn audio_cache_max_for_default_client() {
-        let client = TidalAppClient::new();
-        let max_bytes = client.audio_cache_max();
-        let expected = 2000u64 * 1024 * 1024;
-        assert_eq!(max_bytes, expected);
-    }
-
-    #[test]
-    fn cache_path_parent_dir_exists() {
-        let (client, _tmp) = isolated_client(100);
-        let path = client.audio_cache_path_for("parent-dir-test-004");
-        if let Some(parent) = path.parent() {
-            assert!(
-                parent.exists() || std::fs::create_dir_all(parent).is_ok(),
-                "parent directory should exist or be creatable"
-            );
-        }
-    }
-}
-
-// ===========================================================================
 // PlaybackUrl — combined flag + replay_gain tests
 // ===========================================================================
 
@@ -1660,26 +1133,16 @@ mod playback_url_combined {
     use super::*;
 
     #[test]
-    fn direct_with_gain_is_not_dash_not_cached() {
+    fn direct_with_gain_is_not_dash() {
         let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-5.0));
         assert!(!url.is_dash());
-        assert!(!url.is_cached());
         assert!(url.replay_gain_db().is_some());
     }
 
     #[test]
-    fn dash_with_gain_is_dash_not_cached() {
+    fn dash_with_gain_is_dash() {
         let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-3.0));
         assert!(url.is_dash());
-        assert!(!url.is_cached());
-        assert!(url.replay_gain_db().is_some());
-    }
-
-    #[test]
-    fn cached_with_gain_is_cached_not_dash() {
-        let url = PlaybackUrl::CachedFile(PathBuf::from("/c/s.dat"), Some(-8.0));
-        assert!(!url.is_dash());
-        assert!(url.is_cached());
         assert!(url.replay_gain_db().is_some());
     }
 
@@ -1687,7 +1150,6 @@ mod playback_url_combined {
     fn direct_without_gain_has_none_replay_gain() {
         let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), None);
         assert!(!url.is_dash());
-        assert!(!url.is_cached());
         assert!(url.replay_gain_db().is_none());
     }
 
@@ -1703,14 +1165,6 @@ mod playback_url_combined {
         let p = PathBuf::from("/tmp/m.mpd");
         let url1 = PlaybackUrl::DashManifest(p.clone(), None);
         let url2 = PlaybackUrl::DashManifest(p, Some(-2.0));
-        assert_eq!(url1.as_url(), url2.as_url());
-    }
-
-    #[test]
-    fn cached_as_url_works_regardless_of_replay_gain() {
-        let p = PathBuf::from("/c/s.dat");
-        let url1 = PlaybackUrl::CachedFile(p.clone(), None);
-        let url2 = PlaybackUrl::CachedFile(p, Some(1.0));
         assert_eq!(url1.as_url(), url2.as_url());
     }
 }

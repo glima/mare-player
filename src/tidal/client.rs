@@ -60,15 +60,14 @@ fn is_tidlers_network_error(e: &tidlers::error::TidalError) -> bool {
         || dbg.contains("No route to host")
 }
 
-/// Result of getting a playback URL - can be direct URL, DASH manifest, or cached file
+/// Result of getting a playback URL - either a direct streaming URL or a
+/// (temporary) DASH manifest file for FLAC/hi-res.
 #[derive(Debug, Clone)]
 pub enum PlaybackUrl {
     /// Direct streaming URL (for Low/High/Lossless quality)
     Direct(String, Option<f32>),
     /// Path to a temporary DASH manifest file (for HiRes quality)
     DashManifest(PathBuf, Option<f32>),
-    /// Path to a cached audio file on disk (already downloaded previously)
-    CachedFile(PathBuf, Option<f32>),
 }
 
 impl PlaybackUrl {
@@ -76,9 +75,7 @@ impl PlaybackUrl {
     pub fn as_url(&self) -> String {
         match self {
             PlaybackUrl::Direct(url, _) => url.clone(),
-            PlaybackUrl::DashManifest(path, _) | PlaybackUrl::CachedFile(path, _) => {
-                path.to_string_lossy().to_string()
-            }
+            PlaybackUrl::DashManifest(path, _) => path.to_string_lossy().to_string(),
         }
     }
 
@@ -87,17 +84,10 @@ impl PlaybackUrl {
         matches!(self, PlaybackUrl::DashManifest(..))
     }
 
-    /// Check if this is a cached file (play from disk, no download needed)
-    pub fn is_cached(&self) -> bool {
-        matches!(self, PlaybackUrl::CachedFile(..))
-    }
-
     /// Get the replay gain value in dB, if available from the TIDAL API.
     pub fn replay_gain_db(&self) -> Option<f32> {
         match self {
-            PlaybackUrl::Direct(_, rg)
-            | PlaybackUrl::DashManifest(_, rg)
-            | PlaybackUrl::CachedFile(_, rg) => *rg,
+            PlaybackUrl::Direct(_, rg) | PlaybackUrl::DashManifest(_, rg) => *rg,
         }
     }
 }
@@ -315,10 +305,8 @@ pub struct TidalAppClient {
     auth_manager: AuthManager,
     /// Current audio quality setting
     audio_quality: AudioQuality,
-    /// Disk cache for DASH manifest files (size-limited, LRU-evicted)
+    /// Disk cache for the small DASH manifest files handed to GStreamer.
     dash_cache: DiskCache,
-    /// Disk cache for downloaded audio/song files (size-limited, LRU-evicted)
-    audio_cache: DiskCache,
 }
 
 impl Default for TidalAppClient {
@@ -439,192 +427,13 @@ impl TidalAppClient {
 
     /// Create a new TidalAppClient
     pub fn new() -> Self {
-        Self::new_with_audio_cache_mb(2000)
-    }
-
-    /// Create a new TidalAppClient with a specific audio cache size
-    pub fn new_with_audio_cache_mb(audio_cache_max_mb: u32) -> Self {
         Self {
             client: Arc::new(Mutex::new(None)),
             auth_manager: AuthManager::new(),
             audio_quality: AudioQuality::High,
-            // DASH manifests are small XML files (a few KB each); 10 MB is plenty
+            // DASH manifests are small XML files (a few KB each); 10 MB is plenty.
             dash_cache: DiskCache::xdg("dash", 10),
-            // Audio files: songs cached on disk for instant replay
-            audio_cache: DiskCache::xdg("audio", audio_cache_max_mb),
         }
-    }
-
-    /// Create a client with all caches rooted under `base_dir`.
-    ///
-    /// Intended for tests so each test gets an isolated directory and
-    /// parallel runs never interfere with each other.
-    pub fn new_with_cache_dir(base_dir: &std::path::Path, audio_cache_max_mb: u32) -> Self {
-        Self {
-            client: Arc::new(Mutex::new(None)),
-            auth_manager: AuthManager::new(),
-            audio_quality: AudioQuality::High,
-            dash_cache: DiskCache::new(base_dir.join("dash"), 10),
-            audio_cache: DiskCache::new(base_dir.join("audio"), audio_cache_max_mb),
-        }
-    }
-
-    /// Get a reference to the audio cache (for saving downloaded audio from the engine)
-    pub fn audio_cache(&self) -> &DiskCache {
-        &self.audio_cache
-    }
-
-    /// Build the audio cache key for a track ID and the current quality setting
-    pub fn audio_cache_key(&self, track_id: &str) -> String {
-        format!("{}_{:?}", track_id, self.audio_quality)
-    }
-
-    /// Minimum size (in bytes) for a cached audio file to be considered valid.
-    ///
-    /// When the user skips tracks quickly, in-flight downloads are aborted and
-    /// the partial data may have been saved to disk before the abort-guard was
-    /// added.  A real FLAC/AAC track is always well above 64 KB, so anything
-    /// smaller is almost certainly a truncated fragment left over from an
-    /// interrupted download.
-    const MIN_CACHED_AUDIO_BYTES: u64 = 64 * 1024;
-
-    /// Check if a track is already cached on disk. Returns the path if so.
-    ///
-    /// Files smaller than [`Self::MIN_CACHED_AUDIO_BYTES`] are treated as
-    /// corrupt/truncated leftovers from an aborted download: they are deleted
-    /// on the spot and `None` is returned so the caller fetches a fresh copy.
-    pub fn get_cached_audio_path(&self, track_id: &str) -> Option<PathBuf> {
-        let key = self.audio_cache_key(track_id);
-        let path = self.audio_cache.hashed_path(&key, "dat");
-        if path.exists() {
-            // Reject suspiciously small files — they are almost certainly
-            // truncated fragments from an aborted download.
-            if let Ok(meta) = std::fs::metadata(&path)
-                && meta.len() < Self::MIN_CACHED_AUDIO_BYTES
-            {
-                warn!(
-                    "Cached audio for track {} is only {} bytes — removing truncated file {:?}",
-                    track_id,
-                    meta.len(),
-                    path,
-                );
-                let _ = std::fs::remove_file(&path);
-                // Also remove the replay-gain sidecar if present
-                let rg_path = self.audio_cache.hashed_path(&key, "rg");
-                let _ = std::fs::remove_file(&rg_path);
-                return None;
-            }
-            // Touch the file so LRU eviction keeps it alive
-            DiskCache::touch_path(&path);
-            info!("Audio cache hit for track {}", track_id);
-            Some(path)
-        } else {
-            None
-        }
-    }
-
-    /// Save replay-gain metadata as a tiny sidecar file next to the cached audio.
-    ///
-    /// The sidecar uses the same hash key as the audio file but with a `.rg`
-    /// extension, containing the dB value as plain ASCII (e.g. `"-7.4"`).
-    pub fn save_replay_gain(&self, track_id: &str, replay_gain_db: f32) {
-        let key = self.audio_cache_key(track_id);
-        let path = self.audio_cache.hashed_path(&key, "rg");
-        let data = format!("{}", replay_gain_db);
-        if let Err(e) = std::fs::write(&path, data.as_bytes()) {
-            warn!(
-                "Failed to save replay gain sidecar for track {}: {}",
-                track_id, e
-            );
-        } else {
-            debug!(
-                "Saved replay gain {:.1} dB for track {} at {:?}",
-                replay_gain_db, track_id, path
-            );
-        }
-    }
-
-    /// Load replay-gain metadata from the sidecar file for a cached track.
-    pub fn load_replay_gain(&self, track_id: &str) -> Option<f32> {
-        let key = self.audio_cache_key(track_id);
-        let path = self.audio_cache.hashed_path(&key, "rg");
-        match std::fs::read_to_string(&path) {
-            Ok(contents) => match contents.trim().parse::<f32>() {
-                Ok(db) => {
-                    debug!(
-                        "Loaded replay gain {:.1} dB for track {} from {:?}",
-                        db, track_id, path
-                    );
-                    Some(db)
-                }
-                Err(e) => {
-                    warn!("Invalid replay gain sidecar for track {}: {}", track_id, e);
-                    None
-                }
-            },
-            Err(_) => None,
-        }
-    }
-
-    /// Get the expected cache path for a track (for saving after download).
-    ///
-    /// This also pre-emptively evicts old cache entries to make room for the
-    /// incoming file based on a conservative size estimate for the current
-    /// quality setting.  The estimate doesn't need to be exact — on the next
-    /// app startup [`DiskCache::scan_size`] will re-scan the directory and
-    /// correct the counter.
-    ///
-    /// **Note:** the audio decoder writes files directly with `std::fs::write`
-    /// (bypassing [`DiskCache::put`]), so the in-memory byte counter drifts
-    /// after each download.  The playback handlers call
-    /// [`DiskCache::rescan`] on every track transition to reconcile the
-    /// counter with reality before the next `reserve_room` runs.
-    pub fn audio_cache_path_for(&self, track_id: &str) -> PathBuf {
-        let key = self.audio_cache_key(track_id);
-
-        // Size estimates by quality tier (typical 4-minute track).
-        // These only need to be in the right ballpark — the rescan on
-        // track transition keeps the counter honest, so a moderate
-        // over-estimate just means slightly earlier eviction of the
-        // oldest file rather than runaway cache growth.
-        //
-        //   Low      ~3 MB  (96 kbps AAC)
-        //   High    ~10 MB  (320 kbps AAC)
-        //   Lossless ~25 MB (FLAC 16-bit/44.1 kHz)
-        //   HiRes   ~40 MB  (FLAC 24-bit/96 kHz, most common tier)
-        let estimated_bytes: u64 = match self.audio_quality {
-            AudioQuality::Low => 5 * 1024 * 1024,
-            AudioQuality::High => 15 * 1024 * 1024,
-            AudioQuality::Lossless => 30 * 1024 * 1024,
-            AudioQuality::HiRes => 50 * 1024 * 1024,
-        };
-
-        self.audio_cache.reserve_room(estimated_bytes);
-        self.audio_cache.hashed_path(&key, "dat")
-    }
-
-    /// Get the total audio cache disk usage in bytes.
-    ///
-    /// Re-scans the directory first so the value reflects files written
-    /// directly to the cache path (bypassing [`DiskCache::put`]).
-    pub fn audio_cache_size(&self) -> u64 {
-        self.audio_cache.rescan();
-        self.audio_cache.current_bytes()
-    }
-
-    /// Get the audio cache max size in bytes
-    pub fn audio_cache_max(&self) -> u64 {
-        self.audio_cache.max_bytes()
-    }
-
-    /// Update the audio cache size limit at runtime (e.g. from settings).
-    pub fn set_audio_cache_max_mb(&mut self, max_mb: u32) {
-        self.audio_cache.set_max_mb(max_mb);
-    }
-
-    /// Clear the audio cache
-    pub fn clear_audio_cache(&self) {
-        self.audio_cache.clear();
     }
 
     /// Get the current authentication state
@@ -1585,21 +1394,7 @@ impl TidalAppClient {
     /// the DASH manifest to a temporary file and returns the path.
     ///
     /// For Low/High/Lossless quality, returns a direct streaming URL.
-    ///
-    /// If the track has been previously downloaded and cached on disk, returns
-    /// a `CachedFile` variant immediately without making any API call.
     pub async fn get_track_playback_url(&self, track_id: &str) -> TidalResult<PlaybackUrl> {
-        // Check audio cache first — if we already downloaded this track at this
-        // quality, skip the API call entirely and play from disk.
-        if let Some(cached_path) = self.get_cached_audio_path(track_id) {
-            let replay_gain_db = self.load_replay_gain(track_id);
-            info!(
-                "Audio cache hit for track {} — playing from {:?} (replay gain: {:?} dB)",
-                track_id, cached_path, replay_gain_db
-            );
-            return Ok(PlaybackUrl::CachedFile(cached_path, replay_gain_db));
-        }
-
         // Ensure token is valid before the operation
         self.ensure_valid_token().await?;
 
@@ -1681,11 +1476,6 @@ impl TidalAppClient {
             "Playback info received - audio_quality: {}, audio_mode: {}, manifest_mime_type: {}, replay_gain: {:?} dB, peak: {:?}",
             audio_quality, audio_mode, manifest_mime_type, replay_gain_db, peak_amplitude
         );
-
-        // Persist replay gain so cached playback can use it later
-        if let Some(rg) = replay_gain_db {
-            self.save_replay_gain(track_id, rg);
-        }
 
         let manifest_b64 = parsed
             .get("manifest")
