@@ -90,7 +90,8 @@ check *args:
         cargo audit \
             --ignore RUSTSEC-2024-0436 `# paste (unmaintained) — via metal/accesskit_windows → wgpu/iced` \
             --ignore RUSTSEC-2026-0186 `# memmap2 (unsound) — via cosmic-freedesktop-icons / cosmic-text → libcosmic` \
-            --ignore RUSTSEC-2026-0173 `# proc-macro-error2 (unmaintained) — via i18n-embed-fl`
+            --ignore RUSTSEC-2026-0173 `# proc-macro-error2 (unmaintained) — via i18n-embed-fl` \
+            --ignore RUSTSEC-2026-0192 `# ttf-parser (unmaintained) — via ab_glyph/sctk-adwaita → winit → libcosmic`
     else
         echo "cargo-audit not found, skipping security audit (install with: cargo install cargo-audit)"
     fi
