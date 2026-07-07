@@ -354,21 +354,21 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         // match the button's own `is_mouse_over` logic, covering the
         // full row area including padding and non-text children.
         let cosmic_theme = theme.cosmic();
-        let surface: Color = cosmic_theme.background.base.into();
+        let surface: Color = cosmic_theme.background(false).base.into();
 
         let opaque = match self.fade_target {
             FadeTarget::Surface => surface,
             FadeTarget::Card => {
-                let card_bg: Color = cosmic_theme.background.component.base.into();
+                let card_bg: Color = cosmic_theme.background(false).component.base.into();
                 composite(card_bg, surface)
             }
             FadeTarget::Button => {
                 let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
 
                 let btn_bg: Color = if is_mouse_over {
-                    cosmic_theme.background.component.hover.into()
+                    cosmic_theme.background(false).component.hover.into()
                 } else {
-                    cosmic_theme.background.component.base.into()
+                    cosmic_theme.background(false).component.base.into()
                 };
                 composite(btn_bg, surface)
             }

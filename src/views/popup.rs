@@ -363,7 +363,7 @@ impl AppModel {
                 // bar); hover still highlights. Bottom corners match the video.
                 cosmic::widget::container::Style {
                     background: Some(cosmic::iced::Background::Color(
-                        theme.cosmic().background.component.base.into(),
+                        theme.cosmic().background(false).component.base.into(),
                     )),
                     border: cosmic::iced::Border {
                         radius: [0.0, 0.0, corner, corner].into(),
