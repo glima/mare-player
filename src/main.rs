@@ -102,6 +102,9 @@ fn main() -> cosmic::iced::Result {
         "cosmic_text=warn",
         "wgpu_core=warn",
         "wgpu_hal=warn",
+        // naga (wgpu's WGSL shader compiler) dumps its full type/overload
+        // resolution at DEBUG while compiling shaders at startup. Silence it.
+        "naga=warn",
         // iced_wgpu logs per-frame texture-atlas allocations at DEBUG, which
         // floods the always-DEBUG file log (multi-GB per session). Silence it.
         "iced_wgpu=warn",
