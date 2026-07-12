@@ -22,7 +22,8 @@ use crate::menu::TidalMenuAction;
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{
-    Album, Artist, ExplorePage, ExploreRow, FeedActivity, Mix, Playlist, SearchResults, Track,
+    Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, Mix, Playlist, SearchResults,
+    Track,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
@@ -184,6 +185,9 @@ pub struct AppModel {
     pub(crate) user_followed_artists: Vec<Artist>,
     /// Feed activities (new releases from followed artists)
     pub(crate) feed_activities: Vec<FeedActivity>,
+    /// Flattened rows of the artist-detail view, rendered via the virtual
+    /// `List` widget so only visible rows materialise and covers load lazily.
+    pub(crate) artist_rows: list::Content<ArtistRow>,
     /// Currently loaded Explore (TIDAL browse) page, if any (kept for its title).
     pub(crate) explore_page: Option<ExplorePage>,
     /// Flattened rows of the current Explore page, rendered via the virtual

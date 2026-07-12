@@ -121,6 +121,7 @@ impl cosmic::Application for AppModel {
             user_mixes: Vec::new(),
             user_followed_artists: Vec::new(),
             feed_activities: Vec::new(),
+            artist_rows: cosmic::iced::widget::list::Content::default(),
             explore_page: None,
             explore_rows: cosmic::iced::widget::list::Content::default(),
             explore_loading: false,

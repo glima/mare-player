@@ -672,6 +672,23 @@ pub enum ExploreRow {
     Artist(Artist),
 }
 
+/// A single flattened row of the **artist-detail** view, rendered through the
+/// virtual `List` widget so only the rows visible in the viewport materialise
+/// (their covers then load lazily via `HandleCache::get_or_request`).
+#[derive(Debug, Clone)]
+pub enum ArtistRow {
+    /// Hero block: picture, roles, popularity, and bio.
+    Info(Artist),
+    /// A section heading ("Top Tracks", "Videos", "Discography").
+    SectionHeader(String),
+    /// A top-track row, addressed by index into `selected_artist_top_tracks`.
+    TopTrack(usize),
+    /// A music-video row, addressed by index into `selected_artist_videos`.
+    Video(usize),
+    /// A discography album card.
+    Album(Album),
+}
+
 impl ExplorePage {
     /// Flatten the page's sections into a single ordered list of rows
     /// (section header followed by its items), for the virtual `List`.

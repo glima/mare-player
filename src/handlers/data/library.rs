@@ -11,7 +11,7 @@ use cosmic::prelude::*;
 
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
-use crate::tidal::models::{Album, Artist, FeedActivity, FeedItem, Mix, Playlist, Track};
+use crate::tidal::models::{Album, Artist, ArtistRow, FeedActivity, FeedItem, Mix, Playlist, Track};
 
 // =============================================================================
 // Task Helper Methods
@@ -591,6 +591,36 @@ impl AppModel {
         )
     }
 
+    /// Rebuild the flattened artist-detail rows (`artist_rows`) from the current
+    /// artist info, top tracks, videos, and discography. Those four payloads load
+    /// in parallel, so this is called whenever any of them arrives to keep the
+    /// single virtual list in sync. Only visible rows render, so covers load
+    /// lazily on scroll (no bulk prefetch).
+    pub(crate) fn rebuild_artist_rows(&mut self) {
+        let mut rows: Vec<ArtistRow> = Vec::new();
+        if let Some(artist) = &self.selected_artist {
+            rows.push(ArtistRow::Info(artist.clone()));
+        }
+        if !self.selected_artist_top_tracks.is_empty() {
+            rows.push(ArtistRow::SectionHeader(crate::fl!("top-tracks")));
+            rows.extend((0..self.selected_artist_top_tracks.len()).map(ArtistRow::TopTrack));
+        }
+        if !self.selected_artist_videos.is_empty() {
+            rows.push(ArtistRow::SectionHeader(crate::fl!("videos")));
+            rows.extend((0..self.selected_artist_videos.len()).map(ArtistRow::Video));
+        }
+        if !self.selected_artist_albums.is_empty() {
+            rows.push(ArtistRow::SectionHeader(crate::fl!("discography")));
+            rows.extend(
+                self.selected_artist_albums
+                    .iter()
+                    .cloned()
+                    .map(ArtistRow::Album),
+            );
+        }
+        self.artist_rows = rows.into_iter().collect();
+    }
+
     /// Handle artist info loaded
     pub fn handle_artist_info_loaded(
         &mut self,
@@ -603,6 +633,7 @@ impl AppModel {
                     urls.push(url.clone());
                 }
                 self.selected_artist = Some(artist);
+                self.rebuild_artist_rows();
                 self.load_images_for_urls(urls)
             }
             Err(e) => {
@@ -624,6 +655,7 @@ impl AppModel {
             Ok(tracks) => {
                 self.set_track_list(tracks.clone());
                 self.selected_artist_top_tracks = tracks;
+                self.rebuild_artist_rows();
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }
@@ -643,6 +675,7 @@ impl AppModel {
         match result {
             Ok(albums) => {
                 self.selected_artist_albums = albums;
+                self.rebuild_artist_rows();
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }
@@ -662,6 +695,7 @@ impl AppModel {
         match result {
             Ok(videos) => {
                 self.selected_artist_videos = videos;
+                self.rebuild_artist_rows();
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }

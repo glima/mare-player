@@ -496,6 +496,7 @@ impl AppModel {
         self.selected_artist_top_tracks.clear();
         self.selected_artist_albums.clear();
         self.selected_artist_videos.clear();
+        self.artist_rows = Default::default();
         self.is_loading = true;
         self.view_state = ViewState::ArtistDetail;
 
@@ -697,8 +698,7 @@ impl AppModel {
                 self.set_track_list(tracks);
             }
             ViewState::ArtistDetail => {
-                let tracks = self.selected_artist_top_tracks.clone();
-                self.set_track_list(tracks);
+                self.rebuild_artist_rows();
             }
             ViewState::History => self.rebuild_history_track_list(),
             ViewState::FavoriteTracks => self.rebuild_favorites_track_list(),
