@@ -250,7 +250,7 @@ impl AppModel {
             .iter()
             .map(|artist| {
                 let picture: Element<'_, Message> = if let Some(url) = &artist.picture_url
-                    && let Some(handle) = self.loaded_images.get(url)
+                    && let Some(handle) = self.loaded_images.get_or_request(url)
                 {
                     cosmic::widget::image(handle.clone())
                         .width(40)
