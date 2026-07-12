@@ -108,13 +108,11 @@ impl AppModel {
         self.is_loading = false;
         match result {
             Ok(results) => {
-                // Collect image URLs to load from search results
-                let mut urls: Vec<String> = Vec::new();
-                urls.extend(results.tracks.iter().filter_map(|t| t.cover_url.clone()));
-                urls.extend(results.albums.iter().filter_map(|a| a.cover_url.clone()));
-                urls.extend(results.playlists.iter().filter_map(|p| p.image_url.clone()));
                 self.search_results = Some(results);
-                self.load_images_for_urls(urls)
+                // The view shows at most 5 tracks / 5 videos / 3 albums / 3
+                // playlists, and each visible row requests its own cover lazily
+                // via get_or_request — so don't bulk-fetch every result's cover.
+                Task::none()
             }
             Err(e) => {
                 tracing::error!("Search failed: {}", e);
