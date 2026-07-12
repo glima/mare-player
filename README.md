@@ -218,6 +218,18 @@ A [justfile](./justfile) provides all common workflows:
 | `just vendor` | Vendor dependencies for offline builds |
 | `just tag <version>` | Bump version, commit, and create git tag |
 
+### Viewing logs
+
+The panel applet logs to **stderr**, which `cosmic-panel` forwards to the
+systemd journal tagged `io.github.cosmic-applet-mare:`. Follow them live with:
+
+```sh
+journalctl --user _COMM=cosmic-panel -f | grep --line-buffered cosmic-applet-mare
+```
+
+Adjust verbosity at runtime from **Settings → Logging** (Error … Trace); the
+change applies immediately, no restart.
+
 ## Project Structure
 
 ```
