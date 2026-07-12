@@ -11,7 +11,7 @@ use cosmic::prelude::*;
 
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
-use crate::tidal::models::{Album, Artist, ArtistRow, FeedActivity, FeedItem, Mix, Playlist, Track};
+use crate::tidal::models::{Album, Artist, ArtistRow, FeedActivity, FeedRow, Mix, Playlist, Track};
 
 // =============================================================================
 // Task Helper Methods
@@ -394,26 +394,6 @@ impl AppModel {
             |result| cosmic::Action::App(Message::ProfilesLoaded(result)),
         )
     }
-
-    /// Trigger image loads for mix cover art
-    pub(crate) fn load_images_for_mixes(&self) -> Task<cosmic::Action<Message>> {
-        let urls: Vec<String> = self
-            .user_mixes
-            .iter()
-            .filter_map(|m| m.image_url.clone())
-            .collect();
-        self.load_images_for_urls(urls)
-    }
-
-    /// Trigger image loads for followed artist pictures
-    pub(crate) fn load_images_for_profiles(&self) -> Task<cosmic::Action<Message>> {
-        let urls: Vec<String> = self
-            .user_followed_artists
-            .iter()
-            .filter_map(|a| a.picture_url.clone())
-            .collect();
-        self.load_images_for_urls(urls)
-    }
 }
 
 // =============================================================================
@@ -477,6 +457,64 @@ impl AppModel {
         self.load_albums()
     }
 
+    /// Rebuild the mixes virtual-`List` content from `user_mixes`.
+    pub(crate) fn rebuild_mixes_content(&mut self) {
+        self.mixes_content = self.user_mixes.iter().cloned().collect();
+    }
+
+    /// Rebuild the followed-artists (profiles) virtual-`List` content.
+    pub(crate) fn rebuild_profiles_content(&mut self) {
+        self.profiles_content = self.user_followed_artists.iter().cloned().collect();
+    }
+
+    /// Rebuild the favorite-albums virtual-`List` content from `user_albums`.
+    pub(crate) fn rebuild_albums_content(&mut self) {
+        self.albums_content = self.user_albums.iter().cloned().collect();
+    }
+
+    /// Rebuild the feed virtual-`List` content from `feed_activities`, grouping
+    /// activities into time buckets (New / Last week / Last month / Older) with
+    /// a section header per non-empty bucket. Only visible rows render, so
+    /// covers load lazily on scroll.
+    pub(crate) fn rebuild_feed_content(&mut self) {
+        let now = chrono::Utc::now();
+        let mut new_updates: Vec<FeedActivity> = Vec::new();
+        let mut last_week: Vec<FeedActivity> = Vec::new();
+        let mut last_month: Vec<FeedActivity> = Vec::new();
+        let mut older: Vec<FeedActivity> = Vec::new();
+
+        for activity in &self.feed_activities {
+            let days = chrono::DateTime::parse_from_rfc3339(&activity.occurred_at)
+                .ok()
+                .map(|date| now.signed_duration_since(date).num_days());
+            match days {
+                Some(d) if d <= 2 => new_updates.push(activity.clone()),
+                Some(d) if d <= 7 => last_week.push(activity.clone()),
+                Some(d) if d <= 30 => last_month.push(activity.clone()),
+                _ => older.push(activity.clone()),
+            }
+        }
+
+        let mut rows: Vec<FeedRow> = Vec::new();
+        if !new_updates.is_empty() {
+            rows.push(FeedRow::SectionHeader(crate::fl!("feed-new-updates")));
+            rows.extend(new_updates.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+        }
+        if !last_week.is_empty() {
+            rows.push(FeedRow::SectionHeader(crate::fl!("feed-last-week")));
+            rows.extend(last_week.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+        }
+        if !last_month.is_empty() {
+            rows.push(FeedRow::SectionHeader(crate::fl!("feed-last-month")));
+            rows.extend(last_month.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+        }
+        if !older.is_empty() {
+            rows.push(FeedRow::SectionHeader(crate::fl!("feed-older")));
+            rows.extend(older.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+        }
+        self.feed_content = rows.into_iter().collect();
+    }
+
     /// Handle albums loaded
     pub fn handle_albums_loaded(
         &mut self,
@@ -490,7 +528,8 @@ impl AppModel {
                 self.user_albums = albums;
                 // Populate favorite album IDs so we know which albums are favorited
                 self.populate_favorite_album_ids();
-                // Covers load lazily per visible row via get_or_request.
+                self.rebuild_albums_content();
+                // Covers load lazily per visible card via get_or_request.
                 Task::none()
             }
             Err(e) => {
@@ -599,7 +638,7 @@ impl AppModel {
     pub(crate) fn rebuild_artist_rows(&mut self) {
         let mut rows: Vec<ArtistRow> = Vec::new();
         if let Some(artist) = &self.selected_artist {
-            rows.push(ArtistRow::Info(artist.clone()));
+            rows.push(ArtistRow::Info(Box::new(artist.clone())));
         }
         if !self.selected_artist_top_tracks.is_empty() {
             rows.push(ArtistRow::SectionHeader(crate::fl!("top-tracks")));
@@ -615,7 +654,7 @@ impl AppModel {
                 self.selected_artist_albums
                     .iter()
                     .cloned()
-                    .map(ArtistRow::Album),
+                    .map(|a| ArtistRow::Album(Box::new(a))),
             );
         }
         self.artist_rows = rows.into_iter().collect();
@@ -758,7 +797,8 @@ impl AppModel {
             Ok(mixes) => {
                 tracing::info!("Loaded {} mixes", mixes.len());
                 self.user_mixes = mixes;
-                self.load_images_for_mixes()
+                self.rebuild_mixes_content();
+                Task::none()
             }
             Err(e) => {
                 tracing::error!("Failed to load mixes: {}", e);
@@ -933,15 +973,10 @@ impl AppModel {
         match result {
             Ok(activities) => {
                 tracing::info!("Loaded {} feed activities", activities.len());
-                let urls: Vec<String> = activities
-                    .iter()
-                    .filter_map(|a| match &a.item {
-                        FeedItem::AlbumRelease(album) => album.cover_url.clone(),
-                        FeedItem::HistoryMix { image_url, .. } => image_url.clone(),
-                    })
-                    .collect();
                 self.feed_activities = activities;
-                self.load_images_for_urls(urls)
+                self.rebuild_feed_content();
+                // Covers load lazily per visible row via get_or_request.
+                Task::none()
             }
             Err(e) => {
                 tracing::error!("Failed to load feed: {}", e);
@@ -1052,7 +1087,8 @@ impl AppModel {
                 artists.sort_by_key(|a| a.name.to_lowercase());
                 self.followed_artist_ids = artists.iter().map(|a| a.id.clone()).collect();
                 self.user_followed_artists = artists;
-                self.load_images_for_profiles()
+                self.rebuild_profiles_content();
+                Task::none()
             }
             Err(e) => {
                 tracing::error!("Failed to load followed artists: {}", e);

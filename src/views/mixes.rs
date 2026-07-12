@@ -17,12 +17,12 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
-use crate::state::AppModel;
+use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Mix;
-use crate::views::components::rows::build_track_row;
+use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
-    THUMBNAIL_SIZE, TrackRowOptions, fading_header_title, fading_text_column, list_item,
-    scrollable_element, scrollable_list, virtual_list_row,
+    TrackRowOptions, fading_header_title, fading_text_column, list_item, scrollable_element,
+    virtual_list_row,
 };
 
 impl AppModel {
@@ -56,13 +56,12 @@ impl AppModel {
                     .into()
             }
         } else {
-            let mix_items: Vec<Element<'_, Message>> = self
-                .user_mixes
-                .iter()
-                .map(|mix| self.mix_row(mix))
-                .collect();
-
-            scrollable_list(widget::Column::with_children(mix_items).spacing(4))
+            let loaded_images = &self.loaded_images;
+            let list =
+                cosmic::iced::widget::list::List::new(&self.mixes_content, move |_index, mix| {
+                    virtual_list_row(build_mix_row(loaded_images, mix), 2)
+                });
+            scrollable_element(list)
         };
 
         widget::Column::new()
@@ -148,48 +147,35 @@ impl AppModel {
             .into()
     }
 
-    /// Create a mix list-item element (thumbnail + title + subtitle).
-    fn mix_row<'a>(&self, mix: &Mix) -> Element<'a, Message> {
-        let info = fading_text_column(vec![
-            text(mix.title.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
-                .into(),
-            text(mix.subtitle.clone())
-                .size(11)
-                .wrapping(Wrapping::None)
-                .into(),
-        ]);
+}
 
-        // Use mix cover image or a fallback icon
-        let thumb: Element<'_, Message> = if let Some(url) = &mix.image_url {
-            if let Some(handle) = self.loaded_images.get(url) {
-                cosmic::widget::image(handle.clone())
-                    .width(THUMBNAIL_SIZE)
-                    .height(THUMBNAIL_SIZE)
-                    .into()
-            } else {
-                widget::icon::from_name("media-playlist-shuffle-symbolic")
-                    .size(THUMBNAIL_SIZE)
-                    .into()
-            }
-        } else {
-            widget::icon::from_name("media-playlist-shuffle-symbolic")
-                .size(THUMBNAIL_SIZE)
-                .into()
-        };
+/// Build a mix list-item (thumbnail + title + subtitle) for the virtual `List`.
+fn build_mix_row<'a>(loaded_images: &HandleCache, mix: &Mix) -> Element<'a, Message> {
+    let info = fading_text_column(vec![
+        text(mix.title.clone())
+            .size(13)
+            .wrapping(Wrapping::None)
+            .into(),
+        text(mix.subtitle.clone())
+            .size(11)
+            .wrapping(Wrapping::None)
+            .into(),
+    ]);
 
-        let row = widget::Row::new()
-            .push(thumb)
-            .push(info)
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
+    let row = widget::Row::new()
+        .push(build_thumbnail(
+            loaded_images,
+            mix.image_url.as_deref(),
+            "media-playlist-shuffle-symbolic",
+        ))
+        .push(info)
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
 
-        list_item(
-            row,
-            Message::ShowMixDetail(mix.id.clone(), mix.title.clone()),
-            6,
-        )
-    }
+    list_item(
+        row,
+        Message::ShowMixDetail(mix.id.clone(), mix.title.clone()),
+        6,
+    )
 }

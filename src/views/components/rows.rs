@@ -165,6 +165,37 @@ pub(crate) fn build_track_row<'a>(
     )
 }
 
+/// Standalone album row builder for virtual `List` closures. The
+/// [`AppModel::album_row`] method delegates here.
+pub(crate) fn build_album_row<'a>(
+    loaded_images: &HandleCache,
+    album: &Album,
+) -> Element<'a, Message> {
+    let info = fading_text_column(vec![
+        text(album.title.clone())
+            .size(13)
+            .wrapping(Wrapping::None)
+            .into(),
+        text(album.artist_name.clone())
+            .size(11)
+            .wrapping(Wrapping::None)
+            .into(),
+    ]);
+
+    let row = widget::Row::new()
+        .push(build_thumbnail(
+            loaded_images,
+            album.cover_url.as_deref(),
+            "media-optical-symbolic",
+        ))
+        .push(info)
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+
+    list_item(row, Message::ShowAlbumDetail(album.clone()), 6)
+}
+
 // =============================================================================
 // Row Builders (methods delegating to the free functions above)
 // =============================================================================
@@ -201,25 +232,7 @@ impl AppModel {
     /// Used in the albums list, search results, and anywhere an album appears
     /// as a clickable row. Wraps content via [`list_item`].
     pub fn album_row<'a>(&self, album: &Album) -> Element<'a, Message> {
-        let info = fading_text_column(vec![
-            text(album.title.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
-                .into(),
-            text(album.artist_name.clone())
-                .size(11)
-                .wrapping(Wrapping::None)
-                .into(),
-        ]);
-
-        let row = widget::Row::new()
-            .push(self.thumbnail(album.cover_url.as_deref(), "media-optical-symbolic"))
-            .push(info)
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
-
-        list_item(row, Message::ShowAlbumDetail(album.clone()), 6)
+        build_album_row(&self.loaded_images, album)
     }
 
     /// Create a playlist list-item element (thumbnail + title + track count).

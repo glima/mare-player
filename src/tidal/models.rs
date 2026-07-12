@@ -678,7 +678,7 @@ pub enum ExploreRow {
 #[derive(Debug, Clone)]
 pub enum ArtistRow {
     /// Hero block: picture, roles, popularity, and bio.
-    Info(Artist),
+    Info(Box<Artist>),
     /// A section heading ("Top Tracks", "Videos", "Discography").
     SectionHeader(String),
     /// A top-track row, addressed by index into `selected_artist_top_tracks`.
@@ -686,7 +686,17 @@ pub enum ArtistRow {
     /// A music-video row, addressed by index into `selected_artist_videos`.
     Video(usize),
     /// A discography album card.
-    Album(Album),
+    Album(Box<Album>),
+}
+
+/// A single flattened row of the **feed** view, rendered through the virtual
+/// `List` widget so only visible rows materialise and covers load lazily.
+#[derive(Debug, Clone)]
+pub enum FeedRow {
+    /// A time-period heading ("New", "Last week", …).
+    SectionHeader(String),
+    /// A feed activity (new album release or history mix).
+    Activity(Box<FeedActivity>),
 }
 
 impl ExplorePage {

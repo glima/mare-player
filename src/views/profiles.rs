@@ -12,9 +12,12 @@ use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
-use crate::state::AppModel;
+use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Artist;
-use crate::views::components::{THUMBNAIL_SIZE, fading_text_column, list_item, scrollable_list};
+use crate::views::components::rows::build_thumbnail;
+use crate::views::components::{
+    fading_text_column, list_item, scrollable_element, virtual_list_row,
+};
 
 impl AppModel {
     /// Render the followed artists (profiles) list view.
@@ -52,17 +55,17 @@ impl AppModel {
                 .push(text(fl!("artist-count", count = count)).size(12))
                 .padding([0, 0, 4, 0]);
 
-            let artist_items: Vec<Element<'_, Message>> = self
-                .user_followed_artists
-                .iter()
-                .map(|artist| self.profile_artist_row(artist))
-                .collect();
-
-            let list = scrollable_list(widget::Column::with_children(artist_items).spacing(4));
+            let loaded_images = &self.loaded_images;
+            let list = cosmic::iced::widget::list::List::new(
+                &self.profiles_content,
+                move |_index, artist| {
+                    virtual_list_row(build_profile_artist_row(loaded_images, artist), 2)
+                },
+            );
 
             widget::Column::new()
                 .push(count_label)
-                .push(list)
+                .push(scrollable_element(list))
                 .spacing(4)
                 .into()
         };
@@ -75,50 +78,36 @@ impl AppModel {
             .width(Length::Fill)
             .into()
     }
+}
 
-    /// Create an artist list-item for the profiles view (picture + name + role).
-    ///
-    /// Navigates to the existing artist detail view on click.
-    fn profile_artist_row<'a>(&self, artist: &Artist) -> Element<'a, Message> {
-        let mut info_children: Vec<Element<'_, Message>> = vec![
-            text(artist.name.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
-                .into(),
-        ];
+/// Build a followed-artist list-item (picture + name + role) for the virtual
+/// `List`. Navigates to the artist detail view on click.
+fn build_profile_artist_row<'a>(
+    loaded_images: &HandleCache,
+    artist: &Artist,
+) -> Element<'a, Message> {
+    let mut info_children: Vec<Element<'_, Message>> = vec![
+        text(artist.name.clone())
+            .size(13)
+            .wrapping(Wrapping::None)
+            .into(),
+    ];
 
-        // Show primary role if available (e.g. "Artist", "Producer", "DJ")
-        if let Some(role) = artist.roles.first() {
-            info_children.push(text(role.clone()).size(11).wrapping(Wrapping::None).into());
-        }
-
-        let info = fading_text_column(info_children);
-
-        // Use artist picture or a fallback icon
-        let thumb: Element<'_, Message> = if let Some(url) = &artist.picture_url {
-            if let Some(handle) = self.loaded_images.get(url) {
-                cosmic::widget::image(handle.clone())
-                    .width(THUMBNAIL_SIZE)
-                    .height(THUMBNAIL_SIZE)
-                    .into()
-            } else {
-                widget::icon::from_name("system-users-symbolic")
-                    .size(THUMBNAIL_SIZE)
-                    .into()
-            }
-        } else {
-            widget::icon::from_name("system-users-symbolic")
-                .size(THUMBNAIL_SIZE)
-                .into()
-        };
-
-        let row = widget::Row::new()
-            .push(thumb)
-            .push(info)
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
-
-        list_item(row, Message::ShowArtistDetail(artist.id.clone()), 6)
+    // Show primary role if available (e.g. "Artist", "Producer", "DJ")
+    if let Some(role) = artist.roles.first() {
+        info_children.push(text(role.clone()).size(11).wrapping(Wrapping::None).into());
     }
+
+    let row = widget::Row::new()
+        .push(build_thumbnail(
+            loaded_images,
+            artist.picture_url.as_deref(),
+            "system-users-symbolic",
+        ))
+        .push(fading_text_column(info_children))
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+
+    list_item(row, Message::ShowArtistDetail(artist.id.clone()), 6)
 }

@@ -2,7 +2,9 @@
 
 //! Feed view for Maré Player.
 //!
-//! Shows new releases from followed artists, grouped by time period.
+//! Shows new releases from followed artists, grouped by time period and
+//! flattened into a single virtual `List` (`feed_content`) so only the rows
+//! visible in the viewport materialise and their covers load lazily.
 
 use cosmic::Element;
 use cosmic::iced::widget::text::Wrapping;
@@ -11,10 +13,10 @@ use cosmic::widget::{self, button, text};
 
 use crate::fl;
 use crate::messages::Message;
-use crate::state::AppModel;
-use crate::tidal::models::{FeedActivity, FeedItem};
-use crate::views::components::constants::THUMBNAIL_SIZE;
-use crate::views::components::{fading_text_column, list_item, scrollable_list};
+use crate::state::{AppModel, HandleCache};
+use crate::tidal::models::{FeedActivity, FeedItem, FeedRow};
+use crate::views::components::rows::{build_album_row, build_thumbnail};
+use crate::views::components::{fading_text_column, list_item, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the feed view showing new releases grouped by time period.
@@ -30,7 +32,7 @@ impl AppModel {
             .spacing(8)
             .align_y(Alignment::Center);
 
-        let content: Element<'_, Message> = if self.feed_activities.is_empty() {
+        let content: Element<'_, Message> = if self.feed_content.is_empty() {
             if self.is_loading {
                 text(fl!("loading")).size(14).into()
             } else {
@@ -41,64 +43,12 @@ impl AppModel {
                     .into()
             }
         } else {
-            // Group activities by time period
-            let now = chrono::Utc::now();
-            let mut new_updates: Vec<&FeedActivity> = Vec::new();
-            let mut last_week: Vec<&FeedActivity> = Vec::new();
-            let mut last_month: Vec<&FeedActivity> = Vec::new();
-            let mut older: Vec<&FeedActivity> = Vec::new();
-
-            for activity in &self.feed_activities {
-                if let Ok(date) = chrono::DateTime::parse_from_rfc3339(&activity.occurred_at) {
-                    let age = now.signed_duration_since(date);
-                    if age.num_days() <= 2 {
-                        new_updates.push(activity);
-                    } else if age.num_days() <= 7 {
-                        last_week.push(activity);
-                    } else if age.num_days() <= 30 {
-                        last_month.push(activity);
-                    } else {
-                        older.push(activity);
-                    }
-                } else {
-                    older.push(activity);
-                }
-            }
-
-            let mut list_col = widget::Column::new().spacing(4);
-
-            if !new_updates.is_empty() {
-                list_col = list_col.push(text(fl!("feed-new-updates")).size(14));
-                for activity in &new_updates {
-                    list_col = list_col.push(self.feed_activity_row(activity));
-                }
-            }
-
-            if !last_week.is_empty() {
-                list_col = list_col.push(widget::Space::new().height(8));
-                list_col = list_col.push(text(fl!("feed-last-week")).size(14));
-                for activity in &last_week {
-                    list_col = list_col.push(self.feed_activity_row(activity));
-                }
-            }
-
-            if !last_month.is_empty() {
-                list_col = list_col.push(widget::Space::new().height(8));
-                list_col = list_col.push(text(fl!("feed-last-month")).size(14));
-                for activity in &last_month {
-                    list_col = list_col.push(self.feed_activity_row(activity));
-                }
-            }
-
-            if !older.is_empty() {
-                list_col = list_col.push(widget::Space::new().height(8));
-                list_col = list_col.push(text(fl!("feed-older")).size(14));
-                for activity in &older {
-                    list_col = list_col.push(self.feed_activity_row(activity));
-                }
-            }
-
-            scrollable_list(list_col)
+            let loaded_images = &self.loaded_images;
+            let list =
+                cosmic::iced::widget::list::List::new(&self.feed_content, move |_index, row| {
+                    build_feed_row(loaded_images, row)
+                });
+            scrollable_element(list)
         };
 
         widget::Column::new()
@@ -109,51 +59,52 @@ impl AppModel {
             .width(Length::Fill)
             .into()
     }
+}
 
-    /// Build a single feed activity row.
-    fn feed_activity_row<'a>(&self, activity: &FeedActivity) -> Element<'a, Message> {
-        match &activity.item {
-            FeedItem::AlbumRelease(album) => self.album_row(album),
-            FeedItem::HistoryMix {
-                id,
-                title,
-                subtitle,
-                image_url,
-            } => {
-                let thumbnail: Element<'_, Message> = if let Some(url) = image_url {
-                    if let Some(handle) = self.loaded_images.get(url) {
-                        cosmic::widget::image(handle.clone())
-                            .width(THUMBNAIL_SIZE)
-                            .height(THUMBNAIL_SIZE)
-                            .into()
-                    } else {
-                        widget::icon::from_name("media-playlist-shuffle-symbolic")
-                            .size(THUMBNAIL_SIZE)
-                            .into()
-                    }
-                } else {
-                    widget::icon::from_name("media-playlist-shuffle-symbolic")
-                        .size(THUMBNAIL_SIZE)
-                        .into()
-                };
+/// Build a single feed row (time-period header or activity) for the virtual `List`.
+fn build_feed_row<'a>(loaded_images: &HandleCache, row: &FeedRow) -> Element<'a, Message> {
+    let inner: Element<'a, Message> = match row {
+        FeedRow::SectionHeader(title) => widget::container(text(title.clone()).size(14))
+            .padding([8, 0, 2, 0])
+            .into(),
+        FeedRow::Activity(activity) => build_feed_activity_row(loaded_images, activity),
+    };
+    virtual_list_row(inner, 4)
+}
 
-                let info = fading_text_column(vec![
-                    text(title.clone()).size(13).wrapping(Wrapping::None).into(),
-                    text(subtitle.clone())
-                        .size(11)
-                        .wrapping(Wrapping::None)
-                        .into(),
-                ]);
+/// Build a single feed activity row (new album release or history mix).
+fn build_feed_activity_row<'a>(
+    loaded_images: &HandleCache,
+    activity: &FeedActivity,
+) -> Element<'a, Message> {
+    match &activity.item {
+        FeedItem::AlbumRelease(album) => build_album_row(loaded_images, album),
+        FeedItem::HistoryMix {
+            id,
+            title,
+            subtitle,
+            image_url,
+        } => {
+            let info = fading_text_column(vec![
+                text(title.clone()).size(13).wrapping(Wrapping::None).into(),
+                text(subtitle.clone())
+                    .size(11)
+                    .wrapping(Wrapping::None)
+                    .into(),
+            ]);
 
-                let row = widget::Row::new()
-                    .push(thumbnail)
-                    .push(info)
-                    .spacing(8)
-                    .align_y(Alignment::Center)
-                    .width(Length::Fill);
+            let row = widget::Row::new()
+                .push(build_thumbnail(
+                    loaded_images,
+                    image_url.as_deref(),
+                    "media-playlist-shuffle-symbolic",
+                ))
+                .push(info)
+                .spacing(8)
+                .align_y(Alignment::Center)
+                .width(Length::Fill);
 
-                list_item(row, Message::ShowMixDetail(id.clone(), title.clone()), 6)
-            }
+            list_item(row, Message::ShowMixDetail(id.clone(), title.clone()), 6)
         }
     }
 }

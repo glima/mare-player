@@ -19,10 +19,10 @@ use crate::helpers::max_description_chars;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::artist::strip_markup;
-use crate::views::components::rows::build_track_row;
+use crate::views::components::rows::{build_album_row, build_track_row};
 use crate::views::components::{
-    ALBUM_COVER_SIZE, TrackRowOptions, fading_header_title, favorite_icon_handle, scrollable_list,
-    virtual_list_row,
+    ALBUM_COVER_SIZE, TrackRowOptions, fading_header_title, favorite_icon_handle,
+    scrollable_element, scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -49,13 +49,12 @@ impl AppModel {
                     .into()
             }
         } else {
-            let album_items: Vec<Element<'_, Message>> = self
-                .user_albums
-                .iter()
-                .map(|album| self.album_row(album))
-                .collect();
-
-            scrollable_list(widget::Column::with_children(album_items).spacing(4))
+            let loaded_images = &self.loaded_images;
+            let list =
+                cosmic::iced::widget::list::List::new(&self.albums_content, move |_index, album| {
+                    virtual_list_row(build_album_row(loaded_images, album), 2)
+                });
+            scrollable_element(list)
         };
 
         widget::Column::new()

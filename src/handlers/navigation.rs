@@ -231,7 +231,8 @@ impl AppModel {
                 self.load_mixes(),
             ])
         } else {
-            self.load_images_for_mixes()
+            self.rebuild_mixes_content();
+            Task::none()
         }
     }
 
@@ -277,7 +278,8 @@ impl AppModel {
                 self.load_profiles(),
             ])
         } else {
-            self.load_images_for_profiles()
+            self.rebuild_profiles_content();
+            Task::none()
         }
     }
 
@@ -702,6 +704,10 @@ impl AppModel {
             }
             ViewState::History => self.rebuild_history_track_list(),
             ViewState::FavoriteTracks => self.rebuild_favorites_track_list(),
+            ViewState::Albums => self.rebuild_albums_content(),
+            ViewState::Mixes => self.rebuild_mixes_content(),
+            ViewState::Profiles => self.rebuild_profiles_content(),
+            ViewState::Feed => self.rebuild_feed_content(),
             ViewState::Explore => {
                 self.explore_rows = self
                     .explore_page

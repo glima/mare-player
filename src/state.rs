@@ -22,8 +22,8 @@ use crate::menu::TidalMenuAction;
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{
-    Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, Mix, Playlist, SearchResults,
-    Track,
+    Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist,
+    SearchResults, Track,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
@@ -177,14 +177,25 @@ pub struct AppModel {
     pub(crate) playlist_thumbnails: HashMap<String, Handle>,
     /// User favorite albums
     pub(crate) user_albums: Vec<Album>,
+    /// Favorite albums as virtual-`List` content (only visible cards render, so
+    /// covers load lazily on scroll). Rebuilt from `user_albums`.
+    pub(crate) albums_content: list::Content<Album>,
     /// User favorite tracks
     pub(crate) user_favorite_tracks: Vec<Track>,
     /// User's personalized mixes (from home feed)
     pub(crate) user_mixes: Vec<Mix>,
+    /// Mixes as virtual-`List` content. Rebuilt from `user_mixes`.
+    pub(crate) mixes_content: list::Content<Mix>,
     /// User's followed artists (profiles)
     pub(crate) user_followed_artists: Vec<Artist>,
+    /// Followed artists as virtual-`List` content. Rebuilt from
+    /// `user_followed_artists`.
+    pub(crate) profiles_content: list::Content<Artist>,
     /// Feed activities (new releases from followed artists)
     pub(crate) feed_activities: Vec<FeedActivity>,
+    /// Feed as time-grouped virtual-`List` content. Rebuilt from
+    /// `feed_activities`.
+    pub(crate) feed_content: list::Content<FeedRow>,
     /// Flattened rows of the artist-detail view, rendered via the virtual
     /// `List` widget so only visible rows materialise and covers load lazily.
     pub(crate) artist_rows: list::Content<ArtistRow>,
