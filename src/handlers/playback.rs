@@ -105,9 +105,8 @@ impl AppModel {
         source: Option<crate::tidal::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
         tracing::info!(
-            "Play single track requested: {} - {} (source: {:?})",
-            track.artist_name,
-            track.title,
+            "Play single track requested: {} (source: {:?})",
+            track,
             source.as_ref().map(|s| (&s.kind, &s.id))
         );
         self.playback_source = source;
@@ -309,9 +308,8 @@ impl AppModel {
         };
 
         tracing::info!(
-            "GStreamer audio: {} - {} ({})",
-            track.artist_name,
-            track.title,
+            "GStreamer audio: {} ({})",
+            track,
             if playback_url.is_dash() {
                 "DASH"
             } else {
@@ -456,7 +454,7 @@ impl AppModel {
                     });
                     self.play_history.record(&track);
                     self.persist_play_history();
-                    tracing::info!("Video handed to pop-out window: {}", track.title);
+                    tracing::info!("Video handed to pop-out window: {}", track);
                     return Task::batch([
                         self.update_mpris_state(),
                         self.refresh_now_playing_lyrics(&track),
@@ -493,7 +491,7 @@ impl AppModel {
                         self.playback_position = 0.0;
                         self.play_history.record(&track);
                         self.persist_play_history();
-                        tracing::info!("Video playback started: {}", track.title);
+                        tracing::info!("Video playback started: {}", track);
                         return Task::batch([
                             self.update_mpris_state(),
                             self.refresh_now_playing_lyrics(&track),
@@ -1106,11 +1104,10 @@ impl AppModel {
         };
 
         tracing::info!(
-            "Preloading next track [{}/{}]: {} - {} (loop: {:?})",
+            "Preloading next track [{}/{}]: {} (loop: {:?})",
             next_index + 1,
             self.playback_queue.len(),
-            track.artist_name,
-            track.title,
+            track,
             self.loop_status,
         );
 
@@ -1146,7 +1143,7 @@ impl AppModel {
                         url_str
                     };
                     mp.set_next(uri, rg);
-                    tracing::info!("Gapless: staged next track '{}'", track.title);
+                    tracing::info!("Gapless: staged next track: {}", track);
                 }
             }
             Err(e) => {

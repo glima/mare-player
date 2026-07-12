@@ -81,6 +81,18 @@ pub struct Track {
     pub is_video: bool,
 }
 
+impl std::fmt::Display for Track {
+    /// Human-readable one-liner for logs: `Artist - Title [id]`, with a
+    /// `(video)` suffix for music videos.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} - {} [{}]", self.artist_name, self.title, self.id)?;
+        if self.is_video {
+            write!(f, " (video)")?;
+        }
+        Ok(())
+    }
+}
+
 impl Track {
     /// Format duration as MM:SS
     pub fn duration_display(&self) -> String {
