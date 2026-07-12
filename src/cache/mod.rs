@@ -8,7 +8,9 @@
 //!   paints instantly from cache and then upserts when the network responds
 //!   (stale-while-revalidate);
 //! * **image cache** — artwork blobs (replacing the on-disk image partition);
-//! * **kv** — small odds and ends (play history, reviews, …).
+//! * **play history** — one row per played track (dedup + move-to-front by
+//!   track id, ordered by play time); the only *non-disposable* table, since
+//!   TIDAL exposes no "recently played" endpoint to rebuild it from.
 //!
 //! Songs are deliberately **not** stored here — large audio stays on the
 //! filesystem so it can be streamed and seeked while still downloading. Videos
@@ -28,6 +30,11 @@
 //! tables whenever [`SCHEMA_VERSION`] changes. That also de-risks running a
 //! beta database engine — a corrupt or incompatible file just triggers a cold
 //! refetch, never data loss.
+//!
+//! The lone exception is `play_history`: it has no server-side source, so it is
+//! never in the drop list and must survive schema bumps. New non-disposable
+//! tables are added with `CREATE TABLE IF NOT EXISTS` (no version bump) and any
+//! data reshaping is done with an explicit one-time migration.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -89,7 +96,9 @@ impl Db {
         }
 
         if ver != SCHEMA_VERSION {
-            for t in ["view_cache", "image", "kv"] {
+            // `play_history` is intentionally absent: it has no server-side
+            // source and must never be dropped on a schema bump.
+            for t in ["view_cache", "image"] {
                 let _ = conn.execute(&format!("DROP TABLE IF EXISTS {t}"), ()).await;
             }
         }
@@ -116,11 +125,22 @@ impl Db {
             (),
         )
         .await?;
+        // Non-disposable: one row per played track, deduped by `track_id`
+        // (move-to-front on replay), ordered by `played_at` (epoch millis).
+        // `entry` is the JSON-serialised `HistoryEntry`. Created unconditionally
+        // (no version bump) so existing databases gain it without losing data.
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS kv (
-                k TEXT PRIMARY KEY,
-                v BLOB NOT NULL
+            "CREATE TABLE IF NOT EXISTS play_history (
+                track_id   TEXT PRIMARY KEY,
+                played_at  INTEGER NOT NULL,
+                entry      BLOB NOT NULL
             )",
+            (),
+        )
+        .await?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_play_history_played_at
+                ON play_history (played_at DESC)",
             (),
         )
         .await?;
@@ -217,31 +237,60 @@ impl Db {
         Self::enforce_budget(&conn, "image", budget_bytes).await;
     }
 
-    // ── small key/value ─────────────────────────────────────────────────
+    // ── play history ────────────────────────────────────────
 
-    /// Fetch a raw kv blob.
-    pub async fn get_kv(&self, k: &str) -> Option<Vec<u8>> {
+    /// Load every play-history entry blob, most-recent first. Each blob is a
+    /// JSON-serialised `HistoryEntry`; the caller deserialises (the cache layer
+    /// stays free of model types).
+    pub async fn get_play_history(&self) -> Vec<Vec<u8>> {
         let conn = self.conn.lock().await;
-        let mut rows = conn
-            .query("SELECT v FROM kv WHERE k = ?1", [k])
+        let mut out = Vec::new();
+        let mut rows = match conn
+            .query(
+                "SELECT entry FROM play_history ORDER BY played_at DESC",
+                (),
+            )
             .await
-            .ok()?;
-        let row = rows.next().await.ok()??;
-        row.get_value(0).ok()?.as_blob().cloned()
+        {
+            Ok(rows) => rows,
+            Err(e) => {
+                tracing::warn!("cache get_play_history failed: {e}");
+                return out;
+            }
+        };
+        while let Ok(Some(row)) = rows.next().await {
+            if let Some(blob) = row.get_value(0).ok().and_then(|v| v.as_blob().cloned()) {
+                out.push(blob);
+            }
+        }
+        out
     }
 
-    /// Upsert a raw kv blob.
-    pub async fn put_kv(&self, k: &str, v: &[u8]) {
+    /// Upsert a single play-history entry, deduping and moving-to-front by
+    /// `track_id`: a replay updates the row's `played_at` and `entry` in place
+    /// rather than appending a duplicate. O(1)-ish — no full-history rewrite.
+    pub async fn put_play_history(&self, track_id: &str, played_at_ms: i64, entry: &[u8]) {
         let conn = self.conn.lock().await;
         let res = conn
             .execute(
-                "INSERT INTO kv (k, v) VALUES (?1, ?2)
-                 ON CONFLICT(k) DO UPDATE SET v = excluded.v",
-                (k, v.to_vec()),
+                "INSERT INTO play_history (track_id, played_at, entry)
+                 VALUES (?1, ?2, ?3)
+                 ON CONFLICT(track_id) DO UPDATE SET
+                    played_at = excluded.played_at,
+                    entry = excluded.entry",
+                (track_id, played_at_ms, entry.to_vec()),
             )
             .await;
         if let Err(e) = res {
-            tracing::warn!("cache put_kv failed: {e}");
+            tracing::warn!("cache put_play_history failed: {e}");
+        }
+    }
+
+    /// Delete all play-history rows.
+    pub async fn clear_play_history(&self) {
+        let conn = self.conn.lock().await;
+        if let Err(e) = conn.execute("DELETE FROM play_history", ()).await {
+            tracing::warn!("cache clear_play_history failed: {e}");
         }
     }
 
@@ -329,9 +378,41 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn kv_round_trips() {
+    async fn play_history_orders_by_played_at_desc() {
         let db = mem_db().await;
-        db.put_kv("history", b"[1,2,3]").await;
-        assert_eq!(db.get_kv("history").await.as_deref(), Some(&b"[1,2,3]"[..]));
+        db.put_play_history("a", 100, b"entry-a").await;
+        db.put_play_history("b", 300, b"entry-b").await;
+        db.put_play_history("c", 200, b"entry-c").await;
+
+        let got = db.get_play_history().await;
+        // Most-recent first: b (300), c (200), a (100).
+        assert_eq!(got.len(), 3);
+        assert_eq!(got[0].as_slice(), b"entry-b");
+        assert_eq!(got[1].as_slice(), b"entry-c");
+        assert_eq!(got[2].as_slice(), b"entry-a");
+    }
+
+    #[tokio::test]
+    async fn play_history_upsert_dedups_and_moves_to_front() {
+        let db = mem_db().await;
+        db.put_play_history("a", 100, b"entry-a").await;
+        db.put_play_history("b", 200, b"entry-b").await;
+        // Replay "a" with a newer timestamp and refreshed payload.
+        db.put_play_history("a", 300, b"entry-a-v2").await;
+
+        let got = db.get_play_history().await;
+        // Still two rows (deduped by track_id), "a" now at the front.
+        assert_eq!(got.len(), 2);
+        assert_eq!(got[0].as_slice(), b"entry-a-v2");
+        assert_eq!(got[1].as_slice(), b"entry-b");
+    }
+
+    #[tokio::test]
+    async fn play_history_clear_empties_the_table() {
+        let db = mem_db().await;
+        db.put_play_history("a", 100, b"entry-a").await;
+        db.put_play_history("b", 200, b"entry-b").await;
+        db.clear_play_history().await;
+        assert!(db.get_play_history().await.is_empty());
     }
 }

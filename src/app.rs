@@ -863,14 +863,9 @@ impl cosmic::Application for AppModel {
                     tracing::info!("cache database ready");
                     self.image_cache.set_db(db.clone());
                     self.cache_db = Some(db.clone());
-                    // Load persisted play history from the database.
+                    // Load persisted play history from the `play_history` table.
                     return Task::perform(
-                        async move {
-                            db.get_kv(crate::tidal::play_history::HISTORY_KEY)
-                                .await
-                                .and_then(|b| serde_json::from_slice(&b).ok())
-                                .unwrap_or_default()
-                        },
+                        async move { crate::handlers::misc::load_play_history(&db).await },
                         |entries| cosmic::Action::App(Message::PlayHistoryLoaded(entries)),
                     );
                 }

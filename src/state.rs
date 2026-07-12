@@ -336,7 +336,8 @@ pub struct AppModel {
     pub(crate) playback_source: Option<crate::tidal::models::PlaybackSource>,
     /// Image cache for album art
     pub(crate) image_cache: ImageCache,
-    /// Embedded cache database (turso): view-state snapshots, images, kv.
+    /// Embedded cache database (turso): view-state snapshots, images, play
+    /// history.
     /// `None` until it finishes opening at startup, or if opening failed; all
     /// cache reads/writes degrade gracefully to the network in that case.
     pub(crate) cache_db: Option<crate::cache::Db>,

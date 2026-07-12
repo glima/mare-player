@@ -4,9 +4,10 @@
 //!
 //! TIDAL's API does not expose a per-track "recently played" endpoint, so we
 //! maintain one locally.  Each time a track starts playing successfully its
-//! metadata is prepended to an ordered list that is persisted to the cache
-//! database's `kv` table as JSON.  Duplicates are collapsed: if the same track
-//! is played again it is moved to the front rather than appearing twice.
+//! metadata is prepended to an ordered in-memory list and upserted as a single
+//! row into the cache database's `play_history` table.  Duplicates are
+//! collapsed: if the same track is played again it is moved to the front
+//! rather than appearing twice.
 //!
 //! The history is unbounded — every track ever played is retained.
 
@@ -15,10 +16,6 @@ use tracing::warn;
 
 use crate::tidal::models::Track;
 
-/// Key under which the serialised history is stored in the cache database's
-/// `kv` table.
-pub const HISTORY_KEY: &str = "play_history";
-
 /// A timestamped history entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HistoryEntry {
@@ -26,6 +23,29 @@ pub struct HistoryEntry {
     pub track: Track,
     /// UTC timestamp (ISO-8601) of when playback started.
     pub played_at: String,
+}
+
+impl HistoryEntry {
+    /// Parse [`played_at`](Self::played_at) (RFC-3339) into epoch milliseconds
+    /// for the `play_history` table's ordering column, falling back to the
+    /// current time if the stored string can't be parsed.
+    pub fn played_at_millis(&self) -> i64 {
+        chrono::DateTime::parse_from_rfc3339(&self.played_at)
+            .map(|dt| dt.timestamp_millis())
+            .unwrap_or_else(|_| chrono::Utc::now().timestamp_millis())
+    }
+
+    /// Serialise this entry to JSON bytes, or `None` on failure.
+    ///
+    /// Used to persist one row into the cache database's `play_history` table.
+    pub fn to_json(&self) -> Option<Vec<u8>> {
+        serde_json::to_vec(self)
+            .map_err(|e| {
+                warn!("Failed to serialise play history entry: {}", e);
+                e
+            })
+            .ok()
+    }
 }
 
 /// Local play history backed by the API disk cache.
@@ -41,19 +61,6 @@ impl PlayHistory {
         Self {
             entries: Vec::new(),
         }
-    }
-
-    /// Serialise the history entries to JSON bytes, or `None` on failure.
-    ///
-    /// The app persists these bytes into the cache database's `kv` table under
-    /// [`HISTORY_KEY`].
-    pub fn to_json(&self) -> Option<Vec<u8>> {
-        serde_json::to_vec(&self.entries)
-            .map_err(|e| {
-                warn!("Failed to serialise play history: {}", e);
-                e
-            })
-            .ok()
     }
 
     /// Replace all entries (used after the database loads them at startup).
@@ -275,26 +282,35 @@ mod tests {
     }
 
     #[test]
-    fn to_json_round_trips_entries() {
+    fn entry_to_json_round_trips() {
         let mut h = PlayHistory::new();
         h.record(&make_track("a", "A"));
-        h.record(&make_track("b", "B"));
+        let entry = &h.entries()[0];
 
-        let bytes = h.to_json().expect("serialise");
-        let entries: Vec<HistoryEntry> = serde_json::from_slice(&bytes).expect("deserialise");
-
-        let mut restored = PlayHistory::new();
-        restored.set_entries(entries);
-        // most-recent first: B then A
-        assert_eq!(restored.len(), 2);
-        assert_eq!(restored.tracks()[0].id, "b");
-        assert_eq!(restored.tracks()[1].id, "a");
+        let bytes = entry.to_json().expect("serialise");
+        let restored: HistoryEntry = serde_json::from_slice(&bytes).expect("deserialise");
+        assert_eq!(restored.track.id, "a");
+        assert_eq!(restored.played_at, entry.played_at);
     }
 
     #[test]
-    fn empty_history_to_json_is_empty_array() {
-        let bytes = PlayHistory::new().to_json().expect("serialise");
-        assert_eq!(bytes, b"[]");
+    fn played_at_millis_parses_rfc3339() {
+        let entry = HistoryEntry {
+            track: make_track("a", "A"),
+            played_at: "2021-02-26T00:00:00+00:00".to_string(),
+        };
+        // 2021-02-26T00:00:00Z == 1614297600 s == 1614297600000 ms.
+        assert_eq!(entry.played_at_millis(), 1_614_297_600_000);
+    }
+
+    #[test]
+    fn played_at_millis_falls_back_on_garbage() {
+        let entry = HistoryEntry {
+            track: make_track("a", "A"),
+            played_at: "not-a-timestamp".to_string(),
+        };
+        // Falls back to "now" rather than panicking; just assert it's positive.
+        assert!(entry.played_at_millis() > 0);
     }
 
     #[test]

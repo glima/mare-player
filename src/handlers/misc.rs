@@ -22,6 +22,19 @@ use cosmic::cosmic_config::CosmicConfigEntry;
 
 use cosmic::prelude::*;
 
+/// Load play history from the cache database's `play_history` table,
+/// most-recent first. Run when the database finishes opening.
+pub(crate) async fn load_play_history(
+    db: &crate::cache::Db,
+) -> Vec<crate::tidal::play_history::HistoryEntry> {
+    use crate::tidal::play_history::HistoryEntry;
+    db.get_play_history()
+        .await
+        .iter()
+        .filter_map(|b| serde_json::from_slice::<HistoryEntry>(b).ok())
+        .collect()
+}
+
 impl AppModel {
     /// Handle subscription channel event (startup)
     pub fn handle_subscription_channel(&mut self) -> Task<cosmic::Action<Message>> {
@@ -90,7 +103,7 @@ impl AppModel {
     pub fn handle_clear_history(&mut self) {
         tracing::info!("Clearing play history");
         self.play_history.clear();
-        self.persist_play_history();
+        self.clear_persisted_play_history();
         // Clear virtual list if currently on history view
         self.set_track_list(Vec::new());
     }
@@ -111,26 +124,48 @@ impl AppModel {
         crate::logging::set_console_level(level);
     }
 
-    /// Persist the play history to the cache database (fire-and-forget).
+    /// Persist the most-recently-recorded play-history entry (fire-and-forget).
     ///
-    /// Serialises the in-memory history and spawns a background write to the
-    /// `kv` table. A no-op when the database isn't open yet, or when called
-    /// outside a tokio runtime.
+    /// Call this straight after [`PlayHistory::record`](crate::tidal::play_history::PlayHistory::record),
+    /// which puts the new entry at the front. Upserts that single row into the
+    /// `play_history` table (dedup + move-to-front by track id) rather than
+    /// rewriting the whole history. A no-op when the database isn't open yet,
+    /// or when called outside a tokio runtime.
     pub(crate) fn persist_play_history(&self) {
         let Some(db) = self.cache_db.clone() else {
             return;
         };
-        let Some(bytes) = self.play_history.to_json() else {
+        let Some(entry) = self.play_history.entries().first().cloned() else {
+            return;
+        };
+        let Some(bytes) = entry.to_json() else {
+            return;
+        };
+        let track_id = entry.track.id.clone();
+        let played_at_ms = entry.played_at_millis();
+        match tokio::runtime::Handle::try_current() {
+            Ok(handle) => {
+                handle.spawn(async move {
+                    db.put_play_history(&track_id, played_at_ms, &bytes).await;
+                });
+            }
+            Err(_) => tracing::debug!("no tokio runtime; play history not persisted"),
+        }
+    }
+
+    /// Delete all persisted play history (fire-and-forget). Pairs with
+    /// [`PlayHistory::clear`](crate::tidal::play_history::PlayHistory::clear).
+    pub(crate) fn clear_persisted_play_history(&self) {
+        let Some(db) = self.cache_db.clone() else {
             return;
         };
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => {
                 handle.spawn(async move {
-                    db.put_kv(crate::tidal::play_history::HISTORY_KEY, &bytes)
-                        .await;
+                    db.clear_play_history().await;
                 });
             }
-            Err(_) => tracing::debug!("no tokio runtime; play history not persisted"),
+            Err(_) => tracing::debug!("no tokio runtime; play history not cleared"),
         }
     }
 
