@@ -92,6 +92,31 @@ impl PlaybackUrl {
     }
 }
 
+impl std::fmt::Display for PlaybackUrl {
+    /// Concise, token-free rendering for logs. Direct URLs have their query
+    /// string — which carries the short-lived auth token — stripped; DASH
+    /// shows the local manifest path. Never print the raw URL in logs.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PlaybackUrl::Direct(url, rg) => {
+                let base = url.split('?').next().unwrap_or(url);
+                write!(f, "Direct({base}")?;
+                if let Some(rg) = rg {
+                    write!(f, ", {rg:+.2}dB")?;
+                }
+                write!(f, ")")
+            }
+            PlaybackUrl::DashManifest(path, rg) => {
+                write!(f, "DashManifest({}", path.display())?;
+                if let Some(rg) = rg {
+                    write!(f, ", {rg:+.2}dB")?;
+                }
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 // ── Unified API deserialization structs ─────────────────────────────────
 //
 // TIDAL uses the same track/album/artist shapes across many endpoints

@@ -550,6 +550,28 @@ impl cosmic::Application for AppModel {
             | Message::FollowArtistToggled(_) => {
                 tracing::debug!("update() received: {:?}", message);
             }
+            // URL-resolution results carry a full Track plus a signed URL whose
+            // query string holds a short-lived auth token. Log a concise,
+            // token-free summary (Track + redacted PlaybackUrl Display) rather
+            // than dumping the raw Debug.
+            Message::PlaybackUrlReceived(res) => match res {
+                Ok((track, url)) => {
+                    tracing::info!("update() received: PlaybackUrlReceived(Ok({track}, {url}))")
+                }
+                Err(e) => tracing::info!("update() received: PlaybackUrlReceived(Err: {e})"),
+            },
+            Message::PreloadUrlReceived(res) => match res {
+                Ok((track, url)) => {
+                    tracing::info!("update() received: PreloadUrlReceived(Ok({track}, {url}))")
+                }
+                Err(e) => tracing::info!("update() received: PreloadUrlReceived(Err: {e})"),
+            },
+            Message::VideoUrlReceived(res) => match res {
+                Ok((track, _url)) => {
+                    tracing::info!("update() received: VideoUrlReceived(Ok({track}, HLS))")
+                }
+                Err(e) => tracing::info!("update() received: VideoUrlReceived(Err: {e})"),
+            },
             // Log important messages at info level
             msg => tracing::info!("update() received: {:?}", msg),
         }
