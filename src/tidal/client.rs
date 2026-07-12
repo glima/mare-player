@@ -20,7 +20,6 @@ use super::models::{
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
-use std::path::PathBuf;
 use std::sync::Arc;
 use tidlers::{
     TidalClient,
@@ -29,8 +28,6 @@ use tidlers::{
 };
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
-
-use crate::disk_cache::DiskCache;
 
 /// Safety margin before token expiry to trigger refresh (5 minutes)
 const TOKEN_REFRESH_MARGIN_SECS: u64 = 300;
@@ -60,22 +57,37 @@ fn is_tidlers_network_error(e: &tidlers::error::TidalError) -> bool {
         || dbg.contains("No route to host")
 }
 
-/// Result of getting a playback URL - either a direct streaming URL or a
-/// (temporary) DASH manifest file for FLAC/hi-res.
+/// Result of getting a playback URL - either a direct streaming URL or an
+/// inline DASH manifest for FLAC/hi-res.
 #[derive(Debug, Clone)]
 pub enum PlaybackUrl {
     /// Direct streaming URL (for Low/High/Lossless quality)
     Direct(String, Option<f32>),
-    /// Path to a temporary DASH manifest file (for HiRes quality)
-    DashManifest(PathBuf, Option<f32>),
+    /// Inline DASH manifest XML (for HiRes quality). Played through a `data:`
+    /// URI so nothing is written to disk; its embedded segment URLs are
+    /// absolute and carry short-lived tokens.
+    DashManifest(String, Option<f32>),
 }
 
 impl PlaybackUrl {
-    /// Get the URL or path as a string for playback
+    /// Get a ready-to-use GStreamer URI for playback.
+    ///
+    /// `Direct` is already an `http(s)` URL. `DashManifest` is base64-wrapped
+    /// into a `data:application/dash+xml` URI so GStreamer's `dataurisrc` +
+    /// `dashdemux` consume the manifest inline — no file on disk. TIDAL's
+    /// segment URLs are absolute, so no base URI is required.
+    ///
+    /// This relies on TIDAL manifests being `type="static"` with a complete
+    /// segment timeline: adaptivedemux never needs to *refresh* the manifest
+    /// (its refresh downloader can't re-fetch a `data:` URI). Live/dynamic
+    /// manifests would not work inline — but TIDAL doesn't serve those here.
     pub fn as_url(&self) -> String {
         match self {
             PlaybackUrl::Direct(url, _) => url.clone(),
-            PlaybackUrl::DashManifest(path, _) => path.to_string_lossy().to_string(),
+            PlaybackUrl::DashManifest(manifest, _) => {
+                let b64 = general_purpose::STANDARD.encode(manifest.as_bytes());
+                format!("data:application/dash+xml;base64,{b64}")
+            }
         }
     }
 
@@ -95,7 +107,8 @@ impl PlaybackUrl {
 impl std::fmt::Display for PlaybackUrl {
     /// Concise, token-free rendering for logs. Direct URLs have their query
     /// string — which carries the short-lived auth token — stripped; DASH
-    /// shows the local manifest path. Never print the raw URL in logs.
+    /// shows only the inline manifest size (the manifest embeds segment
+    /// tokens). Never print the raw URL / manifest in logs.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PlaybackUrl::Direct(url, rg) => {
@@ -106,8 +119,8 @@ impl std::fmt::Display for PlaybackUrl {
                 }
                 write!(f, ")")
             }
-            PlaybackUrl::DashManifest(path, rg) => {
-                write!(f, "DashManifest({}", path.display())?;
+            PlaybackUrl::DashManifest(manifest, rg) => {
+                write!(f, "DashManifest(<inline manifest, {} bytes>", manifest.len())?;
                 if let Some(rg) = rg {
                     write!(f, ", {rg:+.2}dB")?;
                 }
@@ -330,8 +343,6 @@ pub struct TidalAppClient {
     auth_manager: AuthManager,
     /// Current audio quality setting
     audio_quality: AudioQuality,
-    /// Disk cache for the small DASH manifest files handed to GStreamer.
-    dash_cache: DiskCache,
 }
 
 impl Default for TidalAppClient {
@@ -456,8 +467,6 @@ impl TidalAppClient {
             client: Arc::new(Mutex::new(None)),
             auth_manager: AuthManager::new(),
             audio_quality: AudioQuality::High,
-            // DASH manifests are small XML files (a few KB each); 10 MB is plenty.
-            dash_cache: DiskCache::xdg("dash", 10),
         }
     }
 
@@ -1516,23 +1525,16 @@ impl TidalAppClient {
 
         // Check if this is a DASH manifest (used for HiRes)
         if manifest_mime_type.contains("dash") {
-            info!("DASH manifest detected for HiRes quality - writing to cache");
+            info!("DASH manifest detected for HiRes quality - playing inline");
             let preview_len = manifest_str.len().min(500);
             let preview: String = manifest_str.chars().take(preview_len).collect();
             debug!("DASH manifest content:\n{}", preview);
 
-            // Write the DASH manifest to the XDG cache directory
-            // (~/.cache/cosmic-applet-mare/dash/)
-            let filename = format!("tidal_dash_{}.mpd", track_id);
-            let manifest_path = self
-                .dash_cache
-                .put(&filename, manifest_str.as_bytes())
-                .map_err(|e| {
-                    TidalError::RequestFailed(format!("Failed to write manifest to cache: {}", e))
-                })?;
-
-            info!("DASH manifest written to: {:?}", manifest_path);
-            return Ok(PlaybackUrl::DashManifest(manifest_path, replay_gain_db));
+            // Hand the manifest to GStreamer inline (as a data: URI) rather than
+            // writing it to disk — see `PlaybackUrl::as_url`. The manifest is
+            // single-use anyway (its segment URLs carry short-lived tokens), so
+            // there is nothing worth persisting.
+            return Ok(PlaybackUrl::DashManifest(manifest_str, replay_gain_db));
         }
 
         // For non-DASH (JSON manifest with direct URLs)

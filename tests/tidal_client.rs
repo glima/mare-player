@@ -16,8 +16,6 @@
     clippy::wildcard_imports
 )]
 
-use std::path::PathBuf;
-
 use cosmic_applet_mare::tidal::auth::AuthState;
 use cosmic_applet_mare::tidal::client::{PlaybackUrl, TidalAppClient, TidalError};
 use cosmic_applet_mare::tidal::models::tidal_cover_url;
@@ -36,10 +34,13 @@ mod playback_url_as_url {
     }
 
     #[test]
-    fn dash_manifest_returns_path_as_string() {
-        let path = PathBuf::from("/tmp/manifest.mpd");
-        let url = PlaybackUrl::DashManifest(path.clone(), None);
-        assert_eq!(url.as_url(), path.to_string_lossy().to_string());
+    fn dash_manifest_returns_data_uri() {
+        // The inline manifest is base64-wrapped into a data: URI for GStreamer.
+        let url = PlaybackUrl::DashManifest("<MPD>hi</MPD>".to_string(), None);
+        assert!(
+            url.as_url()
+                .starts_with("data:application/dash+xml;base64,")
+        );
     }
 
     #[test]
@@ -49,10 +50,13 @@ mod playback_url_as_url {
     }
 
     #[test]
-    fn dash_manifest_relative_path() {
-        let path = PathBuf::from("relative/path/manifest.mpd");
-        let url = PlaybackUrl::DashManifest(path, None);
-        assert_eq!(url.as_url(), "relative/path/manifest.mpd");
+    fn dash_manifest_data_uri_is_deterministic_per_manifest() {
+        // Same manifest -> same URI; different manifest -> different URI.
+        let a = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None);
+        let a2 = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None);
+        let b = PlaybackUrl::DashManifest("<MPD>b</MPD>".to_string(), None);
+        assert_eq!(a.as_url(), a2.as_url());
+        assert_ne!(a.as_url(), b.as_url());
     }
 }
 
@@ -71,7 +75,7 @@ mod playback_url_is_dash {
 
     #[test]
     fn dash_manifest_is_dash() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/manifest.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         assert!(url.is_dash());
     }
 }
@@ -92,7 +96,7 @@ mod playback_url_traits {
 
     #[test]
     fn dash_manifest_clone() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         let cloned = url.clone();
         assert_eq!(url.as_url(), cloned.as_url());
         assert!(cloned.is_dash());
@@ -102,7 +106,7 @@ mod playback_url_traits {
     fn debug_output_is_nonempty_for_all_variants() {
         let variants: Vec<PlaybackUrl> = vec![
             PlaybackUrl::Direct("url".to_string(), None),
-            PlaybackUrl::DashManifest(PathBuf::from("path.mpd"), None),
+            PlaybackUrl::DashManifest("<MPD/>".to_string(), None),
         ];
         for v in &variants {
             let dbg = format!("{:?}", v);
@@ -120,7 +124,7 @@ mod playback_url_traits {
 
     #[test]
     fn debug_dash_contains_variant_name() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("test.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         let dbg = format!("{:?}", url);
         assert!(
             dbg.contains("DashManifest"),
@@ -144,7 +148,7 @@ mod playback_url_exclusivity {
 
     #[test]
     fn dash_is_dash() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("m.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         assert!(url.is_dash());
     }
 }
@@ -1064,13 +1068,13 @@ mod playback_url_replay_gain {
 
     #[test]
     fn dash_manifest_none_replay_gain() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         assert_eq!(url.replay_gain_db(), None);
     }
 
     #[test]
     fn dash_manifest_some_replay_gain() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-3.2));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.2));
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-3.2)).abs() < f32::EPSILON);
     }
@@ -1105,14 +1109,14 @@ mod playback_url_replay_gain {
 
     #[test]
     fn replay_gain_none_preserved_by_clone() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         let cloned = url.clone();
         assert_eq!(url.replay_gain_db(), cloned.replay_gain_db());
     }
 
     #[test]
     fn replay_gain_small_fractional() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-0.001));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-0.001));
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-0.001)).abs() < f32::EPSILON);
     }
@@ -1141,7 +1145,7 @@ mod playback_url_combined {
 
     #[test]
     fn dash_with_gain_is_dash() {
-        let url = PlaybackUrl::DashManifest(PathBuf::from("/tmp/m.mpd"), Some(-3.0));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.0));
         assert!(url.is_dash());
         assert!(url.replay_gain_db().is_some());
     }
@@ -1162,9 +1166,9 @@ mod playback_url_combined {
 
     #[test]
     fn dash_as_url_works_regardless_of_replay_gain() {
-        let p = PathBuf::from("/tmp/m.mpd");
-        let url1 = PlaybackUrl::DashManifest(p.clone(), None);
-        let url2 = PlaybackUrl::DashManifest(p, Some(-2.0));
+        let m = "<MPD/>".to_string();
+        let url1 = PlaybackUrl::DashManifest(m.clone(), None);
+        let url2 = PlaybackUrl::DashManifest(m, Some(-2.0));
         assert_eq!(url1.as_url(), url2.as_url());
     }
 }

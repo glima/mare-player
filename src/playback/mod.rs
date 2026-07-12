@@ -82,18 +82,6 @@ pub fn db_to_linear(db: f32) -> f64 {
     10f64.powf(db as f64 / 20.0)
 }
 
-/// Build a GStreamer `file://` URI for a local media path (a DASH manifest
-/// written to the cache, or a previously-downloaded cached audio file).
-///
-/// Uses GStreamer's own path-to-URI conversion (which percent-escapes spaces
-/// and other special characters) and falls back to a naive `file://` prefix if
-/// that fails — e.g. on a relative path.
-pub fn file_uri(path: &std::path::Path) -> String {
-    gst::glib::filename_to_uri(path, None)
-        .map(|u| u.to_string())
-        .unwrap_or_else(|_| format!("file://{}", path.display()))
-}
-
 /// Convert a *perceptual* volume (0.0..=1.0, what the UI slider shows) into the
 /// **linear gain** playbin's `volume` property expects.
 ///

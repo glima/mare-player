@@ -298,14 +298,10 @@ impl AppModel {
         // the API didn't provide one.
         let replay_gain_db = playback_url.replay_gain_db().unwrap_or(0.0);
 
-        // Build a GStreamer URI. DASH manifests are written to disk (file://);
-        // direct qualities are already http(s) URLs GStreamer streams.
-        let url_str = playback_url.as_url();
-        let uri = if playback_url.is_dash() {
-            crate::playback::file_uri(std::path::Path::new(&url_str))
-        } else {
-            url_str
-        };
+        // `as_url()` returns a ready-to-use GStreamer URI: an http(s) URL for
+        // direct qualities, or an inline `data:application/dash+xml` URI for
+        // DASH (HiRes) — nothing is written to disk.
+        let uri = playback_url.as_url();
 
         tracing::info!(
             "GStreamer audio: {} ({})",
@@ -1136,12 +1132,8 @@ impl AppModel {
             Ok((track, playback_url)) => {
                 if let Some(mp) = &self.media_player {
                     let rg = playback_url.replay_gain_db().unwrap_or(0.0);
-                    let url_str = playback_url.as_url();
-                    let uri = if playback_url.is_dash() {
-                        crate::playback::file_uri(std::path::Path::new(&url_str))
-                    } else {
-                        url_str
-                    };
+                    // Ready-to-use GStreamer URI (http(s) or inline data: DASH).
+                    let uri = playback_url.as_url();
                     mp.set_next(uri, rg);
                     tracing::info!("Gapless: staged next track: {}", track);
                 }
