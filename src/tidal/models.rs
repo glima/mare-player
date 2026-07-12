@@ -699,6 +699,26 @@ pub enum FeedRow {
     Activity(Box<FeedActivity>),
 }
 
+/// A single flattened row of the **track-detail** view, rendered through the
+/// virtual `List` widget so only visible rows materialise and covers load
+/// lazily.
+#[derive(Debug, Clone)]
+pub enum TrackDetailRow {
+    /// The track info header: cover, title, clickable artist/album, metadata.
+    Header(Box<Track>),
+    /// A recommendation-section heading.
+    SectionHeader(String),
+    /// A "loading recommendations" placeholder shown under a header while a
+    /// section's data is still in flight.
+    Loading,
+    /// A "More Albums by {Artist}" card (artist name omitted — it's redundant).
+    ArtistAlbum(Box<Album>),
+    /// A "Related Albums" card (includes artist name — different artists).
+    RelatedAlbum(Box<Album>),
+    /// A "Related Artists" card (picture + name).
+    RelatedArtist(Box<Artist>),
+}
+
 impl ExplorePage {
     /// Flatten the page's sections into a single ordered list of rows
     /// (section header followed by its items), for the virtual `List`.

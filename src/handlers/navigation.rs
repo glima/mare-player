@@ -405,10 +405,12 @@ impl AppModel {
         self.selected_detail_track = Some(track.clone());
         self.is_loading = true;
         self.view_state = ViewState::TrackDetail;
+        self.rebuild_track_detail_rows();
 
         let artist_id = track.artist_id.clone().unwrap_or_default();
         if artist_id.is_empty() {
             self.is_loading = false;
+            self.rebuild_track_detail_rows();
             return Task::none();
         }
 
@@ -708,6 +710,7 @@ impl AppModel {
             ViewState::Mixes => self.rebuild_mixes_content(),
             ViewState::Profiles => self.rebuild_profiles_content(),
             ViewState::Feed => self.rebuild_feed_content(),
+            ViewState::TrackDetail => self.rebuild_track_detail_rows(),
             ViewState::Explore => {
                 self.explore_rows = self
                     .explore_page

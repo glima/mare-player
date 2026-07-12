@@ -11,7 +11,9 @@ use cosmic::prelude::*;
 
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
-use crate::tidal::models::{Album, Artist, ArtistRow, FeedActivity, FeedRow, Mix, Playlist, Track};
+use crate::tidal::models::{
+    Album, Artist, ArtistRow, FeedActivity, FeedRow, Mix, Playlist, Track, TrackDetailRow,
+};
 
 // =============================================================================
 // Task Helper Methods
@@ -472,6 +474,73 @@ impl AppModel {
         self.albums_content = self.user_albums.iter().cloned().collect();
     }
 
+    /// Rebuild the track-detail recommendations into virtual-`List` content:
+    /// the track header, then a header + cards (or a loading placeholder) for
+    /// each of the three recommendation sections. Called as each section loads.
+    pub(crate) fn rebuild_track_detail_rows(&mut self) {
+        use TrackDetailRow as R;
+        let mut rows: Vec<R> = Vec::new();
+
+        if let Some(track) = &self.selected_detail_track {
+            rows.push(R::Header(Box::new(track.clone())));
+        }
+        let artist_name = self
+            .selected_detail_track
+            .as_ref()
+            .map(|t| t.artist_name.clone())
+            .unwrap_or_default();
+
+        // Section 1: More Albums by {Artist}
+        if !self.track_detail_artist_albums.is_empty() {
+            rows.push(R::SectionHeader(crate::fl!(
+                "more-albums-by",
+                artist = artist_name.clone()
+            )));
+            rows.extend(
+                self.track_detail_artist_albums
+                    .iter()
+                    .cloned()
+                    .map(|a| R::ArtistAlbum(Box::new(a))),
+            );
+        } else if self.is_loading {
+            rows.push(R::SectionHeader(crate::fl!(
+                "more-albums-by",
+                artist = artist_name.clone()
+            )));
+            rows.push(R::Loading);
+        }
+
+        // Section 2: Related Albums
+        if !self.track_detail_related_albums.is_empty() {
+            rows.push(R::SectionHeader(crate::fl!("related-albums")));
+            rows.extend(
+                self.track_detail_related_albums
+                    .iter()
+                    .cloned()
+                    .map(|a| R::RelatedAlbum(Box::new(a))),
+            );
+        } else if !self.track_detail_related_artists.is_empty() {
+            rows.push(R::SectionHeader(crate::fl!("related-albums")));
+            rows.push(R::Loading);
+        }
+
+        // Section 3: Related Artists
+        if !self.track_detail_related_artists.is_empty() {
+            rows.push(R::SectionHeader(crate::fl!("related-artists")));
+            rows.extend(
+                self.track_detail_related_artists
+                    .iter()
+                    .cloned()
+                    .map(|a| R::RelatedArtist(Box::new(a))),
+            );
+        } else if self.is_loading {
+            rows.push(R::SectionHeader(crate::fl!("related-artists")));
+            rows.push(R::Loading);
+        }
+
+        self.track_detail_rows = rows.into_iter().collect();
+    }
+
     /// Rebuild the feed virtual-`List` content from `feed_activities`, grouping
     /// activities into time buckets (New / Last week / Last month / Older) with
     /// a section header per non-empty bucket. Only visible rows render, so
@@ -899,6 +968,7 @@ impl AppModel {
             Ok(albums) => {
                 tracing::info!("Track detail: loaded {} artist albums", albums.len());
                 self.track_detail_artist_albums = albums;
+                self.rebuild_track_detail_rows();
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }
@@ -926,11 +996,13 @@ impl AppModel {
 
                 // Fetch related albums (one per similar artist) in a follow-up.
                 // Pictures load lazily per visible row via get_or_request.
-                if artist_ids.is_empty() {
+                let albums_task = if artist_ids.is_empty() {
                     Task::none()
                 } else {
                     self.load_track_detail_related_albums(artist_ids)
-                }
+                };
+                self.rebuild_track_detail_rows();
+                albums_task
             }
             Err(e) => {
                 tracing::error!("Failed to load related artists for track detail: {}", e);
@@ -948,6 +1020,7 @@ impl AppModel {
             Ok(albums) => {
                 tracing::info!("Track detail: loaded {} related albums", albums.len());
                 self.track_detail_related_albums = albums;
+                self.rebuild_track_detail_rows();
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }

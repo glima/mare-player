@@ -23,7 +23,7 @@ use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{
     Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist,
-    SearchResults, Track,
+    SearchResults, Track, TrackDetailRow,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
@@ -247,6 +247,9 @@ pub struct AppModel {
     pub(crate) track_detail_related_artists: Vec<Artist>,
     /// Related albums (one per similar artist) for the track detail view
     pub(crate) track_detail_related_albums: Vec<Album>,
+    /// Track-detail recommendations flattened into virtual-`List` content
+    /// (header + sections). Rebuilt as each section loads.
+    pub(crate) track_detail_rows: list::Content<TrackDetailRow>,
     /// Currently selected playlist tracks
     pub(crate) selected_playlist_tracks: Vec<Track>,
     /// Currently selected album tracks

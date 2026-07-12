@@ -144,6 +144,7 @@ impl cosmic::Application for AppModel {
             track_detail_artist_albums: Vec::new(),
             track_detail_related_artists: Vec::new(),
             track_detail_related_albums: Vec::new(),
+            track_detail_rows: cosmic::iced::widget::list::Content::default(),
             selected_playlist_tracks: Vec::new(),
             selected_album_tracks: Vec::new(),
             selected_playlist_name: None,
