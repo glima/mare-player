@@ -2,7 +2,7 @@
 
 //! Integration tests for the disk cache module.
 //!
-//! Covers put/get, hashed put/get, trim_log_file, log_file_path, rescan,
+//! Covers put/get, hashed put/get, rescan,
 //! reserve_room, and concurrent access patterns.
 
 // Relax production safety lints for test code — clarity over strictness.
@@ -15,10 +15,8 @@
     clippy::wildcard_imports
 )]
 
-use cosmic_applet_mare::disk_cache::{DiskCache, log_file_path, trim_log_file};
-use cosmic_applet_mare::views::components::constants::CACHE_DIR_NAME;
+use cosmic_applet_mare::disk_cache::DiskCache;
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use tempfile::TempDir;
 
@@ -409,126 +407,6 @@ fn xdg_constructor_creates_directory() {
     assert!(cache.dir().exists());
     // Clean up
     let _ = fs::remove_dir_all(cache.dir());
-}
-
-// ===========================================================================
-// trim_log_file
-// ===========================================================================
-
-#[test]
-fn trim_log_file_noop_when_small() {
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("small.log");
-    fs::write(&path, "short content\n").unwrap();
-
-    trim_log_file(&path, 1024);
-
-    let content = fs::read_to_string(&path).unwrap();
-    assert_eq!(content, "short content\n");
-}
-
-#[test]
-fn trim_log_file_truncates_large_file() {
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("big.log");
-
-    // Write 200 lines, each 50+ chars → well over 1 KB
-    {
-        let mut f = fs::File::create(&path).unwrap();
-        for i in 0..200 {
-            writeln!(f, "line {:04}: {}", i, "x".repeat(50)).unwrap();
-        }
-    }
-
-    let original_size = fs::metadata(&path).unwrap().len();
-    assert!(original_size > 1024, "test file should be > 1KB");
-
-    // Trim to 1 KB
-    trim_log_file(&path, 1024);
-
-    let trimmed_size = fs::metadata(&path).unwrap().len();
-    assert!(
-        trimmed_size <= 1024,
-        "trimmed size {} should be <= 1024",
-        trimmed_size
-    );
-
-    // Content should not start with a partial line
-    let content = fs::read_to_string(&path).unwrap();
-    assert!(
-        content.starts_with("line "),
-        "should start at a line boundary, got: {:?}",
-        &content[..content.len().min(30)]
-    );
-}
-
-#[test]
-fn trim_log_file_noop_when_file_missing() {
-    let path = PathBuf::from("/tmp/nonexistent_log_trim_test.log");
-    // Should not panic
-    trim_log_file(&path, 1024);
-}
-
-#[test]
-fn trim_log_file_exact_boundary() {
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("exact.log");
-
-    // Write exactly 100 bytes
-    let data = "a".repeat(100);
-    fs::write(&path, &data).unwrap();
-
-    // Trim to exactly 100 bytes → no-op
-    trim_log_file(&path, 100);
-    let content = fs::read_to_string(&path).unwrap();
-    assert_eq!(content.len(), 100);
-}
-
-#[test]
-fn trim_preserves_complete_lines() {
-    let tmp = TempDir::new().unwrap();
-    let path = tmp.path().join("lines.log");
-
-    // Write known lines
-    let lines: Vec<String> = (0..100).map(|i| format!("LOG LINE {:03}\n", i)).collect();
-    let content = lines.join("");
-    fs::write(&path, &content).unwrap();
-
-    // Trim to ~500 bytes
-    trim_log_file(&path, 500);
-
-    let result = fs::read_to_string(&path).unwrap();
-    // Every line in the result should be complete
-    for line in result.lines() {
-        assert!(
-            line.starts_with("LOG LINE "),
-            "unexpected partial line: {:?}",
-            line
-        );
-    }
-}
-
-// ===========================================================================
-// log_file_path
-// ===========================================================================
-
-#[test]
-fn log_file_path_returns_valid_path() {
-    let path = log_file_path("test.log");
-    assert!(path.to_string_lossy().contains(CACHE_DIR_NAME));
-    assert!(path.to_string_lossy().contains("logs"));
-    assert!(path.to_string_lossy().ends_with("test.log"));
-    // Parent directory should exist (log_file_path creates it)
-    assert!(path.parent().unwrap().exists());
-}
-
-#[test]
-fn log_file_path_different_names_differ() {
-    let p1 = log_file_path("app.log");
-    let p2 = log_file_path("debug.log");
-    assert_ne!(p1, p2);
-    assert!(p1.to_string_lossy().ends_with("app.log"));
-    assert!(p2.to_string_lossy().ends_with("debug.log"));
 }
 
 // ===========================================================================

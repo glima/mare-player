@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use crate::config::{AudioQuality, Config};
+use crate::config::{AudioQuality, Config, LogLevel};
 use crate::image_cache::{IMAGE_RENDER_MAX_PX, make_circular};
 use crate::messages::{Message, MprisStartResult};
 use crate::state::{AppModel, ViewState};
@@ -93,6 +93,22 @@ impl AppModel {
         self.persist_play_history();
         // Clear virtual list if currently on history view
         self.set_track_list(Vec::new());
+    }
+
+    /// Handle a console log-level change from Settings: persist it and apply it
+    /// to the live tracing subscriber immediately (no restart needed).
+    pub fn handle_set_log_level(&mut self, level: LogLevel) {
+        tracing::info!("Setting console log level to {}", level.as_filter_str());
+        self.config.log_level = level;
+
+        if let Ok(config_context) =
+            cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+            && let Err(e) = self.config.write_entry(&config_context)
+        {
+            tracing::error!("Failed to save log level config: {}", e);
+        }
+
+        crate::logging::set_console_level(level);
     }
 
     /// Persist the play history to the cache database (fire-and-forget).

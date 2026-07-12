@@ -6,7 +6,7 @@
 //! The [`Config`] struct is the single source of truth for user preferences
 //! such as audio quality, cache limits, and notification toggles.
 
-use cosmic::cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry};
+use cosmic::cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, CosmicConfigEntry};
 use serde::{Deserialize, Serialize};
 
 /// Audio quality settings for TIDAL playback
@@ -51,6 +51,54 @@ impl AsRef<str> for AudioQuality {
     }
 }
 
+/// Console/journal log verbosity.
+///
+/// Controls the base level of the terminal (journal) log layer only.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LogLevel {
+    /// Only errors.
+    Error,
+    /// Warnings and errors.
+    Warn,
+    /// Informational messages and above (the default).
+    #[default]
+    Info,
+    /// Debug messages and above.
+    Debug,
+    /// Everything, including trace-level spans.
+    Trace,
+}
+
+impl LogLevel {
+    /// The `EnvFilter` base directive string for this level.
+    pub fn as_filter_str(&self) -> &'static str {
+        match self {
+            LogLevel::Error => "error",
+            LogLevel::Warn => "warn",
+            LogLevel::Info => "info",
+            LogLevel::Debug => "debug",
+            LogLevel::Trace => "trace",
+        }
+    }
+
+    /// Human-readable label for the settings dropdown.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            LogLevel::Error => "Error",
+            LogLevel::Warn => "Warning",
+            LogLevel::Info => "Info (default)",
+            LogLevel::Debug => "Debug",
+            LogLevel::Trace => "Trace",
+        }
+    }
+}
+
+impl AsRef<str> for LogLevel {
+    fn as_ref(&self) -> &str {
+        self.display_name()
+    }
+}
+
 /// Configuration for Maré Player
 #[derive(Debug, Clone, CosmicConfigEntry, PartialEq)]
 #[version = 2]
@@ -59,6 +107,8 @@ pub struct Config {
     pub audio_quality: AudioQuality,
     /// Maximum image cache size in megabytes
     pub image_cache_max_mb: u32,
+    /// Console/journal log verbosity
+    pub log_level: LogLevel,
     /// Volume level (0.0 to 1.0), persisted across restarts
     pub volume_level: f32,
     /// Fixed loudness pre-amp applied to music **videos**, in decibels.
@@ -75,6 +125,7 @@ impl Default for Config {
         Self {
             audio_quality: AudioQuality::HiRes,
             image_cache_max_mb: 200,
+            log_level: LogLevel::Info,
             volume_level: 1.0,
             video_preamp_db: -8.0,
         }

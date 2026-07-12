@@ -9,7 +9,7 @@ use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
-use crate::config::AudioQuality;
+use crate::config::{AudioQuality, LogLevel};
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
@@ -21,6 +21,15 @@ static QUALITY_OPTIONS: &[AudioQuality] = &[
     AudioQuality::High,
     AudioQuality::Lossless,
     AudioQuality::HiRes,
+];
+
+/// Available console log-level options (least to most verbose)
+static LOG_LEVEL_OPTIONS: &[LogLevel] = &[
+    LogLevel::Error,
+    LogLevel::Warn,
+    LogLevel::Info,
+    LogLevel::Debug,
+    LogLevel::Trace,
 ];
 
 impl AppModel {
@@ -72,6 +81,30 @@ impl AppModel {
                     AudioQuality::HiRes => fl!("quality-description-hires"),
                 })
                 .size(11),
+            )
+            .spacing(8);
+
+        // Logging section — controls terminal/journal verbosity live. Labels
+        // are technical (Error/Warn/Info/…) and intentionally not localized.
+        let current_log_level = self.config.log_level;
+        let log_selected_idx = LOG_LEVEL_OPTIONS
+            .iter()
+            .position(|l| *l == current_log_level)
+            .unwrap_or(2);
+
+        let logging_section = widget::Column::new()
+            .push(text("Logging").size(14))
+            .push(
+                widget::dropdown(LOG_LEVEL_OPTIONS, Some(log_selected_idx), |idx| {
+                    Message::SetLogLevel(
+                        LOG_LEVEL_OPTIONS.get(idx).copied().unwrap_or(LogLevel::Info),
+                    )
+                })
+                .width(Length::Fill),
+            )
+            .push(
+                text("Console / journal verbosity. Applies immediately.")
+                    .size(11),
             )
             .spacing(8);
 
@@ -204,6 +237,8 @@ impl AppModel {
             .push(account_section)
             .push(widget::space::vertical().height(8))
             .push(quality_section)
+            .push(widget::space::vertical().height(8))
+            .push(logging_section)
             .push(widget::space::vertical().height(8))
             .push(about_section)
             .spacing(8)

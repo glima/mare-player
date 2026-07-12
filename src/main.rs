@@ -9,8 +9,6 @@
 
 #[cfg(not(feature = "panel-applet"))]
 use cosmic::iced::core::layout::Limits;
-use std::fs::OpenOptions;
-use std::sync::Mutex;
 
 // On-demand profiling (debug builds only, Linux).
 //   cargo build              → profiler is embedded automatically
@@ -23,14 +21,10 @@ use signal_hook::{consts::SIGUSR1, iterator::Signals};
 #[cfg(all(debug_assertions, target_os = "linux"))]
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use cosmic_applet_mare::disk_cache;
 use cosmic_applet_mare::i18n;
 
 use tracing_subscriber::fmt::time::ChronoLocal;
-use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-
-/// Maximum log file size in bytes (5 MB).
-const LOG_MAX_BYTES: u64 = 5 * 1024 * 1024;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 /// Start a background thread that waits for SIGUSR1, then samples for 10 s
 /// and writes a flamegraph SVG to `/tmp/mare-flamegraph.svg`.
@@ -87,13 +81,6 @@ fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
 }
 
 fn main() -> cosmic::iced::Result {
-    // Resolve log path under XDG cache dir (~/.cache/cosmic-applet-mare/logs/)
-    let log_file_path = disk_cache::log_file_path("cosmic-applet-mare.log");
-
-    // Trim the log file to 5 MB before we open it for appending, so it
-    // never grows unboundedly across restarts.
-    disk_cache::trim_log_file(&log_file_path, LOG_MAX_BYTES);
-
     // Initialize tracing with filters to reduce noise
     // Filter out noisy warnings from iced_futures subscription tracker
     let mut filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
@@ -104,7 +91,6 @@ fn main() -> cosmic::iced::Result {
         "iced_winit=warn",
         "sctk=warn",
         "sctk_adwaita=error",
-        "h2=error",
         "hyper=warn",
         "hyper_util=warn",
         "i18n_embed=warn",
@@ -113,10 +99,15 @@ fn main() -> cosmic::iced::Result {
         "winit=warn",
         "rustls_platform_verifier=warn",
         "reqwest=warn",
-        "symphonia=warn",
         "cosmic_text=warn",
         "wgpu_core=warn",
         "wgpu_hal=warn",
+        // iced_wgpu logs per-frame texture-atlas allocations at DEBUG, which
+        // floods the always-DEBUG file log (multi-GB per session). Silence it.
+        "iced_wgpu=warn",
+        // turso (embedded DB) logs every page/WAL/btree access at DEBUG, which
+        // buries the app's own logs whenever the console level is DEBUG/TRACE.
+        "turso_core=warn",
     ];
 
     for directive in directives {
@@ -128,55 +119,36 @@ fn main() -> cosmic::iced::Result {
     // Use local timezone for all log timestamps
     let local_time = ChronoLocal::rfc_3339();
 
-    // Console layer: uses the env filter above
+    // Console layer: uses the env filter above, wrapped in a reload layer so
+    // the Settings view can change verbosity live (see
+    // `logging::set_console_level`). Writes to **stderr** so that when the
+    // applet is spawned by cosmic-panel (which forwards a child's stderr to the
+    // journal but not its stdout), these logs reach `journalctl`.
+    let (console_filter, console_reload) = tracing_subscriber::reload::Layer::new(filter);
     let console_layer = fmt::layer()
-        .with_timer(local_time.clone())
-        .with_filter(filter);
+        .with_writer(std::io::stderr)
+        .with_timer(local_time)
+        .with_filter(console_filter);
 
-    // File layer: always DEBUG level, appending to a persistent log file under
-    // $XDG_CACHE_HOME/cosmic-applet-mare/logs/ so we can retrieve logs after the fact.
-    let file_result = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_file_path);
+    tracing_subscriber::registry().with(console_layer).init();
 
-    let file_opened_ok = file_result.is_ok();
-
-    let file_layer = file_result.ok().map(|file| {
-        let mut file_filter = EnvFilter::new("debug");
-        for directive in &directives {
+    // Install the runtime console-level reload hook now that the subscriber is
+    // live. It rebuilds the same base-level + noise-directive filter used at
+    // startup, so a level change from Settings matches how `main` builds it.
+    cosmic_applet_mare::logging::install_reload_hook(Box::new(move |level| {
+        let mut filter = EnvFilter::new(level.as_filter_str());
+        for directive in directives {
             if let Ok(parsed) = directive.parse() {
-                file_filter = file_filter.add_directive(parsed);
+                filter = filter.add_directive(parsed);
             }
         }
-        fmt::layer()
-            .with_ansi(false)
-            .with_timer(local_time)
-            .with_writer(Mutex::new(file))
-            .with_filter(file_filter)
-    });
-
-    tracing_subscriber::registry()
-        .with(console_layer)
-        .with(file_layer)
-        .init();
+        let _ = console_reload.reload(filter);
+    }));
 
     // Start the on-demand pprof profiler (debug builds only, no-op in release).
     // Send SIGUSR1 to the process to capture a 10 s flamegraph.
     #[cfg(all(debug_assertions, target_os = "linux"))]
     let _pprof_running = start_pprof_profiler();
-
-    if file_opened_ok {
-        tracing::info!(
-            "File logging enabled at DEBUG level: {}",
-            log_file_path.display()
-        );
-    } else {
-        tracing::warn!(
-            "Failed to open log file at {}, file logging disabled",
-            log_file_path.display()
-        );
-    }
 
     // Get the system's preferred languages.
     let requested_languages = i18n_embed::DesktopLanguageRequester::requested_languages();
@@ -198,10 +170,6 @@ fn main() -> cosmic::iced::Result {
             .exit_on_close(true),
         (),
     );
-
-    // Trim the log file again on shutdown so we don't leave a bloated file
-    // behind after a long-running session.
-    disk_cache::trim_log_file(&log_file_path, LOG_MAX_BYTES);
 
     result
 }

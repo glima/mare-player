@@ -66,6 +66,13 @@ impl cosmic::Application for AppModel {
             })
             .unwrap_or_default();
 
+        // Apply the persisted console log level to the live subscriber, unless
+        // RUST_LOG is set (in which case the environment keeps precedence, as
+        // it does at startup in `main`).
+        if std::env::var_os("RUST_LOG").is_none() {
+            crate::logging::set_console_level(config.log_level);
+        }
+
         // Initialize the spectrum analyzer that the now-playing visualizer
         // reads. The playback pipeline's PCM tap feeds it; created at 44.1 kHz
         // with one band per visualizer bar (no oversampling).
@@ -792,6 +799,10 @@ impl cosmic::Application for AppModel {
 
             // Misc handlers - settings
             Message::SetAudioQuality(quality) => self.handle_set_audio_quality(quality),
+            Message::SetLogLevel(level) => {
+                self.handle_set_log_level(level);
+                Task::none()
+            }
             Message::ClearHistory => {
                 self.handle_clear_history();
                 Task::none()

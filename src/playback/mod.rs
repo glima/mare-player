@@ -587,7 +587,9 @@ impl MediaPlayer {
                 }
                 MessageView::Buffering(b) => {
                     let percent = b.percent();
-                    tracing::debug!("Media pipeline buffering: {percent}%");
+                    // Fires once per percent (many/sec) — keep it at TRACE so it
+                    // doesn't drown DEBUG. State transitions below stay at DEBUG.
+                    tracing::trace!("Media pipeline buffering: {percent}%");
                     // Standard streaming protocol: hold the pipeline in PAUSED
                     // while the buffer fills, then return it to PLAYING at 100%
                     // — but only if the user still wants to play (they may have

@@ -11,7 +11,7 @@ use cosmic::iced::window::Id;
 use cosmic::surface;
 use tokio::sync::Mutex;
 
-use crate::config::{AudioQuality, Config};
+use crate::config::{AudioQuality, Config, LogLevel};
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::PlaybackUrl;
 use crate::tidal::models::{
@@ -309,6 +309,8 @@ pub enum Message {
     // Settings
     /// Set audio quality preference
     SetAudioQuality(AudioQuality),
+    /// Set the console/journal log verbosity
+    SetLogLevel(LogLevel),
     /// Clear the local play history
     ClearHistory,
 
