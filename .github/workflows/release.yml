@@ -135,6 +135,9 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+    outputs:
+      # base64(SHA256SUMS) — the subject list the SLSA generator signs.
+      hashes: ${{ steps.hashes.outputs.hashes }}
 
     steps:
       - name: Checkout (tag annotation + commit changelog)
@@ -163,9 +166,12 @@ jobs:
           merge-multiple: true
 
       - name: Generate checksums
+        id: hashes
         run: |
           cd release
           shasum -a 256 *.deb *.rpm *.tar.gz > SHA256SUMS
+          # Expose base64(SHA256SUMS) for the SLSA provenance generator job.
+          echo "hashes=$(base64 -w0 SHA256SUMS)" >> "$GITHUB_OUTPUT"
 
       - name: Attest build provenance
         id: attest
@@ -234,3 +240,24 @@ jobs:
             release/provenance.sigstore
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # SLSA build provenance as a signed `multiple.intoto.jsonl`, attached to the
+  # release. This is what earns Scorecard's Signed-Releases 10/10 tier (which
+  # specifically requires a SLSA provenance file), on top of the `.sigstore`
+  # bundle above.
+  #
+  # NOTE: the reusable workflow MUST be pinned to a version *tag*, not a SHA —
+  # slsa-verifier derives the trusted builder identity from the tag ref, so a
+  # SHA pin would make the generated provenance unverifiable. This is the one
+  # sanctioned exception to our "pin actions by SHA" rule.
+  provenance:
+    needs: [release]
+    permissions:
+      actions: read # read the workflow ref that becomes the provenance builder id
+      id-token: write # keyless Sigstore signing
+      contents: write # upload the .intoto.jsonl asset to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0
+    with:
+      base64-subjects: ${{ needs.release.outputs.hashes }}
+      upload-assets: true
+      upload-tag-name: ${{ github.ref_name }}
