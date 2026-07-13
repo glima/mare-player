@@ -2690,6 +2690,14 @@ impl TidalAppClient {
             _ => ExploreTarget::None,
         };
 
+        // Skip promo cards we can't act on in-app: editorial / external-link
+        // promos (e.g. the "TIDAL MAGAZINE" card, an EXTURL to the web magazine),
+        // videos, etc. all resolve to `None`. This is a music player, not a
+        // magazine reader — a card that opens nothing is just noise.
+        if matches!(target, ExploreTarget::None) {
+            return None;
+        }
+
         if title.is_empty() && image_url.is_none() {
             return None;
         }
