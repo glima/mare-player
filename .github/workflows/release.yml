@@ -168,6 +168,7 @@ jobs:
           shasum -a 256 *.deb *.rpm *.tar.gz > SHA256SUMS
 
       - name: Attest build provenance
+        id: attest
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
@@ -175,7 +176,15 @@ jobs:
             release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
-          bundle-path: release/attestation.sigstore.json
+
+      # `attest-build-provenance` uploads the attestation to GitHub's
+      # attestation store, but OpenSSF Scorecard's Signed-Releases check only
+      # inspects *release assets*. Copy the generated Sigstore bundle (a real,
+      # verifiable in-toto provenance attestation) into the release so it ships
+      # as a `.sigstore` asset the check recognises. The `bundle-path` is an
+      # OUTPUT of the action (passing it as an input is a no-op).
+      - name: Stage provenance bundle as a release asset
+        run: cp "${{ steps.attest.outputs.bundle-path }}" release/provenance.sigstore
 
       - name: Generate release notes from commits
         run: |
@@ -222,6 +231,6 @@ jobs:
             release/*.rpm
             release/*.tar.gz
             release/SHA256SUMS
-            release/attestation.sigstore.json
+            release/provenance.sigstore
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
