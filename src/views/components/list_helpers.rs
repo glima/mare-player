@@ -153,11 +153,11 @@ pub fn virtual_list_row<'a>(
 // Fading Text Helpers
 // =============================================================================
 
-/// Create a text column with a gradient fade-out overlay on the right edge.
+/// Create a text column that alpha-fades overflow on its right edge.
 ///
-/// Uses [`FadingClip`] to GPU-clip overflowing text **and** draw a gradient
-/// that automatically matches the current button background (normal or
-/// hovered), so the fade is invisible in every interactive state.
+/// Uses [`FadingClip`] to GPU-clip overflowing text and alpha-fade its right
+/// edge to transparency, so long labels dissolve cleanly regardless of the
+/// (possibly translucent) background behind them.
 pub fn fading_text_column<'a>(children: Vec<Element<'a, Message>>) -> Element<'a, Message> {
     let text_col = widget::Column::with_children(children).width(Length::Fill);
 
@@ -166,61 +166,54 @@ pub fn fading_text_column<'a>(children: Vec<Element<'a, Message>>) -> Element<'a
         .into()
 }
 
-/// Wrap any element in a [`FadingClip`] that fades to the card/component
-/// background colour.
+/// Wrap a single element in a **shrink-width** [`FadingClip`], for text placed
+/// *inside* a clickable button.
 ///
-/// Use this for content inside a [`cosmic::theme::Container::Card`], such as
-/// the now-playing track info column.
-pub fn fading_card_column<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    FadingClip::new(child, FADE_WIDTH)
-        .width(Length::Fill)
-        .card()
-        .into()
+/// The alpha-ramp fade works by re-drawing the text with a reduced-alpha
+/// `text_color`, which only takes effect if the text inherits the ambient
+/// colour. A `button` sets its *own* `text_color`, so an outer fade around the
+/// button is overridden (you get a hard clip). Placing the fade **inside** the
+/// button instead ramps the colour the button already applied — so clickable
+/// labels fade correctly and keep their hover highlight.
+///
+/// Shrink width keeps short labels hugging their content (so the button's
+/// hover highlight hugs them too); a label long enough to overflow fills the
+/// available width and fades at the clipped edge.
+pub fn fading_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
+    FadingClip::new(child, FADE_WIDTH).into()
 }
 
-/// Wrap text in a [`FadingClip`] that fades to the `Button::Suggested`
-/// (accent) background colour. For text inside suggested action buttons.
+/// Wrap text in a [`FadingClip`] that alpha-fades overflow. For text inside
+/// suggested (accent) action buttons.
 pub fn fading_suggested_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
     FadingClip::new(child, FADE_WIDTH)
         .width(Length::Fill)
-        .suggested()
         .into()
 }
 
-/// Wrap text in a [`FadingClip`] that fades to the `Button::Standard`
-/// background colour. For text inside standard action buttons.
+/// Wrap text in a [`FadingClip`] that alpha-fades overflow. For text inside
+/// standard action buttons.
 pub fn fading_standard_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
     FadingClip::new(child, FADE_WIDTH)
         .width(Length::Fill)
-        .standard()
         .into()
 }
 
-/// Wrap panel button text in a width-limited [`FadingClip`] that fades to
-/// the surface colour.
-///
-/// The panel background is managed by the compositor and can vary, but
-/// `background.base` is the closest match for most configurations.
+/// Wrap panel button text in a width-limited [`FadingClip`] that alpha-fades
+/// overflow on the right.
 pub fn fading_panel_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    container(
-        FadingClip::new(child, FADE_WIDTH)
-            .width(Length::Shrink)
-            .panel(),
-    )
-    .max_width(MAX_PANEL_TEXT_WIDTH)
-    .into()
+    container(FadingClip::new(child, FADE_WIDTH).width(Length::Shrink))
+        .max_width(MAX_PANEL_TEXT_WIDTH)
+        .into()
 }
 
-/// Wrap a header title in a [`FadingClip`] that fades to the popup surface
-/// colour.  Unlike [`fading_text_column`] (designed for list-item buttons),
-/// this variant uses `surface_only` so the gradient is correct when the
-/// element sits directly on the popup background with no enclosing button.
+/// Wrap a header title in a [`FadingClip`] that alpha-fades overflow on the
+/// right. For titles sitting directly on the popup background.
 pub fn fading_header_title<'a>(title: &str) -> Element<'a, Message> {
     let label = text(title.to_string()).size(18).wrapping(Wrapping::None);
 
     FadingClip::new(label, FADE_WIDTH)
         .width(Length::Fill)
-        .surface_only()
         .into()
 }
 

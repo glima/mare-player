@@ -531,14 +531,18 @@ impl AppModel {
         let artist_name = np.artist.clone();
         let artist_element: Element<'_, Message> =
             if let Some(artist_id) = current_track.as_ref().and_then(|t| t.artist_id.clone()) {
-                button::custom(text(artist_name).size(14).wrapping(Wrapping::None))
-                    .on_press(Message::ShowArtistDetail(artist_id))
-                    .width(Length::Shrink)
-                    .padding(0)
-                    .class(cosmic::theme::Button::MenuItem)
-                    .into()
+                button::custom(crate::views::components::fading_text(
+                    text(artist_name).size(14).wrapping(Wrapping::None),
+                ))
+                .on_press(Message::ShowArtistDetail(artist_id))
+                .width(Length::Shrink)
+                .padding(0)
+                .class(cosmic::theme::Button::MenuItem)
+                .into()
             } else {
-                text(artist_name).size(14).wrapping(Wrapping::None).into()
+                crate::views::components::fading_text(
+                    text(artist_name).size(14).wrapping(Wrapping::None),
+                )
             };
 
         // Context line (album • playlist) — album part is clickable if we have album_id
@@ -547,34 +551,41 @@ impl AppModel {
         } else if let Some(album_id) = current_track.as_ref().and_then(|t| t.album_id.clone()) {
             // Make the whole context line clickable, navigating to the album
             Some(
-                button::custom(text(context_line.clone()).size(12).wrapping(Wrapping::None))
-                    .on_press(Message::ShowAlbumDetailById(album_id))
-                    .width(Length::Shrink)
-                    .padding(0)
-                    .class(cosmic::theme::Button::MenuItem)
-                    .into(),
+                button::custom(crate::views::components::fading_text(
+                    text(context_line.clone()).size(12).wrapping(Wrapping::None),
+                ))
+                .on_press(Message::ShowAlbumDetailById(album_id))
+                .width(Length::Shrink)
+                .padding(0)
+                .class(cosmic::theme::Button::MenuItem)
+                .into(),
             )
         } else {
-            Some(text(context_line).size(12).wrapping(Wrapping::None).into())
+            Some(crate::views::components::fading_text(
+                text(context_line).size(12).wrapping(Wrapping::None),
+            ))
         };
 
         // Track title — clickable to navigate to the track detail (recommendations) view
         let track_for_detail = self.playback_queue.get(self.playback_queue_index).cloned();
         let title_element: Element<'_, Message> = if let Some(track) = track_for_detail {
-            button::custom(text(np.title.clone()).size(16).wrapping(Wrapping::None))
-                .on_press(Message::ShowTrackDetail(track))
-                .width(Length::Shrink)
-                .padding(0)
-                .class(cosmic::theme::Button::MenuItem)
-                .into()
+            button::custom(crate::views::components::fading_text(
+                text(np.title.clone()).size(16).wrapping(Wrapping::None),
+            ))
+            .on_press(Message::ShowTrackDetail(track))
+            .width(Length::Shrink)
+            .padding(0)
+            .class(cosmic::theme::Button::MenuItem)
+            .into()
         } else {
-            text(np.title.clone())
-                .size(16)
-                .wrapping(Wrapping::None)
-                .into()
+            crate::views::components::fading_text(
+                text(np.title.clone()).size(16).wrapping(Wrapping::None),
+            )
         };
 
-        // Track info text — GPU-clipped with gradient fade to surface colour
+        // Track info text — each clickable line fades *inside* its button (so the
+        // button's own text colour is what the alpha-ramp fades), keeping the
+        // hover highlight. See `fading_text`.
         let track_info_col = widget::Column::new()
             .push(title_element)
             .push(artist_element)
@@ -583,7 +594,7 @@ impl AppModel {
             .align_x(Alignment::Start)
             .width(Length::Fill);
 
-        let track_info = crate::views::components::fading_card_column(track_info_col);
+        let track_info: Element<'_, Message> = track_info_col.into();
 
         // Info row: in video mode, album thumbnail + track info + spectrum
         // visualizer (the video pipeline taps its audio into the same analyzer)

@@ -27,6 +27,18 @@ default = ["panel-applet"]
 # Disable this feature to build a standalone COSMIC application that
 # renders in its own window instead of living in the panel.
 panel-applet = ["libcosmic/applet", "libcosmic/applet-token"]
+# GPU-accelerated rendering via wgpu (Vulkan/Metal/DX12), with automatic
+# fallback to iced's tiny_skia CPU rasterizer.
+#
+# Only enabled for the **standalone** build, whose top-level window can bind
+# the hardware Vulkan adapter. The **panel applet deliberately omits this**:
+# on a layer-shell surface wgpu can't bind the GPU (radv fails the swapchain
+# with ERROR_SURFACE_LOST_KHR) and instead falls back to *software* GL
+# (llvmpipe: ~64 threads, ~350 MB). Without the feature, iced compiles as
+# tiny_skia only — a light CPU rasterizer that never touches Mesa/GL — which
+# is what the stock COSMIC applets use and is far cheaper for our 2D content
+# (lists, album art, the fill_quad spectrum bars, the text fade).
+wgpu = ["libcosmic/wgpu"]
 
 
 [dependencies]
@@ -120,11 +132,6 @@ features = [
     "wayland",
     # Windowing support for X11, Windows, Mac, & Redox
     "winit",
-    # GPU-accelerated rendering via wgpu (Vulkan/Metal/DX12).
-    # iced_renderer compiles as Fallback<wgpu, tiny-skia> — it tries
-    # the GPU backend first and falls back to the CPU software
-    # rasterizer automatically when no adapter is available.
-    "wgpu",
 ]
 # Applet support ("applet", "applet-token") is activated conditionally
 # by the `panel-applet` feature — see [features] above.

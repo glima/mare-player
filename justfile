@@ -58,18 +58,20 @@ build-rpm: build-release
     cargo generate-rpm
 
 # Compiles standalone (no panel applet) with debug profile, renames binary
+# The standalone top-level window can use the GPU, so it keeps the `wgpu`
+# feature (the applet build omits it and renders on tiny_skia — see Cargo.toml).
 build-debug-standalone *args:
-    cargo build --no-default-features {{ args }}
+    cargo build --no-default-features --features wgpu {{ args }}
     cp -f {{ cargo-target-dir / 'debug' / name }} {{ cargo-target-dir / 'debug' / standalone-name }}
 
 # Compiles standalone (no panel applet) with release profile, renames binary
 build-release-standalone *args:
-    cargo build --release --no-default-features {{ args }}
+    cargo build --release --no-default-features --features wgpu {{ args }}
     cp -f {{ cargo-target-dir / 'release' / name }} {{ cargo-target-dir / 'release' / standalone-name }}
 
 # Compiles standalone release profile with vendored dependencies
 build-vendored-standalone *args: vendor-extract
-    cargo build --release --no-default-features --frozen --offline {{ args }}
+    cargo build --release --no-default-features --features wgpu --frozen --offline {{ args }}
     cp -f {{ cargo-target-dir / 'release' / name }} {{ cargo-target-dir / 'release' / standalone-name }}
 
 # Runs a clippy check, unused import check, and security audit
@@ -135,7 +137,7 @@ test-matrix *args:
     just features='--all-features' test --profile applet {{ args }}
     echo ""
     echo "═══ Testing: standalone (no default features) ═══"
-    just features='--no-default-features' test --profile standalone {{ args }}
+    just features='--no-default-features --features wgpu' test --profile standalone {{ args }}
     echo ""
     echo "All feature combinations passed ✓"
 

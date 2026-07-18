@@ -39,7 +39,7 @@ jobs:
           - variant: standalone
             binary: mare-player
             pkg_name: mare-player
-            cargo_args: "--no-default-features"
+            cargo_args: "--no-default-features --features wgpu"
             deb_variant: "--variant=standalone"
             rpm_variant: "--variant=standalone"
 

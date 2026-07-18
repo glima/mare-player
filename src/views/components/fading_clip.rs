@@ -1,28 +1,43 @@
 // SPDX-License-Identifier: MIT
 
-//! A clipping widget with a gradient fade-out overlay.
+//! A clipping widget that fades overflowing content to transparency.
 //!
-//! [`FadingClip`] GPU-clips its child content and draws a horizontal gradient
-//! strip on the right edge that fades from transparent to the enclosing
-//! container's background colour.  This gives long text (track titles, artist
-//! names) a smooth fade instead of a harsh clip edge.
+//! [`FadingClip`] GPU-clips its child and, when the child overflows the
+//! available width, fades the text out along the right edge instead of ending
+//! it with a hard clip.
 //!
-//! The gradient colour is resolved per-frame from the current cosmic theme so
-//! it adapts automatically to dark/light mode and hover/pressed button states.
+//! The fade is **alpha-native**: rather than painting a background colour over
+//! the text (which can never look right on translucent "frosted glass" panels,
+//! where no opaque colour matches what shows through), it re-draws the text
+//! across the fade band with its alpha ramped down to zero. The glyphs
+//! themselves dissolve into whatever is actually behind the widget — an opaque
+//! surface, or the desktop showing through a translucent panel.
+//!
+//! ## Why not a gradient overlay?
+//!
+//! iced's renderer only offers premultiplied **src-over** blending: for any
+//! quad we draw, `dst.a = src.a + dst.a·(1 − src.a)`, which can only *keep or
+//! increase* destination alpha — never erase it. So a coloured gradient can
+//! tint the text but can't make it transparent. Ramping the text's own alpha
+//! across disjoint scissor strips is the only transparency-correct option
+//! within those primitives.
 
-use cosmic::iced::{Radians, Rectangle};
-use std::f32::consts::FRAC_PI_2;
+use cosmic::iced::Rectangle;
 
-/// Extra pixels added to the right edge of the gradient strip so the
-/// fully-opaque tail covers any sub-pixel text artifacts that leak past the
-/// GPU scissor boundary.
-const FADE_BLEED: f32 = 2.0;
+/// Number of vertical strips the fade band is split into. Each strip re-draws
+/// the child at a lower text alpha, producing a stepped ramp — more strips is
+/// smoother. It's also the main cost dial: the fade does `1 + FADE_STRIPS`
+/// child draws per *overflowing* label, every frame. 4 was needed while the
+/// applet was stuck on software GL (llvmpipe); now that it renders on
+/// tiny_skia (a light CPU rasterizer — see the `wgpu` feature gating), 12 is
+/// cheap enough and gives a smooth ramp over the ~32 px band (~2.7 px/strip).
+const FADE_STRIPS: usize = 12;
 
 // =============================================================================
 // Public API
 // =============================================================================
 
-/// A widget that clips its child and draws a gradient fade on the right edge.
+/// A widget that clips its child and fades overflowing text on the right edge.
 ///
 /// # Type parameters
 ///
@@ -33,8 +48,7 @@ const FADE_BLEED: f32 = 2.0;
 ///
 /// `FadingClip` behaves like a transparent wrapper: it measures its child
 /// normally, caps the child width to the available space, and reserves no
-/// extra space of its own.  The gradient is drawn as an overlay inside the
-/// child bounds.
+/// extra space of its own.  The fade is drawn inside the child bounds.
 pub(crate) struct FadingClip<'a, Msg> {
     /// The wrapped child element.
     child: cosmic::Element<'a, Msg>,
@@ -49,74 +63,34 @@ pub(crate) struct FadingClip<'a, Msg> {
     ///
     /// A `Shrink` default means that short strings that fit entirely
     /// inside their parent receive exactly the width they need — no
-    /// gradient is drawn, no padding is wasted.  When callers want the
+    /// fade is drawn, no padding is wasted.  When callers want the
     /// column to absorb leftover space they `.width(Length::Fill)` it,
-    /// which still triggers the gradient only when the child content
+    /// which still triggers the fade only when the child content
     /// overflows.
     ///
     /// In theory `Length::Fill` would also work as a default but it would
     /// unnecessarily stretch every single text element even when there
     /// are no siblings competing for space (e.g. a standalone label in a
     /// `Column`), producing a wider-than-necessary layout and a phantom
-    /// gradient at the far right that serves no visual purpose.
+    /// fade at the far right that serves no visual purpose.
     width: cosmic::iced::Length,
 
     /// Explicit height override (default: `Length::Shrink`).
     height: cosmic::iced::Length,
 
-    /// Width (in pixels) of the gradient fade strip.
-    ///
-    /// This is measured inward from the right edge of the widget.  A
-    /// larger value gives a gentler fade at the cost of hiding more text.
-    /// The caller passes this in at construction time — the default in
-    /// [`super::list_helpers`] is 32 px.
-    ///
-    /// The gradient always starts fully transparent on the left and ends
-    /// fully opaque (background colour) on the right.  An additional
-    /// [`FADE_BLEED`] strip of the opaque colour extends past the nominal
-    /// width to cover sub-pixel text rendering artifacts.
+    /// Width (in pixels) of the fade band, measured inward from the right
+    /// edge of the widget.  A larger value gives a gentler fade at the cost
+    /// of hiding more text.  The caller passes this in at construction time —
+    /// the default in [`super::list_helpers`] is 32 px.
     fade_width: f32,
-
-    /// Which background colour family the gradient should fade *to*.
-    /// See [`FadeTarget`] for the available options.
-    fade_target: FadeTarget,
 }
 
-/// Determines which theme colour the gradient fades into.
-///
-/// Each variant corresponds to a different visual context — the right
-/// one must be chosen so the gradient's opaque end blends seamlessly
-/// with whatever sits behind the text.
-#[derive(Default)]
-enum FadeTarget {
-    /// Fade matches the enclosing `list_item` button background, reacting
-    /// to hover and pressed states.  This is the default for track/album/
-    /// playlist rows.
-    #[default]
-    Button,
-    /// Fade to the bare popup surface colour (`background.base`).
-    /// Use for elements sitting directly on the popup background, such as
-    /// header titles.
-    Surface,
-    /// Fade to the card/component colour (`background.component.base`
-    /// composited over the surface).  For content inside a
-    /// `Container::Card`.
-    Card,
-    /// Fade for the panel button label.  Uses `text_button.hover`
-    /// composited over the surface on hover, raw surface otherwise.
-    Panel,
-    /// Fade for text inside a `Button::Suggested` (accent) button.
-    Suggested,
-    /// Fade for text inside a `Button::Standard` button.
-    Standard,
-}
-
-/// Tracks layout state for the fade overlay.
+/// Tracks layout state for the fade.
 #[derive(Debug, Clone, Default)]
 struct FadingClipState {
     /// `true` when the child's natural (unconstrained) width exceeds the
     /// available layout width — i.e. the text is being clipped and needs
-    /// the gradient fade overlay.
+    /// the fade.
     content_overflows: bool,
 }
 
@@ -127,117 +101,13 @@ impl<'a, Msg> FadingClip<'a, Msg> {
             width: cosmic::iced::Length::Shrink,
             height: cosmic::iced::Length::Shrink,
             fade_width,
-            fade_target: FadeTarget::default(),
         }
-    }
-
-    /// Fade to the popup surface colour (no button background).
-    pub(crate) fn surface_only(mut self) -> Self {
-        self.fade_target = FadeTarget::Surface;
-        self
-    }
-
-    /// Fade to the card/component background.
-    pub(crate) fn card(mut self) -> Self {
-        self.fade_target = FadeTarget::Card;
-        self
-    }
-
-    /// Fade to the panel text-button background.
-    pub(crate) fn panel(mut self) -> Self {
-        self.fade_target = FadeTarget::Panel;
-        self
-    }
-
-    /// Fade to the `Button::Suggested` (accent) background.
-    pub(crate) fn suggested(mut self) -> Self {
-        self.fade_target = FadeTarget::Suggested;
-        self
-    }
-
-    /// Fade to the `Button::Standard` background.
-    pub(crate) fn standard(mut self) -> Self {
-        self.fade_target = FadeTarget::Standard;
-        self
     }
 
     pub(crate) fn width(mut self, width: cosmic::iced::Length) -> Self {
         self.width = width;
         self
     }
-}
-
-// =============================================================================
-// Colour helpers
-// =============================================================================
-
-/// sRGB component → linear component.
-///
-/// Uses the standard IEC 61966-2-1 transfer function, the same one that
-/// `iced::Color::into_linear` uses and that GPU hardware applies when
-/// reading/writing `*Srgb` texture formats.
-fn srgb_to_linear(u: f32) -> f32 {
-    if u < 0.04045 {
-        u / 12.92
-    } else {
-        ((u + 0.055) / 1.055).powf(2.4)
-    }
-}
-
-/// Linear component → sRGB component.
-fn linear_to_srgb(u: f32) -> f32 {
-    if u <= 0.0031308 {
-        u * 12.92
-    } else {
-        1.055 * u.powf(1.0 / 2.4) - 0.055
-    }
-}
-
-/// Alpha-over composite of `fg` on top of a **fully-opaque** `bg`,
-/// blended in **linear RGB** space to match the GPU pipeline.
-///
-/// iced packs colours via `Color::into_linear()` and uses an sRGB
-/// framebuffer with `PREMULTIPLIED_ALPHA_BLENDING`.  The hardware
-/// therefore blends in linear space.  Doing the same here ensures
-/// the gradient's opaque end is pixel-identical to the button
-/// background rendered by the GPU.
-///
-/// Use [`composite_srgb`] instead for elements composited by the
-/// desktop compositor (e.g. the panel bar) which may blend in sRGB.
-fn composite(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::Color {
-    let a = fg.a;
-
-    // Convert to linear
-    let fg_r = srgb_to_linear(fg.r);
-    let fg_g = srgb_to_linear(fg.g);
-    let fg_b = srgb_to_linear(fg.b);
-    let bg_r = srgb_to_linear(bg.r);
-    let bg_g = srgb_to_linear(bg.g);
-    let bg_b = srgb_to_linear(bg.b);
-
-    // Blend in linear space
-    cosmic::iced::Color::from_rgba(
-        linear_to_srgb(fg_r * a + bg_r * (1.0 - a)),
-        linear_to_srgb(fg_g * a + bg_g * (1.0 - a)),
-        linear_to_srgb(fg_b * a + bg_b * (1.0 - a)),
-        1.0,
-    )
-}
-
-/// Alpha-over composite in **sRGB** space (no gamma conversion).
-///
-/// The COSMIC panel bar is rendered by the Wayland compositor, which
-/// may blend in sRGB rather than linear.  Using sRGB here matches the
-/// compositor's pipeline so the gradient's opaque end is invisible
-/// against the panel surface.
-fn composite_srgb(fg: cosmic::iced::Color, bg: cosmic::iced::Color) -> cosmic::iced::Color {
-    let a = fg.a;
-    cosmic::iced::Color::from_rgba(
-        fg.r * a + bg.r * (1.0 - a),
-        fg.g * a + bg.g * (1.0 - a),
-        fg.b * a + bg.b * (1.0 - a),
-        1.0,
-    )
 }
 
 // iced's Widget trait methods require `tree.children[0]` and
@@ -294,7 +164,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             });
 
         // Record whether the child overflows so draw() can skip the
-        // gradient when it would be invisible.
+        // fade when it would be invisible.
         tree.state
             .downcast_mut::<FadingClipState>()
             .content_overflows = natural_width > node.bounds().width + 1.0;
@@ -320,119 +190,64 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             return;
         };
 
-        // --- 1. GPU-clip the child content ---
-        renderer.with_layer(clipped, |renderer| {
-            self.child.as_widget().draw(
-                &tree.children[0],
-                renderer,
-                theme,
-                style,
-                layout
-                    .children()
-                    .next()
-                    .unwrap()
-                    .with_virtual_offset(layout.virtual_offset()),
-                cursor,
-                &clipped,
-            );
-        });
+        let child = self.child.as_widget();
+        let child_tree = &tree.children[0];
+        let child_layout = layout
+            .children()
+            .next()
+            .unwrap()
+            .with_virtual_offset(layout.virtual_offset());
 
-        // --- 2. Draw the gradient fade strip on the right edge ---
-        //
-        // Only when the child content actually overflows the available
-        // width.  Short strings that fit entirely skip the gradient so
-        // they render cleanly without a phantom shading mask.
         let state = tree.state.downcast_ref::<FadingClipState>();
+
+        // Content fits — no fade needed; draw the child clipped to bounds.
         if !state.content_overflows {
+            renderer.with_layer(clipped, |renderer| {
+                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &clipped);
+            });
             return;
         }
 
-        // The parent `list_item` button passes
-        // `popup_viewport ∩ button_bounds` as the `viewport` to its
-        // children, so `viewport` here effectively *is* the button's
-        // bounds.  We test the cursor against `viewport` to perfectly
-        // match the button's own `is_mouse_over` logic, covering the
-        // full row area including padding and non-text children.
-        let cosmic_theme = theme.cosmic();
-        let surface: Color = cosmic_theme.background(false).base.into();
+        // Content overflows: fade the *text itself* to transparent across the
+        // right-edge band. See the module docs for why a coloured gradient
+        // can't work here. We re-draw the child in `FADE_STRIPS` disjoint
+        // vertical scissor strips, each with the inherited text colour's alpha
+        // ramped 1 -> 0. Disjoint clips mean the alphas don't compound, so the
+        // glyphs dissolve cleanly into whatever is behind the panel.
+        let band_x = bounds.x + bounds.width - self.fade_width;
 
-        let opaque = match self.fade_target {
-            FadeTarget::Surface => surface,
-            FadeTarget::Card => {
-                let card_bg: Color = cosmic_theme.background(false).component.base.into();
-                composite(card_bg, surface)
-            }
-            FadeTarget::Button => {
-                let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-
-                let btn_bg: Color = if is_mouse_over {
-                    cosmic_theme.background(false).component.hover.into()
-                } else {
-                    cosmic_theme.background(false).component.base.into()
-                };
-                composite(btn_bg, surface)
-            }
-            FadeTarget::Panel => {
-                let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-
-                if is_mouse_over {
-                    let text_btn = &cosmic_theme.text_button;
-                    composite_srgb(text_btn.hover.into(), surface)
-                } else {
-                    surface
-                }
-            }
-            FadeTarget::Suggested => {
-                let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-
-                let comp = &cosmic_theme.accent_button;
-                let bg: Color = if is_mouse_over {
-                    comp.hover.into()
-                } else {
-                    comp.base.into()
-                };
-                composite(bg, surface)
-            }
-            FadeTarget::Standard => {
-                let is_mouse_over = cursor.position().is_some_and(|pos| viewport.contains(pos));
-
-                let comp = &cosmic_theme.button;
-                let bg: Color = if is_mouse_over {
-                    comp.hover.into()
-                } else {
-                    comp.base.into()
-                };
-                composite(bg, surface)
-            }
+        // 1. Solid part: the child clipped to everything left of the band.
+        let solid = Rectangle {
+            width: (band_x - bounds.x).max(0.0),
+            ..bounds
         };
-        let transparent = Color::from_rgba(opaque.r, opaque.g, opaque.b, 0.0);
+        if let Some(solid_clip) = solid.intersection(viewport) {
+            renderer.with_layer(solid_clip, |renderer| {
+                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &solid_clip);
+            });
+        }
 
-        // Extend the gradient strip by FADE_BLEED pixels to the right so
-        // the fully-opaque tail covers any sub-pixel text artifacts that
-        // leak past the GPU scissor edge.
-        let fade_bounds = Rectangle {
-            x: bounds.x + bounds.width - self.fade_width,
-            y: bounds.y,
-            width: self.fade_width + FADE_BLEED,
-            height: bounds.height,
-        };
-
-        if let Some(fade_clipped) = fade_bounds.intersection(viewport) {
-            renderer.with_layer(fade_clipped, |renderer| {
-                renderer.fill_quad(
-                    cosmic::iced::core::renderer::Quad {
-                        bounds: fade_bounds,
-                        border: cosmic::iced::core::Border::default(),
-                        shadow: cosmic::iced::core::Shadow::default(),
-                        snap: false,
-                    },
-                    cosmic::iced::Background::Gradient(
-                        cosmic::iced::gradient::Linear::new(Radians(FRAC_PI_2))
-                            .add_stop(0.0, transparent)
-                            .add_stop(1.0, opaque)
-                            .into(),
-                    ),
-                );
+        // 2. Fade band: `FADE_STRIPS` strips of decreasing text alpha.
+        let strip_w = self.fade_width / FADE_STRIPS as f32;
+        for i in 0..FADE_STRIPS {
+            let strip = Rectangle {
+                x: band_x + i as f32 * strip_w,
+                width: strip_w,
+                ..bounds
+            };
+            let Some(strip_clip) = strip.intersection(viewport) else {
+                continue;
+            };
+            // Midpoint sampling: ~1.0 alpha at the inner edge of the band,
+            // ~0.0 at the outer edge.
+            let factor = 1.0 - (i as f32 + 0.5) / FADE_STRIPS as f32;
+            let mut faded = *style;
+            faded.text_color = Color {
+                a: style.text_color.a * factor,
+                ..style.text_color
+            };
+            renderer.with_layer(strip_clip, |renderer| {
+                child.draw(child_tree, renderer, theme, &faded, child_layout, cursor, &strip_clip);
             });
         }
     }

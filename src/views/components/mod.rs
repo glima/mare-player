@@ -48,7 +48,7 @@ pub use constants::{
 pub use icons::{LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favorite_icon_handle};
 
 pub use list_helpers::{
-    TrackRowOptions, app_icon_element, branded_text, branded_title, fading_card_column,
-    fading_header_title, fading_panel_text, fading_standard_text, fading_suggested_text,
+    TrackRowOptions, app_icon_element, branded_text, branded_title, fading_header_title,
+    fading_panel_text, fading_standard_text, fading_suggested_text, fading_text,
     fading_text_column, list_item, scrollable_element, scrollable_list, virtual_list_row,
 };
