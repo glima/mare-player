@@ -319,7 +319,7 @@ pub enum Message {
     MprisServiceStarted(MprisStartResult),
     /// The embedded cache database finished opening at startup (`None` if it
     /// failed to open, in which case caching is disabled for the session).
-    CacheDbReady(Option<crate::cache::Db>),
+    CacheDbReady(Result<crate::cache::Db, String>),
     /// MPRIS command received
     MprisCommand(MprisCommand),
 

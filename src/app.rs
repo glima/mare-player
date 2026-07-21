@@ -244,7 +244,9 @@ impl cosmic::Application for AppModel {
 
         // Open the embedded cache database (turso) off the main thread. On
         // success the handle is delivered via `CacheDbReady` and wired into the
-        // image cache + view cache; on failure caching simply stays disabled.
+        // image cache + view cache; on failure the error is surfaced as a
+        // banner (most often a stale second instance holding turso's exclusive
+        // file lock) and caching stays disabled for the session.
         let cache_db_task = Task::perform(
             async {
                 let path = dirs::cache_dir()
@@ -255,14 +257,14 @@ impl cosmic::Application for AppModel {
                     let _ = tokio::fs::create_dir_all(parent).await;
                 }
                 match crate::cache::Db::open(&path).await {
-                    Ok(db) => Some(db),
+                    Ok(db) => Ok(db),
                     Err(e) => {
                         tracing::warn!("cache db open failed; caching disabled: {e}");
-                        None
+                        Err(e.to_string())
                     }
                 }
             },
-            |db| cosmic::Action::App(Message::CacheDbReady(db)),
+            |result| cosmic::Action::App(Message::CacheDbReady(result)),
         );
 
         (app, Task::batch([mpris_task, title_task, cache_db_task]))
@@ -858,16 +860,33 @@ impl cosmic::Application for AppModel {
             Message::MprisCommand(cmd) => self.handle_mpris_command(cmd),
 
             // Cache database finished opening at startup
-            Message::CacheDbReady(db) => {
-                if let Some(db) = db {
-                    tracing::info!("cache database ready");
-                    self.image_cache.set_db(db.clone());
-                    self.cache_db = Some(db.clone());
-                    // Load persisted play history from the `play_history` table.
-                    return Task::perform(
-                        async move { crate::handlers::misc::load_play_history(&db).await },
-                        |entries| cosmic::Action::App(Message::PlayHistoryLoaded(entries)),
-                    );
+            Message::CacheDbReady(result) => {
+                match result {
+                    Ok(db) => {
+                        tracing::info!("cache database ready");
+                        self.image_cache.set_db(db.clone());
+                        self.cache_db = Some(db.clone());
+                        // Load persisted play history from the `play_history` table.
+                        return Task::perform(
+                            async move { crate::handlers::misc::load_play_history(&db).await },
+                            |entries| cosmic::Action::App(Message::PlayHistoryLoaded(entries)),
+                        );
+                    }
+                    Err(e) => {
+                        // Surface the failure instead of silently losing data.
+                        // By far the most common cause is a stale second Maré
+                        // instance still holding turso's exclusive file lock
+                        // (e.g. after removing + re-adding the applet, which
+                        // doesn't reliably kill the old process).
+                        self.error_message = Some(if e.to_lowercase().contains("lock") {
+                            "Cache locked by another Maré instance — history & images won't be \
+                             saved. Close the duplicate applet and reopen."
+                                .to_string()
+                        } else {
+                            "Cache unavailable — history and images won't be saved this session."
+                                .to_string()
+                        });
+                    }
                 }
                 Task::none()
             }
