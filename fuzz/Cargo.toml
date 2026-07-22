@@ -15,15 +15,8 @@ path = ".."
 default-features = false
 
 [[bin]]
-name = "fuzz_dash_parse"
-path = "fuzz_targets/fuzz_dash_parse.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "fuzz_fmp4_patch"
-path = "fuzz_targets/fuzz_fmp4_patch.rs"
+name = "fuzz_lrc_parse"
+path = "fuzz_targets/fuzz_lrc_parse.rs"
 test = false
 doc = false
 bench = false
