@@ -83,7 +83,7 @@ rustfft = "6.4.1"
 # view-state cache and the image cache. Songs stay on the filesystem; videos
 # are never cached. `default-features = false` drops the bundled mimalloc
 # global allocator and the FTS extension, neither of which the cache needs.
-turso = { version = "0.6.1", default-features = false }
+turso = { version = "0.7.0", default-features = false }
 
 # GStreamer — the playback engine for all audio tracks and music videos
 # (decoding, streaming, output, volume/replay-gain, seeking, gapless). Audio
