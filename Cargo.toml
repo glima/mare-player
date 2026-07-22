@@ -113,7 +113,7 @@ serde_urlencoded = "0.7.1"
 # In release builds the code is gated out and LTO strips the deps.
 [target.'cfg(target_os = "linux")'.dependencies]
 pprof = { version = "0.14", default-features = false, features = ["flamegraph"] }
-signal-hook = "0.3"
+signal-hook = "0.4"
 
 [dependencies.i18n-embed]
 version = "0.16"
