@@ -4,3 +4,22 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # Main crate (crates.io deps). The git deps — libcosmic, cosmic-panel,
+  # tidlers — track upstream default branches and are updated by hand via
+  # `cargo update`; Dependabot leaves those alone and only bumps registry deps.
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # The cargo-fuzz harness is a *separate* workspace (excluded from the main
+  # one), so its lockfile isn't touched by the main `cargo update` and drifts —
+  # stale entries then trip Dependabot's security scan. Have Dependabot keep it
+  # current instead. Dev-only; never ships in the applet.
+  - package-ecosystem: "cargo"
+    directory: "/fuzz"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
