@@ -929,7 +929,16 @@ fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
         _ => 0,
     };
 
-    Some(mm * 60_000 + ss * 1_000 + frac_ms)
+    // Checked arithmetic: a pathological minute/second field (e.g. a long
+    // all-digit run from garbage or fuzzed lyrics) parses as a valid u64 but
+    // overflows when scaled to milliseconds. An overflowing value isn't a real
+    // timestamp, so treat it as invalid (`None`) — the caller skips the line,
+    // matching the other `?` parse failures above. (Found by `fuzz_lrc_parse`.)
+    let ms = mm
+        .checked_mul(60_000)?
+        .checked_add(ss.checked_mul(1_000)?)?
+        .checked_add(frac_ms)?;
+    Some(ms)
 }
 
 #[cfg(test)]
@@ -998,6 +1007,18 @@ mod tests {
     }
 
     // ── Lyrics tests ───────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn parse_lrc_timestamp_does_not_overflow_on_long_digit_runs() {
+        // Regression (found by `fuzz_lrc_parse`): a long all-digit field parses
+        // as a valid u64 but overflows when scaled to ms. Must return None
+        // instead of panicking.
+        assert_eq!(parse_lrc_timestamp("11111111111111111111:11"), None);
+        assert_eq!(parse_lrc_timestamp("1:11111111111111111111"), None);
+
+        // ...and parse_lrc must not panic on such a line (it's just skipped).
+        assert!(parse_lrc("[11111111111111111111:11]lyric").is_empty());
+    }
 
     #[test]
     fn parse_lrc_basic_two_digit_centiseconds() {
