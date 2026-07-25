@@ -101,7 +101,7 @@ urlencoding = "2.1"
 
 # Image processing for circular album art (only need JPEG/PNG for TIDAL artwork)
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-base64 = "0.22.1"
+base64 = "0.23.0"
 
 # Parking lot for better mutexes
 parking_lot = "0.12.5"
