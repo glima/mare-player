@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = 歌詞を表示
 tooltip-show-credits = クレジットを表示
+tooltip-back = 戻る（右クリックでホーム）

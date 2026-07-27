@@ -16,18 +16,14 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Artist;
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    fading_text_column, list_item, scrollable_element, virtual_list_row,
+    back_button, fading_text_column, list_item, scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
     /// Render the followed artists (profiles) list view.
     pub fn view_profiles(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("profiles")).size(18))
             .push(widget::space::horizontal())
             .push(

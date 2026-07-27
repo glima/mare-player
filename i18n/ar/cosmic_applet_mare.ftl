@@ -197,3 +197,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = عرض كلمات الأغنية
 tooltip-show-credits = عرض المساهمين
+tooltip-back = رجوع (انقر بالزر الأيمن للشاشة الرئيسية)

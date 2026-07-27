@@ -21,7 +21,7 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, ArtistRow, PlaybackSource, Track};
 use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, TrackRowOptions, fading_header_title, fading_text_column,
+    ARTIST_PICTURE_SIZE, TrackRowOptions, back_button, fading_header_title, fading_text_column,
     favorite_icon_handle, list_item, scrollable_element, virtual_list_row,
 };
 
@@ -38,11 +38,7 @@ impl AppModel {
 
         // Header row: back button, title, follow heart
         let mut header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(artist_name));
 
         // Follow/unfollow heart for the artist (pushed to far right)

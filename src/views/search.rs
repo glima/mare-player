@@ -15,17 +15,13 @@ use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{TrackRowOptions, scrollable_list};
+use crate::views::components::{TrackRowOptions, back_button, scrollable_list};
 
 impl AppModel {
     /// Render the search view with search bar and results.
     pub fn view_search(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("search")).size(18))
             .spacing(8)
             .align_y(Alignment::Center);

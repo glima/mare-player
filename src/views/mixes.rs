@@ -21,19 +21,15 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Mix;
 use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
-    TrackRowOptions, fading_header_title, fading_text_column, list_item, scrollable_element,
-    virtual_list_row,
+    TrackRowOptions, back_button, fading_header_title, fading_text_column, list_item,
+    scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
     /// Render the mixes & radio list view.
     pub fn view_mixes(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("mixes-and-radio")).size(18))
             .push(widget::space::horizontal())
             .push(
@@ -79,11 +75,7 @@ impl AppModel {
         let title = self.selected_mix_name.as_deref().unwrap_or(&fallback_mix);
 
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(title))
             .push(
                 button::icon(widget::icon::from_name("media-playlist-shuffle-symbolic"))

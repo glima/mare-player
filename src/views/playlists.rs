@@ -15,18 +15,15 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
 use crate::views::components::{
-    TrackRowOptions, fading_header_title, scrollable_element, scrollable_list, virtual_list_row,
+    TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list,
+    virtual_list_row,
 };
 
 impl AppModel {
     /// Render the playlists list view.
     pub fn view_playlists(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("playlists")).size(18))
             .spacing(8)
             .align_y(Alignment::Center);
@@ -69,11 +66,7 @@ impl AppModel {
             .unwrap_or(&fallback_playlist);
 
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(title))
             .push(
                 button::icon(widget::icon::from_name("media-playlist-shuffle-symbolic"))

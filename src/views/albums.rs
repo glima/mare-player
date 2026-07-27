@@ -21,7 +21,7 @@ use crate::state::AppModel;
 use crate::views::artist::strip_markup;
 use crate::views::components::rows::{build_album_row, build_track_row};
 use crate::views::components::{
-    ALBUM_COVER_SIZE, TrackRowOptions, fading_header_title, favorite_icon_handle,
+    ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, favorite_icon_handle,
     scrollable_element, scrollable_list, virtual_list_row,
 };
 
@@ -29,11 +29,7 @@ impl AppModel {
     /// Render the albums list view.
     pub fn view_albums(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("albums")).size(18))
             .spacing(8)
             .align_y(Alignment::Center);
@@ -76,11 +72,7 @@ impl AppModel {
             .unwrap_or(&fallback_album);
         // Header row: back button, title, favorite heart, shuffle button
         let mut header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(title));
 
         // Favorite heart for the album

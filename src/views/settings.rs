@@ -14,6 +14,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::auth::AuthState;
+use crate::views::components::back_button;
 
 /// Available audio quality options
 static QUALITY_OPTIONS: &[AudioQuality] = &[
@@ -36,11 +37,7 @@ impl AppModel {
     /// Render the settings view.
     pub fn view_settings(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("settings")).size(18))
             .spacing(8)
             .align_y(Alignment::Center);

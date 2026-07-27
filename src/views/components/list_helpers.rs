@@ -150,6 +150,35 @@ pub fn virtual_list_row<'a>(
 }
 
 // =============================================================================
+// Header Back Button
+// =============================================================================
+
+/// Build the header back button used by every non-root view.
+///
+/// Left-click sends `on_press` — whatever "back" means for that view (pop the
+/// nav stack, pop the explore stack, cancel a prompt, or go straight home).
+/// **Right-click always jumps to the main collection view**, collapsing the
+/// whole stack in one gesture instead of hopping up one view at a time; deep
+/// chains (search → artist → album → track → credits) otherwise take five
+/// clicks to escape.
+///
+/// The right-click lives on a [`mouse_area`](widget::mouse_area) wrapper rather
+/// than the button itself, because iced buttons only handle the left button.
+/// `on_right_release` (not `on_right_press`) keeps it abortable by moving off
+/// the button before letting go, and matches the panel button's existing
+/// right-click gesture.
+pub fn back_button<'a>(on_press: Message) -> Element<'a, Message> {
+    widget::mouse_area(
+        button::icon(widget::icon::from_name("go-previous-symbolic"))
+            .on_press(on_press)
+            .tooltip(crate::fl!("tooltip-back"))
+            .padding(4),
+    )
+    .on_right_release(Message::ShowMain)
+    .into()
+}
+
+// =============================================================================
 // Fading Text Helpers
 // =============================================================================
 

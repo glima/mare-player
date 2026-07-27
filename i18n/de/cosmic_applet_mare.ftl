@@ -189,3 +189,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Liedtext anzeigen
 tooltip-show-credits = Mitwirkende anzeigen
+tooltip-back = Zurück (Rechtsklick für Startseite)

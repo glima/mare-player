@@ -31,7 +31,7 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::models::{CreditContributor, TrackCredits};
 use crate::views::components::{
-    fading_header_title, fading_text, fading_text_column, scrollable_list,
+    back_button, fading_header_title, fading_text, fading_text_column, scrollable_list,
 };
 
 /// Font size for a field's caption ("PRODUCER", "LABEL", …).
@@ -49,11 +49,7 @@ impl AppModel {
         let header_title = fl!("credits-title", title = track_title.clone());
 
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(&header_title))
             .spacing(8)
             .align_y(Alignment::Center);

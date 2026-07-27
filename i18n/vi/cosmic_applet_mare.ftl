@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Hiển thị lời bài hát
 tooltip-show-credits = Hiển thị thông tin ghi công
+tooltip-back = Quay lại (nhấn chuột phải để về trang chính)

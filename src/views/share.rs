@@ -14,7 +14,7 @@ use cosmic::widget::{self, button, text};
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{fading_standard_text, fading_suggested_text};
+use crate::views::components::{back_button, fading_standard_text, fading_suggested_text};
 
 impl AppModel {
     /// Render the share prompt dialog.
@@ -29,11 +29,7 @@ impl AppModel {
         is_video: bool,
     ) -> Element<'_, Message> {
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::CancelShare)
-                    .padding(4),
-            )
+            .push(back_button(Message::CancelShare))
             .push(text(fl!("share")).size(18))
             .spacing(8)
             .align_y(Alignment::Center);

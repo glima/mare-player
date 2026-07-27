@@ -189,3 +189,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Visa sångtext
 tooltip-show-credits = Visa medverkande
+tooltip-back = Tillbaka (högerklick för startskärmen)

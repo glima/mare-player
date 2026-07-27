@@ -23,8 +23,8 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, Track, TrackDetailRow};
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, CREDITS_SVG, fading_header_title, fading_text_column, list_item,
-    scrollable_element, virtual_list_row,
+    ARTIST_PICTURE_SIZE, CREDITS_SVG, back_button, fading_header_title, fading_text_column,
+    list_item, scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
@@ -43,11 +43,7 @@ impl AppModel {
         // always on screen and surfaces its own lyrics icon whenever the
         // playing track has them, so a second entry point would be redundant.
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(track_title))
             .push({
                 // Credits action: who played on / produced this recording.

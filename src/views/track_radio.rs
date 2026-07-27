@@ -19,7 +19,7 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
 use crate::views::components::{
-    TrackRowOptions, fading_header_title, scrollable_element, virtual_list_row,
+    TrackRowOptions, back_button, fading_header_title, scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
@@ -53,11 +53,7 @@ impl AppModel {
         };
 
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(&title))
             .push(
                 button::icon(widget::icon::from_name("media-playlist-shuffle-symbolic"))

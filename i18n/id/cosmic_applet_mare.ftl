@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Tampilkan lirik
 tooltip-show-credits = Tampilkan kredit
+tooltip-back = Kembali (klik kanan untuk beranda)

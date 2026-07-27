@@ -189,3 +189,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Songtekst weergeven
 tooltip-show-credits = Credits weergeven
+tooltip-back = Terug (rechtsklik voor startscherm)

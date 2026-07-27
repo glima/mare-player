@@ -22,13 +22,13 @@ use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, button, container, scrollable, text};
+use cosmic::widget::{self, container, scrollable, text};
 
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::models::TrackLyrics;
-use crate::views::components::fading_header_title;
+use crate::views::components::{back_button, fading_header_title};
 
 /// Font size for the active synced line (the karaoke "now-playing" line).
 const ACTIVE_LINE_SIZE: u16 = 18;
@@ -46,11 +46,7 @@ impl AppModel {
         let header_title = fl!("lyrics-title", title = track_title.clone());
 
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::NavigateBack)
-                    .padding(4),
-            )
+            .push(back_button(Message::NavigateBack))
             .push(fading_header_title(&header_title))
             .spacing(8)
             .align_y(Alignment::Center);

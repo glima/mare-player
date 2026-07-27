@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = 가사 표시
 tooltip-show-credits = 크레딧 표시
+tooltip-back = 뒤로 (오른쪽 클릭: 홈)

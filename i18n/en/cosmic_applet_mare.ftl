@@ -161,6 +161,7 @@ tooltip-stop = Stop
 tooltip-go-to-track-radio = Go to track radio
 tooltip-show-lyrics = Show lyrics
 tooltip-show-credits = Show credits
+tooltip-back = Back — right-click for home
 tooltip-share = Share
 tooltip-video-popout = Open video in a separate window
 tooltip-video-inline = Show video inline

@@ -193,3 +193,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Показати текст
 tooltip-show-credits = Показати авторів
+tooltip-back = Назад (правий клік: на головну)

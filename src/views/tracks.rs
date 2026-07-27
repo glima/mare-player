@@ -22,7 +22,9 @@ use cosmic::widget::{self, button, text};
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
-use crate::views::components::{TrackRowOptions, scrollable_element, virtual_list_row};
+use crate::views::components::{
+    TrackRowOptions, back_button, scrollable_element, virtual_list_row,
+};
 
 impl AppModel {
     /// Render the favorite tracks list view.
@@ -34,11 +36,7 @@ impl AppModel {
     pub fn view_favorite_tracks(&self) -> Element<'_, Message> {
         // --- header row ---
         let header = widget::Row::new()
-            .push(
-                button::icon(widget::icon::from_name("go-previous-symbolic"))
-                    .on_press(Message::ShowMain)
-                    .padding(4),
-            )
+            .push(back_button(Message::ShowMain))
             .push(text(fl!("favorite-tracks")).size(18))
             .push(widget::space::horizontal())
             .push(

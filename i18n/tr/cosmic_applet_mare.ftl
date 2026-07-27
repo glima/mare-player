@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Şarkı sözlerini göster
 tooltip-show-credits = Katkıda bulunanları göster
+tooltip-back = Geri (ana ekran için sağ tıklayın)

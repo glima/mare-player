@@ -189,3 +189,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = Afficher les paroles
 tooltip-show-credits = Afficher les crédits
+tooltip-back = Retour (clic droit : accueil)

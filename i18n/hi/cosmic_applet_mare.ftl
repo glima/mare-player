@@ -189,3 +189,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = बोल दिखाएं
 tooltip-show-credits = क्रेडिट दिखाएं
+tooltip-back = वापस (होम पर जाने के लिए दायाँ क्लिक करें)

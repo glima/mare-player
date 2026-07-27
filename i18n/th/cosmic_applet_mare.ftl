@@ -183,3 +183,4 @@ credits-field-isrc = ISRC
 credits-field-bpm = BPM
 tooltip-show-lyrics = แสดงเนื้อเพลง
 tooltip-show-credits = แสดงเครดิต
+tooltip-back = ย้อนกลับ (คลิกขวาเพื่อไปหน้าหลัก)
