@@ -94,7 +94,6 @@ check *args:
         cargo audit \
             --ignore RUSTSEC-2024-0436 `# paste (unmaintained) — via metal/accesskit_windows → wgpu/iced` \
             --ignore RUSTSEC-2026-0186 `# memmap2 (unsound) — via cosmic-freedesktop-icons / cosmic-text → libcosmic` \
-            --ignore RUSTSEC-2026-0173 `# proc-macro-error2 (unmaintained) — via i18n-embed-fl` \
             --ignore RUSTSEC-2026-0192 `# ttf-parser (unmaintained) — via ab_glyph/sctk-adwaita → winit → libcosmic` \
             --ignore RUSTSEC-2026-0206 `# rustybuzz (unmaintained) — via resvg/usvg → iced_tiny_skia → iced → libcosmic (SVG/text shaping)` \
             --ignore RUSTSEC-2026-0194 `# quick-xml DoS — via pprof→inferno 0.11→quick-xml 0.26; the SIGUSR1 flamegraph profiler is debug-builds-only and parses its own output, never untrusted input. pprof 0.15 (latest) pins inferno ^0.11, so the fixed quick-xml >=0.41 is out of reach until pprof moves to inferno 0.12` \
