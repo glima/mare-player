@@ -24,7 +24,10 @@
 //! - **User volume** is the `playbin.volume` property, kept separate from the
 //!   `rg` element so the two compose multiplicatively.
 //! - The audio `appsink` tap feeds the same [`SharedSpectrumAnalyzer`] the
-//!   visualizer reads, so the HUD reacts identically for audio and video.
+//!   visualizer reads, so the HUD reacts identically for audio and video. It
+//!   is **clock-synced** (`sync(true)`) so the bars track what's leaving the
+//!   speakers rather than what the decoder has buffered; [`log_tap_drift`]
+//!   measures that alignment at TRACE level.
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -64,6 +67,20 @@ const TAP_RATE: i32 = 44_100;
 /// Interleaved stereo, the layout
 /// [`SharedSpectrumAnalyzer::push_stereo_samples`] expects.
 const TAP_CHANNELS: i32 = 2;
+
+/// How often the PCM tap compares itself against the audible position, in
+/// milliseconds. See [`log_tap_drift`].
+///
+/// Deliberately coarse: the number it produces is a steady-state property of
+/// the queue chain, not something that moves frame to frame, and each probe
+/// costs a position query on the audio sink's streaming thread.
+const TAP_DRIFT_PROBE_MS: u64 = 500;
+
+/// Absolute drift, in milliseconds, below which the tap counts as aligned with
+/// the speakers rather than leading or lagging them.
+///
+/// One visualizer frame is 33 ms, so anything under this is invisible anyway.
+const TAP_DRIFT_ALIGNED_MS: i64 = 10;
 
 /// Fixed width every embedded video frame is scaled to before it reaches the
 /// UI; the height follows the stream's aspect ratio so the inline view fits the
@@ -163,6 +180,53 @@ fn extract_f32_samples(sample: &gst::Sample) -> Option<Vec<f32>> {
     )
 }
 
+/// Log how far the analyzer tap runs ahead of (or behind) what the speakers
+/// are actually playing, in milliseconds.
+///
+/// **Sign convention:** positive `lead_ms` means the tap is *ahead* of the
+/// speakers (bars move before you hear the note); negative means it lags.
+/// Anything inside [`TAP_DRIFT_ALIGNED_MS`] is reported as aligned — the probe
+/// reads both clocks at render time, so sub-frame differences are noise rather
+/// than a real offset.
+///
+/// Both values are read back-to-back so they share an instant. The buffer PTS
+/// is converted to stream time first, because after a seek the segment no
+/// longer starts at zero while the sink's position query already reports
+/// stream time — comparing raw PTS against it would show the seek offset
+/// rather than the drift.
+fn log_tap_drift(sample: &gst::Sample, sink: &gst::glib::WeakRef<gst::Element>) {
+    let Some(sink) = sink.upgrade() else {
+        return;
+    };
+    let Some(pts) = sample.buffer().and_then(|b| b.pts()) else {
+        return;
+    };
+    let tap = sample
+        .segment()
+        .and_then(|s| s.downcast_ref::<gst::ClockTime>())
+        .and_then(|s| s.to_stream_time(pts))
+        .unwrap_or(pts);
+    let Some(audible) = sink.query_position::<gst::ClockTime>() else {
+        return;
+    };
+
+    let lead_ms = tap.mseconds() as i64 - audible.mseconds() as i64;
+    let verdict = if lead_ms > TAP_DRIFT_ALIGNED_MS {
+        "visualizer ahead of speakers"
+    } else if lead_ms < -TAP_DRIFT_ALIGNED_MS {
+        "visualizer behind speakers"
+    } else {
+        "aligned"
+    };
+    tracing::trace!(
+        "spectrum tap drift: tap={} ms, audible={} ms, lead={:+} ms ({})",
+        tap.mseconds(),
+        audible.mseconds(),
+        lead_ms,
+        verdict
+    );
+}
+
 /// Build the audio-sink bin: `audioconvert ! audioresample ! volume(name=rg)
 /// ! tee` fanning out to (1) the default audio sink so the user hears it, and
 /// (2) an `appsink` that copies decoded PCM into `analyzer` for the visualizer.
@@ -212,13 +276,18 @@ fn build_audio_sink_bin(
         .build()
         .map_err(|e| format!("failed to create autoaudiosink: {e}"))?;
 
-    // Branch 2 — tap PCM into the spectrum analyzer.  `sync(false)` lets the
-    // tap pull buffers as they arrive instead of blocking on the pipeline
-    // clock (the play branch owns timing); `drop(true)` keeps a slow callback
-    // from stalling the tee.  `async=false` is critical: as a secondary sink
-    // in the tee it must NOT participate in the pipeline's async state change,
-    // otherwise a PAUSED→PLAYING resume can stall forever waiting for this
-    // drop-mode tap to preroll, leaving the real audio sink stuck and silent.
+    // Branch 2 — tap PCM into the spectrum analyzer.
+    //
+    // `sync(true)` pins the tap to the pipeline clock so it renders each buffer
+    // when the audio sink does, keeping the bars in step with what's audible
+    // instead of with what the decoder has buffered; `log_tap_drift` measures
+    // that alignment.
+    //
+    // `drop(true)` + `max_buffers` keep a slow callback from stalling the tee.
+    // `async=false` is critical: as a secondary sink it must NOT join the
+    // pipeline's async state change, or a PAUSED→PLAYING resume can stall
+    // forever waiting for this drop-mode tap to preroll, leaving the real
+    // audio sink silent.
     let tap_queue = gst::ElementFactory::make("queue")
         .build()
         .map_err(|e| format!("failed to create tap queue: {e}"))?;
@@ -226,15 +295,28 @@ fn build_audio_sink_bin(
         .caps(&caps)
         .max_buffers(8)
         .drop(true)
-        .sync(false)
+        .sync(true)
         .build();
     tap_sink.set_property("async", false);
+    // Drift probe: a weak ref to the audible sink plus a coarse throttle, so
+    // the tap can periodically report how far ahead of the speakers it is
+    // without keeping the sink alive or querying on every buffer.
+    let drift_sink = audiosink.downgrade();
+    let tap_started = std::time::Instant::now();
+    let last_probe_ms = AtomicU64::new(0);
     tap_sink.set_callbacks(
         gst_app::AppSinkCallbacks::builder()
             .new_sample(move |sink| {
                 let Ok(sample) = sink.pull_sample() else {
                     return Ok(gst::FlowSuccess::Ok);
                 };
+                let now_ms = tap_started.elapsed().as_millis() as u64;
+                if now_ms.saturating_sub(last_probe_ms.load(Ordering::Relaxed))
+                    >= TAP_DRIFT_PROBE_MS
+                {
+                    last_probe_ms.store(now_ms, Ordering::Relaxed);
+                    log_tap_drift(&sample, &drift_sink);
+                }
                 // When no analyzer is attached the tap still runs (keeping the
                 // tee balanced) but simply discards the PCM.
                 if let Some(analyzer) = &analyzer
