@@ -138,7 +138,6 @@ impl AppModel {
             .width(Length::Fill)
             .into()
     }
-
 }
 
 /// Build a mix list-item (thumbnail + title + subtitle) for the virtual `List`.

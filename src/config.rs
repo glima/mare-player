@@ -6,7 +6,7 @@
 //! The [`Config`] struct is the single source of truth for user preferences
 //! such as audio quality, cache limits, and notification toggles.
 
-use cosmic::cosmic_config::{self, cosmic_config_derive::CosmicConfigEntry, CosmicConfigEntry};
+use cosmic::cosmic_config::{self, CosmicConfigEntry, cosmic_config_derive::CosmicConfigEntry};
 use serde::{Deserialize, Serialize};
 
 /// Audio quality settings for TIDAL playback

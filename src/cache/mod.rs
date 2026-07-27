@@ -246,10 +246,7 @@ impl Db {
         let conn = self.conn.lock().await;
         let mut out = Vec::new();
         let mut rows = match conn
-            .query(
-                "SELECT entry FROM play_history ORDER BY played_at DESC",
-                (),
-            )
+            .query("SELECT entry FROM play_history ORDER BY played_at DESC", ())
             .await
         {
             Ok(rows) => rows,

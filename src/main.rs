@@ -24,7 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use cosmic_applet_mare::i18n;
 
 use tracing_subscriber::fmt::time::ChronoLocal;
-use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 /// Start a background thread that waits for SIGUSR1, then samples for 10 s
 /// and writes a flamegraph SVG to `/tmp/mare-flamegraph.svg`.

@@ -46,10 +46,10 @@ impl AppModel {
             }
         } else {
             let loaded_images = &self.loaded_images;
-            let list =
-                cosmic::iced::widget::list::List::new(&self.albums_content, move |_index, album| {
-                    virtual_list_row(build_album_row(loaded_images, album), 2)
-                });
+            let list = cosmic::iced::widget::list::List::new(
+                &self.albums_content,
+                move |_index, album| virtual_list_row(build_album_row(loaded_images, album), 2),
+            );
             scrollable_element(list)
         };
 

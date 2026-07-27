@@ -94,15 +94,15 @@ impl AppModel {
             .push(
                 widget::dropdown(LOG_LEVEL_OPTIONS, Some(log_selected_idx), |idx| {
                     Message::SetLogLevel(
-                        LOG_LEVEL_OPTIONS.get(idx).copied().unwrap_or(LogLevel::Info),
+                        LOG_LEVEL_OPTIONS
+                            .get(idx)
+                            .copied()
+                            .unwrap_or(LogLevel::Info),
                     )
                 })
                 .width(Length::Fill),
             )
-            .push(
-                text("Console / journal verbosity. Applies immediately.")
-                    .size(11),
-            )
+            .push(text("Console / journal verbosity. Applies immediately.").size(11))
             .spacing(8);
 
         let account_section: Element<'_, Message> = if let Some(profile) = &user_profile {

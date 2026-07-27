@@ -182,8 +182,8 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         cursor: cosmic::iced::core::mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        use cosmic::iced::core::Renderer as _;
         use cosmic::iced::Color;
+        use cosmic::iced::core::Renderer as _;
 
         let bounds = layout.bounds();
         let Some(clipped) = bounds.intersection(viewport) else {
@@ -203,7 +203,15 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         // Content fits — no fade needed; draw the child clipped to bounds.
         if !state.content_overflows {
             renderer.with_layer(clipped, |renderer| {
-                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &clipped);
+                child.draw(
+                    child_tree,
+                    renderer,
+                    theme,
+                    style,
+                    child_layout,
+                    cursor,
+                    &clipped,
+                );
             });
             return;
         }
@@ -223,7 +231,15 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         };
         if let Some(solid_clip) = solid.intersection(viewport) {
             renderer.with_layer(solid_clip, |renderer| {
-                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &solid_clip);
+                child.draw(
+                    child_tree,
+                    renderer,
+                    theme,
+                    style,
+                    child_layout,
+                    cursor,
+                    &solid_clip,
+                );
             });
         }
 
@@ -247,7 +263,15 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
                 ..style.text_color
             };
             renderer.with_layer(strip_clip, |renderer| {
-                child.draw(child_tree, renderer, theme, &faded, child_layout, cursor, &strip_clip);
+                child.draw(
+                    child_tree,
+                    renderer,
+                    theme,
+                    &faded,
+                    child_layout,
+                    cursor,
+                    &strip_clip,
+                );
             });
         }
     }
