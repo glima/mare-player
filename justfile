@@ -74,10 +74,12 @@ build-vendored-standalone *args: vendor-extract
     cargo build --release --no-default-features --features wgpu --frozen --offline {{ args }}
     cp -f {{ cargo-target-dir / 'release' / name }} {{ cargo-target-dir / 'release' / standalone-name }}
 
-# Runs a clippy check, unused import check, and security audit
+# Runs a formatting check, clippy check, unused import check, and security audit
 check *args:
     #!/usr/bin/env bash
     set -euo pipefail
+    echo "Checking formatting..."
+    cargo fmt --all -- --check
     cargo clippy --all-features {{ args }} -- -W dead_code -D warnings
     echo "Checking for unused imports..."
     if command -v cargo >/dev/null 2>&1 && cargo --list | grep -q machete; then
@@ -102,6 +104,10 @@ check *args:
     fi
     echo "Checking i18n locale completeness..."
     just i18n-check
+
+# Reformat the whole workspace (fixes what `just check`'s rustfmt gate reports)
+fmt:
+    cargo fmt --all
 
 # Run tests (override features via: just features='--no-default-features' test)
 test *args:
