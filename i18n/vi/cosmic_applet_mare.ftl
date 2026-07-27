@@ -168,4 +168,18 @@ lyrics-title-fallback = Lời bài hát
 loading-lyrics = Đang tải lời bài hát…
 no-lyrics-available = Không có lời bài hát cho "{$title}".
 lyrics-provider = Lời bài hát bởi {$provider}
+
+# Ghi công
+credits-title = Ghi công — {$title}
+credits-title-fallback = Ghi công
+loading-credits = Đang tải thông tin ghi công…
+no-credits-available = Không có thông tin ghi công cho "{$title}".
+credits-field-title = TIÊU ĐỀ
+credits-field-artists = NGHỆ SĨ
+credits-field-album = ALBUM
+credits-field-released = PHÁT HÀNH
+credits-field-label = HÃNG ĐĨA
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Hiển thị lời bài hát
+tooltip-show-credits = Hiển thị thông tin ghi công

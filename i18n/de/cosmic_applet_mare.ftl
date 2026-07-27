@@ -174,4 +174,18 @@ lyrics-title-fallback = Liedtext
 loading-lyrics = Liedtext wird geladen…
 no-lyrics-available = Kein Liedtext für „{$title}" verfügbar.
 lyrics-provider = Liedtext von {$provider}
+
+# Mitwirkende
+credits-title = Mitwirkende — {$title}
+credits-title-fallback = Mitwirkende
+loading-credits = Mitwirkende werden geladen…
+no-credits-available = Keine Mitwirkenden für „{$title}" verfügbar.
+credits-field-title = TITEL
+credits-field-artists = KÜNSTLER
+credits-field-album = ALBUM
+credits-field-released = VERÖFFENTLICHT
+credits-field-label = LABEL
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Liedtext anzeigen
+tooltip-show-credits = Mitwirkende anzeigen

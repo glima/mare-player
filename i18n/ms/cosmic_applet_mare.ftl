@@ -168,4 +168,18 @@ lyrics-title-fallback = Lirik
 loading-lyrics = Memuatkan lirik…
 no-lyrics-available = Tiada lirik tersedia untuk "{$title}".
 lyrics-provider = Lirik oleh {$provider}
+
+# Kredit
+credits-title = Kredit — {$title}
+credits-title-fallback = Kredit
+loading-credits = Memuatkan kredit…
+no-credits-available = Tiada kredit tersedia untuk "{$title}".
+credits-field-title = TAJUK
+credits-field-artists = ARTIS
+credits-field-album = ALBUM
+credits-field-released = DIKELUARKAN
+credits-field-label = LABEL
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Tunjukkan lirik
+tooltip-show-credits = Tunjukkan kredit

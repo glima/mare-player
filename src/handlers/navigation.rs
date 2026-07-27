@@ -387,6 +387,27 @@ impl AppModel {
         ])
     }
 
+    /// Handle show credits view for a specific track.
+    ///
+    /// Pushes the nav stack, resets prior credits state, switches to the
+    /// `Credits` view, and kicks off the async fetch.  The view renders a
+    /// loading state until `TrackCreditsLoaded` arrives.
+    pub fn handle_show_credits(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
+        self.nav_stack.push(self.view_state.clone());
+        let track_id = track.id.clone();
+        self.selected_credits_track = Some(track);
+        self.selected_track_credits = None;
+        self.view_state = ViewState::Credits;
+        // Paint last-seen credits from the DB instantly, then refresh from TIDAL.
+        Task::batch([
+            self.read_view_cache::<crate::tidal::models::TrackCredits, _>(
+                format!("credits:{track_id}"),
+                |c| Message::TrackCreditsLoaded(Ok(c)),
+            ),
+            self.load_track_credits(track_id),
+        ])
+    }
+
     /// Handle show track detail view (recommendations seeded from a track).
     ///
     /// Loads three recommendation sections in parallel:

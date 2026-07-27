@@ -23,7 +23,7 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, Track, TrackDetailRow};
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, LYRICS_SVG, fading_header_title, fading_text_column, list_item,
+    ARTIST_PICTURE_SIZE, CREDITS_SVG, fading_header_title, fading_text_column, list_item,
     scrollable_element, virtual_list_row,
 };
 
@@ -37,7 +37,11 @@ impl AppModel {
             .map(|t| t.title.as_str())
             .unwrap_or(&fallback_track);
 
-        // Header bar: back button + track title + lyrics action
+        // Header bar: back button + track title + credits action.
+        //
+        // Lyrics deliberately don't have a button here: the now-playing bar is
+        // always on screen and surfaces its own lyrics icon whenever the
+        // playing track has them, so a second entry point would be redundant.
         let header = widget::Row::new()
             .push(
                 button::icon(widget::icon::from_name("go-previous-symbolic"))
@@ -46,15 +50,16 @@ impl AppModel {
             )
             .push(fading_header_title(track_title))
             .push({
-                // Lyrics action: only enabled when a track is selected.
-                let track_for_lyrics = self.selected_detail_track.clone();
-                let mut li = icon::from_svg_bytes(LYRICS_SVG);
-                li.symbolic = true;
-                let btn = button::icon(li)
-                    .tooltip(fl!("tooltip-show-lyrics"))
+                // Credits action: who played on / produced this recording.
+                // Only enabled when a track is selected.
+                let track_for_credits = self.selected_detail_track.clone();
+                let mut ci = icon::from_svg_bytes(CREDITS_SVG);
+                ci.symbolic = true;
+                let btn = button::icon(ci)
+                    .tooltip(fl!("tooltip-show-credits"))
                     .padding(4);
-                if let Some(track) = track_for_lyrics {
-                    btn.on_press(Message::ShowLyrics(track))
+                if let Some(track) = track_for_credits {
+                    btn.on_press(Message::ShowCredits(track))
                 } else {
                     btn
                 }

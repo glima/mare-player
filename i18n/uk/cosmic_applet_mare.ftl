@@ -178,4 +178,18 @@ lyrics-title-fallback = Текст пісні
 loading-lyrics = Завантаження тексту…
 no-lyrics-available = Текст для «{$title}» недоступний.
 lyrics-provider = Текст від {$provider}
+
+# Автори
+credits-title = Автори — {$title}
+credits-title-fallback = Автори
+loading-credits = Завантаження відомостей про авторів…
+no-credits-available = Відомості про авторів для «{$title}» недоступні.
+credits-field-title = НАЗВА
+credits-field-artists = ВИКОНАВЦІ
+credits-field-album = АЛЬБОМ
+credits-field-released = ВИПУЩЕНО
+credits-field-label = ЛЕЙБЛ
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Показати текст
+tooltip-show-credits = Показати авторів

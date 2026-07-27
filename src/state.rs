@@ -239,6 +239,11 @@ pub struct AppModel {
     /// current track returns. Drives whether the now-playing bar shows the
     /// lyrics icon at all. Backed by the DB lyrics cache.
     pub(crate) now_playing_lyrics: Option<(String, bool)>,
+    /// The track whose credits view is currently open.
+    pub(crate) selected_credits_track: Option<Track>,
+    /// Credits loaded for `selected_credits_track`.  `None` while loading;
+    /// `Some` with `is_empty() == true` when TIDAL has no credits.
+    pub(crate) selected_track_credits: Option<crate::tidal::models::TrackCredits>,
     /// The track whose detail/recommendations view is open
     pub(crate) selected_detail_track: Option<Track>,
     /// "More Albums by {Artist}" for the track detail view
@@ -452,6 +457,8 @@ pub enum ViewState {
     TrackRadio,
     /// Lyrics view for a specific track (synced or plain).
     Lyrics,
+    /// Credits view for a specific track (per-role contributors + catalog info).
+    Credits,
     /// Track detail view (recommendations: more albums by artist, related albums, related artists)
     TrackDetail,
     /// Explore (TIDAL browse pages: featured, genres, moods, decades)

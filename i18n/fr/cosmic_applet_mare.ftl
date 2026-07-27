@@ -174,4 +174,18 @@ lyrics-title-fallback = Paroles
 loading-lyrics = Chargement des paroles…
 no-lyrics-available = Aucune parole disponible pour « {$title} ».
 lyrics-provider = Paroles par {$provider}
+
+# Crédits
+credits-title = Crédits — {$title}
+credits-title-fallback = Crédits
+loading-credits = Chargement des crédits…
+no-credits-available = Aucun crédit disponible pour « {$title} ».
+credits-field-title = TITRE
+credits-field-artists = ARTISTES
+credits-field-album = ALBUM
+credits-field-released = SORTIE
+credits-field-label = LABEL
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Afficher les paroles
+tooltip-show-credits = Afficher les crédits

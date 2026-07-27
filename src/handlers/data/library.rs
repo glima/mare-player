@@ -198,6 +198,36 @@ impl AppModel {
         )
     }
 
+    /// Load credits for a specific track.
+    ///
+    /// Returns an empty [`TrackCredits`] (not an error) when TIDAL has no
+    /// credits for the track; only genuine network/parse failures end in
+    /// `Err`.  See
+    /// [`TidalAppClient::get_track_credits`](crate::tidal::client::TidalAppClient::get_track_credits).
+    pub(crate) fn load_track_credits(&self, track_id: String) -> Task<cosmic::Action<Message>> {
+        let client = self.tidal_client.clone();
+        let db = self.cache_db.clone();
+        let key = format!("credits:{track_id}");
+        Task::perform(
+            async move {
+                let result = {
+                    let client = client.lock().await;
+                    client
+                        .get_track_credits(&track_id)
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                // Cache the result (including "no credits") so re-opening the
+                // view paints instantly next time.
+                if let Ok(ref credits) = result {
+                    crate::handlers::view_cache::cache_put(db, &key, credits).await;
+                }
+                result
+            },
+            |result| cosmic::Action::App(Message::TrackCreditsLoaded(result)),
+        )
+    }
+
     /// Load lyrics for a specific track.
     ///
     /// Returns an empty [`TrackLyrics`] (not an error) when TIDAL has
@@ -567,15 +597,27 @@ impl AppModel {
         let mut rows: Vec<FeedRow> = Vec::new();
         if !new_updates.is_empty() {
             rows.push(FeedRow::SectionHeader(crate::fl!("feed-new-updates")));
-            rows.extend(new_updates.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+            rows.extend(
+                new_updates
+                    .into_iter()
+                    .map(|a| FeedRow::Activity(Box::new(a))),
+            );
         }
         if !last_week.is_empty() {
             rows.push(FeedRow::SectionHeader(crate::fl!("feed-last-week")));
-            rows.extend(last_week.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+            rows.extend(
+                last_week
+                    .into_iter()
+                    .map(|a| FeedRow::Activity(Box::new(a))),
+            );
         }
         if !last_month.is_empty() {
             rows.push(FeedRow::SectionHeader(crate::fl!("feed-last-month")));
-            rows.extend(last_month.into_iter().map(|a| FeedRow::Activity(Box::new(a))));
+            rows.extend(
+                last_month
+                    .into_iter()
+                    .map(|a| FeedRow::Activity(Box::new(a))),
+            );
         }
         if !older.is_empty() {
             rows.push(FeedRow::SectionHeader(crate::fl!("feed-older")));
@@ -957,6 +999,35 @@ impl AppModel {
             }
         }
         Task::none()
+    }
+
+    /// Handle credits loaded result.
+    ///
+    /// Stores the credits (or an empty `TrackCredits` when TIDAL has none).
+    /// Errors are surfaced in the error banner but don't block the view; the
+    /// credits view falls back to its loading/empty state.
+    pub fn handle_track_credits_loaded(
+        &mut self,
+        result: Result<crate::tidal::models::TrackCredits, String>,
+    ) {
+        match result {
+            Ok(credits) => {
+                tracing::info!(
+                    "Credits loaded: roles={} label={} isrc={} bpm={:?}",
+                    credits.roles.len(),
+                    credits.copyright.is_some(),
+                    credits.isrc.is_some(),
+                    credits.bpm
+                );
+                self.selected_track_credits = Some(credits);
+            }
+            Err(e) => {
+                tracing::error!("Failed to load credits: {}", e);
+                self.error_message = Some(format!("Failed to load credits: {}", e));
+                // Leave selected_track_credits = None; the view keeps showing
+                // its loading state in that case.
+            }
+        }
     }
 
     /// Handle "More Albums by {Artist}" loaded for the track detail view.

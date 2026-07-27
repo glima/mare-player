@@ -10,6 +10,7 @@
 //! - `mixes` - Mixes & Radio list and detail views
 //! - `track_radio` - Track radio view (similar tracks based on a seed track)
 //! - `track_detail` - Track detail view (recommendations seeded from a track)
+//! - `credits` - Track credits view (per-role contributors + catalog info)
 //! - `playlists` - Playlist list and detail views
 //! - `albums` - Album list and detail views
 //! - `tracks` - Favorite tracks view
@@ -25,6 +26,7 @@ pub mod albums;
 pub mod artist;
 pub mod auth;
 pub mod components;
+pub mod credits;
 pub mod explore;
 pub mod feed;
 pub mod history;

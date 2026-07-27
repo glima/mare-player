@@ -168,4 +168,18 @@ lyrics-title-fallback = Şarkı Sözleri
 loading-lyrics = Şarkı sözleri yükleniyor…
 no-lyrics-available = "{$title}" için şarkı sözü mevcut değil.
 lyrics-provider = Şarkı sözleri: {$provider}
+
+# Katkıda bulunanlar
+credits-title = Katkıda Bulunanlar — {$title}
+credits-title-fallback = Katkıda Bulunanlar
+loading-credits = Katkıda bulunanlar yükleniyor…
+no-credits-available = "{$title}" için katkı bilgisi mevcut değil.
+credits-field-title = BAŞLIK
+credits-field-artists = SANATÇILAR
+credits-field-album = ALBÜM
+credits-field-released = YAYIN TARİHİ
+credits-field-label = PLAK ŞİRKETİ
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Şarkı sözlerini göster
+tooltip-show-credits = Katkıda bulunanları göster

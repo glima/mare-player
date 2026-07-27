@@ -178,4 +178,18 @@ lyrics-title-fallback = Текст песни
 loading-lyrics = Загрузка текста…
 no-lyrics-available = Текст для «{$title}» недоступен.
 lyrics-provider = Текст от {$provider}
+
+# Авторы
+credits-title = Авторы — {$title}
+credits-title-fallback = Авторы
+loading-credits = Загрузка сведений об авторах…
+no-credits-available = Сведения об авторах для «{$title}» недоступны.
+credits-field-title = НАЗВАНИЕ
+credits-field-artists = ИСПОЛНИТЕЛИ
+credits-field-album = АЛЬБОМ
+credits-field-released = ДАТА ВЫХОДА
+credits-field-label = ЛЕЙБЛ
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Показать текст
+tooltip-show-credits = Показать авторов

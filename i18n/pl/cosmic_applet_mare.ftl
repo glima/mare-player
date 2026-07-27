@@ -178,4 +178,18 @@ lyrics-title-fallback = Tekst utworu
 loading-lyrics = Ładowanie tekstu…
 no-lyrics-available = Brak dostępnego tekstu dla „{$title}".
 lyrics-provider = Tekst dostarczony przez {$provider}
+
+# Credits
+credits-title = Twórcy — {$title}
+credits-title-fallback = Twórcy
+loading-credits = Ładowanie informacji o twórcach…
+no-credits-available = Brak informacji o twórcach dla „{$title}".
+credits-field-title = TYTUŁ
+credits-field-artists = ARTYŚCI
+credits-field-album = ALBUM
+credits-field-released = DATA WYDANIA
+credits-field-label = WYTWÓRNIA
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Pokaż tekst
+tooltip-show-credits = Pokaż twórców

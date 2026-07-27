@@ -140,6 +140,8 @@ impl cosmic::Application for AppModel {
             selected_track_lyrics: None,
             current_lyric_index: None,
             now_playing_lyrics: None,
+            selected_credits_track: None,
+            selected_track_credits: None,
             selected_detail_track: None,
             track_detail_artist_albums: Vec::new(),
             track_detail_related_artists: Vec::new(),
@@ -549,6 +551,7 @@ impl cosmic::Application for AppModel {
             | Message::MixTracksLoaded(_)
             | Message::TrackRadioLoaded(_)
             | Message::TrackLyricsLoaded(_)
+            | Message::TrackCreditsLoaded(_)
             | Message::TrackDetailArtistAlbumsLoaded(_)
             | Message::TrackDetailRelatedArtistsLoaded(_)
             | Message::TrackDetailRelatedAlbumsLoaded(_)
@@ -681,6 +684,13 @@ impl cosmic::Application for AppModel {
             Message::TrackLyricsLoaded(result) => self.handle_track_lyrics_loaded(result),
             Message::NowPlayingLyricsChecked(track_id, has) => {
                 self.handle_now_playing_lyrics_checked(track_id, has);
+                Task::none()
+            }
+
+            // Data handlers - track credits
+            Message::ShowCredits(track) => self.handle_show_credits(track),
+            Message::TrackCreditsLoaded(result) => {
+                self.handle_track_credits_loaded(result);
                 Task::none()
             }
 

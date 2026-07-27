@@ -160,6 +160,7 @@ impl AppModel {
             ViewState::ArtistDetail => self.view_artist_detail(),
             ViewState::TrackRadio => self.view_track_radio(),
             ViewState::Lyrics => self.view_lyrics(),
+            ViewState::Credits => self.view_credits(),
             ViewState::TrackDetail => self.view_track_detail(),
             ViewState::FavoriteTracks => self.view_favorite_tracks(),
             ViewState::Feed => self.view_feed(),

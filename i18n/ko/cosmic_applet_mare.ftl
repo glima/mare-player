@@ -168,4 +168,18 @@ lyrics-title-fallback = 가사
 loading-lyrics = 가사 로드 중…
 no-lyrics-available = "{$title}"의 가사를 사용할 수 없습니다.
 lyrics-provider = 가사 제공: {$provider}
+
+# Credits
+credits-title = 크레딧 — {$title}
+credits-title-fallback = 크레딧
+loading-credits = 크레딧 로드 중…
+no-credits-available = "{$title}"의 크레딧을 사용할 수 없습니다.
+credits-field-title = 제목
+credits-field-artists = 아티스트
+credits-field-album = 앨범
+credits-field-released = 발매일
+credits-field-label = 레이블
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = 가사 표시
+tooltip-show-credits = 크레딧 표시

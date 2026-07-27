@@ -941,9 +941,117 @@ fn parse_lrc_timestamp(tag: &str) -> Option<u64> {
     Some(ms)
 }
 
+// ── Credits ───────────────────────────────────────────────────────────────────────
+
+/// A single credited person on a track, as returned by TIDAL's credits
+/// endpoint.
+///
+/// Contributors carry real TIDAL **artist** ids (the same id space as
+/// `/v1/artists/{id}`), so the credits view can link straight through to an
+/// artist page.  The id is optional because TIDAL occasionally returns
+/// name-only entries for people who have no catalog presence.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreditContributor {
+    /// Display name ("Jimmy Page").
+    pub name: String,
+    /// TIDAL artist id, when the contributor has an artist page.
+    pub id: Option<String>,
+}
+
+/// One credit role and everyone credited under it.
+///
+/// TIDAL groups by role, so a person appearing as both "Writer" and
+/// "Guitar" shows up in two [`CreditRole`] entries.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CreditRole {
+    /// Role name as TIDAL spells it ("Producer", "Mastering Engineer", …).
+    pub role: String,
+    /// People credited under this role, in TIDAL's order.
+    pub contributors: Vec<CreditContributor>,
+}
+
+/// Everything the credits view shows for a track: the per-role contributor
+/// list plus the handful of catalog fields (label, release date, ISRC, BPM)
+/// that live on the track object rather than in the credits payload.
+///
+/// All fields are optional — TIDAL's coverage varies a lot by release, and a
+/// track with no credits at all is a normal (not error) outcome, mirroring how
+/// [`TrackLyrics`] treats "no lyrics".
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TrackCredits {
+    /// Credit roles in TIDAL's order (producer first, then instruments…).
+    #[serde(default)]
+    pub roles: Vec<CreditRole>,
+    /// Copyright / label line ("℗ 2013 Atlantic Records").
+    #[serde(default)]
+    pub copyright: Option<String>,
+    /// Release date as `YYYY-MM-DD`, derived from the track's stream start
+    /// date (TIDAL's own credits panel shows the same value).
+    #[serde(default)]
+    pub released: Option<String>,
+    /// International Standard Recording Code.
+    #[serde(default)]
+    pub isrc: Option<String>,
+    /// Beats per minute, when TIDAL has analysed the track.
+    #[serde(default)]
+    pub bpm: Option<u32>,
+}
+
+impl TrackCredits {
+    /// True when TIDAL returned nothing worth rendering — no roles and none
+    /// of the catalog extras.  The view shows its empty state in that case.
+    pub fn is_empty(&self) -> bool {
+        self.roles.is_empty()
+            && self.copyright.is_none()
+            && self.released.is_none()
+            && self.isrc.is_none()
+            && self.bpm.is_none()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn track_credits_empty_and_roundtrip() {
+        // Default is "nothing to show".
+        assert!(TrackCredits::default().is_empty());
+
+        // Any single populated field flips it.
+        let only_isrc = TrackCredits {
+            isrc: Some("USAT21300896".into()),
+            ..Default::default()
+        };
+        assert!(!only_isrc.is_empty());
+
+        let credits = TrackCredits {
+            roles: vec![CreditRole {
+                role: "Producer".into(),
+                contributors: vec![CreditContributor {
+                    name: "Jimmy Page".into(),
+                    id: Some("3544300".into()),
+                }],
+            }],
+            copyright: Some("℗ 2013 Atlantic Records".into()),
+            released: Some("2014-10-27".into()),
+            isrc: Some("USAT21300896".into()),
+            bpm: Some(143),
+        };
+        assert!(!credits.is_empty());
+
+        let json = serde_json::to_string(&credits).expect("serialize");
+        let back: TrackCredits = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back.roles.len(), 1);
+        assert_eq!(back.roles[0].role, "Producer");
+        assert_eq!(back.roles[0].contributors[0].id.as_deref(), Some("3544300"));
+        assert_eq!(back.bpm, Some(143));
+
+        // Older/partial cached payloads still deserialize — every field is
+        // `#[serde(default)]`.
+        let partial: TrackCredits = serde_json::from_str("{}").expect("deserialize partial");
+        assert!(partial.is_empty());
+    }
 
     #[test]
     fn search_results_videos_roundtrip_and_serde_default() {

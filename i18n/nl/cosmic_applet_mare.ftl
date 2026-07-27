@@ -174,4 +174,18 @@ lyrics-title-fallback = Songtekst
 loading-lyrics = Songtekst laden…
 no-lyrics-available = Geen songtekst beschikbaar voor "{$title}".
 lyrics-provider = Songtekst door {$provider}
+
+# Credits
+credits-title = Credits — {$title}
+credits-title-fallback = Credits
+loading-credits = Credits laden…
+no-credits-available = Geen credits beschikbaar voor "{$title}".
+credits-field-title = TITEL
+credits-field-artists = ARTIESTEN
+credits-field-album = ALBUM
+credits-field-released = UITGEBRACHT
+credits-field-label = LABEL
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Songtekst weergeven
+tooltip-show-credits = Credits weergeven

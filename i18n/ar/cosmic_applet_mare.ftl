@@ -182,4 +182,18 @@ lyrics-title-fallback = كلمات الأغنية
 loading-lyrics = جارٍ تحميل كلمات الأغنية…
 no-lyrics-available = لا تتوفر كلمات لأغنية "{$title}".
 lyrics-provider = كلمات بواسطة {$provider}
+
+# Credits
+credits-title = المساهمون — {$title}
+credits-title-fallback = المساهمون
+loading-credits = جارٍ تحميل المساهمين…
+no-credits-available = لا تتوفر معلومات المساهمين لأغنية "{$title}".
+credits-field-title = العنوان
+credits-field-artists = الفنانون
+credits-field-album = الألبوم
+credits-field-released = تاريخ الإصدار
+credits-field-label = شركة الإنتاج
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = عرض كلمات الأغنية
+tooltip-show-credits = عرض المساهمين

@@ -13,9 +13,9 @@
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
-    Album, Artist, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity, FeedItem,
-    Mix, PageLink, Playlist, SearchResults, Track, TrackLyrics, tidal_cover_url,
-    tidal_promo_image_url,
+    Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection,
+    ExploreTarget, FeedActivity, FeedItem, Mix, PageLink, Playlist, SearchResults, Track,
+    TrackCredits, TrackLyrics, tidal_cover_url, tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
@@ -120,7 +120,11 @@ impl std::fmt::Display for PlaybackUrl {
                 write!(f, ")")
             }
             PlaybackUrl::DashManifest(manifest, rg) => {
-                write!(f, "DashManifest(<inline manifest, {} bytes>", manifest.len())?;
+                write!(
+                    f,
+                    "DashManifest(<inline manifest, {} bytes>",
+                    manifest.len()
+                )?;
                 if let Some(rg) = rg {
                     write!(f, ", {rg:+.2}dB")?;
                 }
@@ -1874,6 +1878,190 @@ impl TidalAppClient {
             plain_text,
             lrc_lines,
             is_right_to_left: raw.is_right_to_left,
+        })
+    }
+
+    // =========================================================================
+    // Track Credits
+    // =========================================================================
+
+    /// Fetch the credits (per-role contributors) for a track, plus the catalog
+    /// extras TIDAL's own credits panel shows alongside them.
+    ///
+    /// tidlers only exposes *album* credits (`/albums/{id}/credits`), so this
+    /// hits the v1 track endpoint directly — the same pattern as
+    /// [`Self::get_track_lyrics`], using the access token we already hold:
+    ///
+    /// * `GET /v1/tracks/{id}/credits?includeContributors=true` — an array of
+    ///   `{ type, contributors: [{ name, id }] }` role groups.  TIDAL answers
+    ///   `200` with `[]` for unknown or uncredited tracks, so "no credits" is
+    ///   never an error.
+    /// * `GET /v1/tracks/{id}` — copyright/label, stream start date, ISRC and
+    ///   BPM, which don't appear in the credits payload.  This leg is
+    ///   best-effort: if it fails we still return the roles.
+    ///
+    /// Both requests run concurrently; the result is cached by the caller
+    /// under `credits:{track_id}` so re-opening the view paints instantly.
+    pub async fn get_track_credits(&self, track_id: &str) -> TidalResult<TrackCredits> {
+        let ctx = self.auth_context().await?;
+
+        debug!("Fetching credits for track {}", track_id);
+
+        let http_client = reqwest::Client::new();
+        let bearer = format!("Bearer {}", ctx.access_token);
+
+        let credits_url = format!(
+            "https://api.tidal.com/v1/tracks/{}/credits?countryCode={}&includeContributors=true",
+            track_id, ctx.country_code
+        );
+        let meta_url = format!(
+            "https://api.tidal.com/v1/tracks/{}?countryCode={}",
+            track_id, ctx.country_code
+        );
+
+        let credits_req = http_client
+            .get(&credits_url)
+            .header(AUTHORIZATION, bearer.clone())
+            .send();
+        let meta_req = http_client
+            .get(&meta_url)
+            .header(AUTHORIZATION, bearer)
+            .send();
+
+        let (credits_res, meta_res) = tokio::join!(credits_req, meta_req);
+
+        // ── Roles (required leg) ──────────────────────────────────────────
+        #[derive(Deserialize)]
+        struct RawContributor {
+            #[serde(default)]
+            name: String,
+            #[serde(default)]
+            id: Option<serde_json::Value>,
+        }
+
+        #[derive(Deserialize)]
+        struct RawCredit {
+            #[serde(rename = "type", default)]
+            credit_type: String,
+            #[serde(default)]
+            contributors: Vec<RawContributor>,
+        }
+
+        let response = credits_res.map_err(|e| TidalError::NetworkError(format!("{:?}", e)))?;
+
+        // A track TIDAL doesn't know is "no credits", not a failure — same
+        // contract as the lyrics endpoint's 404.
+        if response.status() == reqwest::StatusCode::NOT_FOUND {
+            debug!("No credits found for track {}", track_id);
+            return Ok(TrackCredits::default());
+        }
+        if !response.status().is_success() {
+            return Err(TidalError::RequestFailed(format!(
+                "HTTP {} fetching credits for track {}",
+                response.status(),
+                track_id
+            )));
+        }
+
+        let raw: Vec<RawCredit> = response
+            .json()
+            .await
+            .map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+
+        let roles: Vec<CreditRole> = raw
+            .into_iter()
+            .filter(|c| !c.credit_type.trim().is_empty() && !c.contributors.is_empty())
+            .map(|c| CreditRole {
+                role: c.credit_type,
+                contributors: c
+                    .contributors
+                    .into_iter()
+                    .filter(|p| !p.name.trim().is_empty())
+                    .map(|p| CreditContributor {
+                        // TIDAL sends numeric ids here; accept strings too in
+                        // case that ever changes.
+                        id: p.id.and_then(|v| match v {
+                            serde_json::Value::Number(n) => Some(n.to_string()),
+                            serde_json::Value::String(s) if !s.is_empty() => Some(s),
+                            _ => None,
+                        }),
+                        name: p.name,
+                    })
+                    .collect(),
+            })
+            .filter(|r| !r.contributors.is_empty())
+            .collect();
+
+        // ── Catalog extras (best-effort leg) ──────────────────────────────
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct RawTrackMeta {
+            #[serde(default)]
+            copyright: Option<String>,
+            #[serde(default)]
+            stream_start_date: Option<String>,
+            #[serde(default)]
+            isrc: Option<String>,
+            #[serde(default)]
+            bpm: Option<u32>,
+        }
+
+        let meta: Option<RawTrackMeta> = match meta_res {
+            Ok(resp) if resp.status().is_success() => match resp.json::<RawTrackMeta>().await {
+                Ok(m) => Some(m),
+                Err(e) => {
+                    debug!("Track metadata parse failed for {}: {:?}", track_id, e);
+                    None
+                }
+            },
+            Ok(resp) => {
+                debug!(
+                    "Track metadata fetch returned HTTP {} for {}",
+                    resp.status(),
+                    track_id
+                );
+                None
+            }
+            Err(e) => {
+                debug!("Track metadata fetch failed for {}: {:?}", track_id, e);
+                None
+            }
+        };
+
+        /// Trim a value and drop it when empty, so the view can rely on
+        /// `Some(_)` meaning "has something to show".
+        fn non_empty(value: Option<String>) -> Option<String> {
+            value
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        }
+
+        let (copyright, released, isrc, bpm) = match meta {
+            Some(m) => (
+                non_empty(m.copyright),
+                // `2014-10-27T00:00:00.000+0000` → `2014-10-27`
+                non_empty(m.stream_start_date)
+                    .map(|d| d.split('T').next().unwrap_or(&d).to_string()),
+                non_empty(m.isrc),
+                m.bpm.filter(|b| *b > 0),
+            ),
+            None => (None, None, None, None),
+        };
+
+        info!(
+            "Loaded credits for track {}: roles={} label={} isrc={}",
+            track_id,
+            roles.len(),
+            copyright.is_some(),
+            isrc.is_some()
+        );
+
+        Ok(TrackCredits {
+            roles,
+            copyright,
+            released,
+            isrc,
+            bpm,
         })
     }
 

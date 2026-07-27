@@ -168,4 +168,18 @@ lyrics-title-fallback = เนื้อเพลง
 loading-lyrics = กำลังโหลดเนื้อเพลง…
 no-lyrics-available = ไม่มีเนื้อเพลงสำหรับ "{$title}"
 lyrics-provider = เนื้อเพลงโดย {$provider}
+
+# เครดิต
+credits-title = เครดิต — {$title}
+credits-title-fallback = เครดิต
+loading-credits = กำลังโหลดเครดิต…
+no-credits-available = ไม่มีเครดิตสำหรับ "{$title}"
+credits-field-title = ชื่อเพลง
+credits-field-artists = ศิลปิน
+credits-field-album = อัลบั้ม
+credits-field-released = วันที่วางจำหน่าย
+credits-field-label = ค่ายเพลง
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = แสดงเนื้อเพลง
+tooltip-show-credits = แสดงเครดิต

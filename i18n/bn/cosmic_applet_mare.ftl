@@ -174,4 +174,18 @@ lyrics-title-fallback = গানের কথা
 loading-lyrics = গানের কথা লোড করা হচ্ছে…
 no-lyrics-available = "{$title}" এর জন্য গানের কথা পাওয়া যায়নি।
 lyrics-provider = গানের কথা সরবরাহ করেছে {$provider}
+
+# ক্রেডিট
+credits-title = ক্রেডিট — {$title}
+credits-title-fallback = ক্রেডিট
+loading-credits = ক্রেডিট লোড করা হচ্ছে…
+no-credits-available = "{$title}" এর জন্য কোনো ক্রেডিট পাওয়া যায়নি।
+credits-field-title = শিরোনাম
+credits-field-artists = শিল্পী
+credits-field-album = অ্যালবাম
+credits-field-released = প্রকাশিত
+credits-field-label = লেবেল
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = গানের কথা দেখান
+tooltip-show-credits = ক্রেডিট দেখান

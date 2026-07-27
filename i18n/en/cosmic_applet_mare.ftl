@@ -90,6 +90,19 @@ loading-lyrics = Loading lyrics…
 no-lyrics-available = No lyrics available for “{$title}”.
 lyrics-provider = Lyrics by {$provider}
 
+# Credits
+credits-title = Credits — {$title}
+credits-title-fallback = Credits
+loading-credits = Loading credits…
+no-credits-available = No credits available for “{$title}”.
+credits-field-title = TITLE
+credits-field-artists = ARTISTS
+credits-field-album = ALBUM
+credits-field-released = RELEASED
+credits-field-label = LABEL
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
+
 # Fallback labels
 fallback-track = Track
 fallback-artist = Artist
@@ -147,6 +160,7 @@ tooltip-play = Play
 tooltip-stop = Stop
 tooltip-go-to-track-radio = Go to track radio
 tooltip-show-lyrics = Show lyrics
+tooltip-show-credits = Show credits
 tooltip-share = Share
 tooltip-video-popout = Open video in a separate window
 tooltip-video-inline = Show video inline

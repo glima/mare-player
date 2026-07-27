@@ -154,6 +154,13 @@ pub enum Message {
     /// lyrics icon.
     NowPlayingLyricsChecked(String, bool),
 
+    // Track Credits
+    /// Open the credits view for a specific track and kick off the fetch.
+    ShowCredits(Track),
+    /// Credits fetch completed (`Ok(TrackCredits::default())` for tracks with
+    /// no credits; only `Err` for genuine network/parse failures).
+    TrackCreditsLoaded(Result<crate::tidal::models::TrackCredits, String>),
+
     // Track Detail (recommendations from a track)
     /// Show track detail view (more albums by artist, related albums, related artists)
     ShowTrackDetail(Track),

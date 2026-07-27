@@ -168,4 +168,18 @@ lyrics-title-fallback = 歌詞
 loading-lyrics = 歌詞を読み込み中…
 no-lyrics-available = 「{$title}」の歌詞は利用できません。
 lyrics-provider = 歌詞提供: {$provider}
+
+# クレジット
+credits-title = クレジット — {$title}
+credits-title-fallback = クレジット
+loading-credits = クレジットを読み込み中…
+no-credits-available = 「{$title}」のクレジットは利用できません。
+credits-field-title = タイトル
+credits-field-artists = アーティスト
+credits-field-album = アルバム
+credits-field-released = リリース日
+credits-field-label = レーベル
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = 歌詞を表示
+tooltip-show-credits = クレジットを表示

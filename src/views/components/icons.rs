@@ -46,6 +46,23 @@ pub const LYRICS_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 1
 </svg>"##;
 
 // =============================================================================
+// Credits Icon
+// =============================================================================
+
+/// Credits icon SVG for the "show credits" button.
+///
+/// Two overlapping people — the same "who worked on this" metaphor TIDAL
+/// uses for its credits tab: a foreground figure (head + shoulders) with a
+/// second one stepping in behind it.  Stroke-based like [`LYRICS_SVG`] so it
+/// recolours with the theme; designed for 16×16 symbolic use.
+pub const CREDITS_SVG: &[u8] = br##"<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="6.25" cy="5" r="2.5" stroke="#232323" stroke-width="1.2" fill="none"/>
+<path d="M1.75 13.5v-.75a4.5 4.5 0 0 1 4.5-4.5 4.5 4.5 0 0 1 4.5 4.5v.75" stroke="#232323" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M10.75 2.9a2.5 2.5 0 0 1 0 4.2" stroke="#232323" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+<path d="M12 8.6a4.5 4.5 0 0 1 2.25 3.9v1" stroke="#232323" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+</svg>"##;
+
+// =============================================================================
 // Pop-out (open in separate window) Icon
 // =============================================================================
 

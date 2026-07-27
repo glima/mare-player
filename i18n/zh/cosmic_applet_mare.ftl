@@ -168,4 +168,18 @@ lyrics-title-fallback = 歌词
 loading-lyrics = 正在加载歌词…
 no-lyrics-available = 暂无"{$title}"的歌词。
 lyrics-provider = 歌词提供：{$provider}
+
+# 制作人员
+credits-title = 制作人员 — {$title}
+credits-title-fallback = 制作人员
+loading-credits = 正在加载制作人员…
+no-credits-available = 暂无"{$title}"的制作人员信息。
+credits-field-title = 标题
+credits-field-artists = 艺术家
+credits-field-album = 专辑
+credits-field-released = 发行时间
+credits-field-label = 唱片公司
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = 显示歌词
+tooltip-show-credits = 显示制作人员

@@ -174,4 +174,18 @@ lyrics-title-fallback = बोल
 loading-lyrics = बोल लोड हो रहे हैं…
 no-lyrics-available = "{$title}" के लिए कोई बोल उपलब्ध नहीं है।
 lyrics-provider = बोल {$provider} द्वारा
+
+# Credits
+credits-title = क्रेडिट — {$title}
+credits-title-fallback = क्रेडिट
+loading-credits = क्रेडिट लोड हो रहे हैं…
+no-credits-available = "{$title}" के लिए कोई क्रेडिट उपलब्ध नहीं है।
+credits-field-title = शीर्षक
+credits-field-artists = कलाकार
+credits-field-album = एल्बम
+credits-field-released = रिलीज़
+credits-field-label = लेबल
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = बोल दिखाएं
+tooltip-show-credits = क्रेडिट दिखाएं

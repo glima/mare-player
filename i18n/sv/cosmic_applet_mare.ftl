@@ -174,4 +174,18 @@ lyrics-title-fallback = Sångtext
 loading-lyrics = Laddar sångtext…
 no-lyrics-available = Ingen sångtext tillgänglig för "{$title}".
 lyrics-provider = Sångtext av {$provider}
+
+# Medverkande
+credits-title = Medverkande — {$title}
+credits-title-fallback = Medverkande
+loading-credits = Laddar medverkande…
+no-credits-available = Inga medverkande tillgängliga för "{$title}".
+credits-field-title = TITEL
+credits-field-artists = ARTISTER
+credits-field-album = ALBUM
+credits-field-released = SLÄPPT
+credits-field-label = SKIVBOLAG
+credits-field-isrc = ISRC
+credits-field-bpm = BPM
 tooltip-show-lyrics = Visa sångtext
+tooltip-show-credits = Visa medverkande
