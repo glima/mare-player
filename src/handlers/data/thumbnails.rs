@@ -77,8 +77,7 @@ impl AppModel {
                         };
 
                         // Check the disk cache for a previously composited grid
-                        if let Some(cached_png) = image_cache.get_cached_grid(&grid_cache_key).await
-                        {
+                        if let Some(cached_png) = image_cache.get_cached_grid(&grid_cache_key).await {
                             tracing::debug!("Grid thumbnail cache hit for playlist {}", uuid_clone);
                             // Decode the cached PNG to raw RGBA so the UI can
                             // use Handle::from_rgba without re-decoding.
@@ -107,19 +106,9 @@ impl AppModel {
                             Ok(rgba) => {
                                 // Persist as PNG so subsequent startups skip
                                 // the download + composite entirely.
-                                if let Some(img) = image::RgbaImage::from_raw(
-                                    rgba.width,
-                                    rgba.height,
-                                    rgba.pixels.clone(),
-                                ) {
+                                if let Some(img) = image::RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels.clone()) {
                                     let mut png_buf = Vec::new();
-                                    if img
-                                        .write_to(
-                                            &mut std::io::Cursor::new(&mut png_buf),
-                                            image::ImageFormat::Png,
-                                        )
-                                        .is_ok()
-                                    {
+                                    if img.write_to(&mut std::io::Cursor::new(&mut png_buf), image::ImageFormat::Png).is_ok() {
                                         image_cache.save_grid(&grid_cache_key, &png_buf).await;
                                     }
                                 }
@@ -133,9 +122,7 @@ impl AppModel {
                     },
                     |result| {
                         if let Some((uuid, w, h, pixels)) = result {
-                            cosmic::Action::App(Message::PlaylistThumbnailGenerated(
-                                uuid, w, h, pixels,
-                            ))
+                            cosmic::Action::App(Message::PlaylistThumbnailGenerated(uuid, w, h, pixels))
                         } else {
                             cosmic::Action::App(Message::ClearError) // no-op
                         }
@@ -144,21 +131,11 @@ impl AppModel {
             })
             .collect();
 
-        if tasks.is_empty() {
-            Task::none()
-        } else {
-            Task::batch(tasks)
-        }
+        if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }
     }
 
     /// Handle a completed playlist grid thumbnail (store as image handle).
-    pub fn handle_playlist_thumbnail_generated(
-        &mut self,
-        uuid: String,
-        width: u32,
-        height: u32,
-        pixels: Vec<u8>,
-    ) {
+    pub fn handle_playlist_thumbnail_generated(&mut self, uuid: String, width: u32, height: u32, pixels: Vec<u8>) {
         let handle = cosmic::widget::image::Handle::from_rgba(width, height, pixels);
         self.playlist_thumbnails.insert(uuid, handle);
     }

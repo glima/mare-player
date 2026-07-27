@@ -119,11 +119,7 @@ impl UserProfile {
     /// First letter of the display name (for avatar fallback)
     pub fn initials(&self) -> String {
         let name = self.display_name();
-        name.chars()
-            .next()
-            .unwrap_or('?')
-            .to_uppercase()
-            .to_string()
+        name.chars().next().unwrap_or('?').to_uppercase().to_string()
     }
 }
 
@@ -132,10 +128,7 @@ pub enum AuthState {
     /// Not authenticated, need to start login flow
     NotAuthenticated,
     /// Waiting for user to complete OAuth in browser
-    AwaitingUserAuth {
-        verification_uri: String,
-        user_code: String,
-    },
+    AwaitingUserAuth { verification_uri: String, user_code: String },
     /// Successfully authenticated
     Authenticated {
         /// Full user profile (name, email, picture, etc.)
@@ -160,9 +153,7 @@ impl Default for AuthManager {
 impl AuthManager {
     /// Create a new AuthManager
     pub fn new() -> Self {
-        Self {
-            state: AuthState::NotAuthenticated,
-        }
+        Self { state: AuthState::NotAuthenticated }
     }
 
     /// Get the current authentication state
@@ -177,15 +168,11 @@ impl AuthManager {
 
     /// Store credentials securely in the system keyring
     pub fn store_credentials(credentials: &StoredCredentials) -> Result<(), String> {
-        let entry = Entry::new(SERVICE_NAME, SESSION_KEY)
-            .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
+        let entry = Entry::new(SERVICE_NAME, SESSION_KEY).map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
-        let json = serde_json::to_string(credentials)
-            .map_err(|e| format!("Failed to serialize credentials: {}", e))?;
+        let json = serde_json::to_string(credentials).map_err(|e| format!("Failed to serialize credentials: {}", e))?;
 
-        entry
-            .set_password(&json)
-            .map_err(|e| format!("Failed to store credentials: {}", e))?;
+        entry.set_password(&json).map_err(|e| format!("Failed to store credentials: {}", e))?;
 
         info!("Credentials stored successfully in keyring");
         Ok(())
@@ -203,8 +190,8 @@ impl AuthManager {
 
         match entry.get_password() {
             Ok(json) => {
-                let credentials: StoredCredentials = serde_json::from_str(&json)
-                    .map_err(|e| format!("Failed to deserialize credentials: {}", e))?;
+                let credentials: StoredCredentials =
+                    serde_json::from_str(&json).map_err(|e| format!("Failed to deserialize credentials: {}", e))?;
                 debug!("Loaded credentials from keyring");
                 Ok(Some(credentials))
             }
@@ -221,8 +208,7 @@ impl AuthManager {
 
     /// Delete stored credentials from the keyring
     pub fn delete_credentials() -> Result<(), String> {
-        let entry = Entry::new(SERVICE_NAME, SESSION_KEY)
-            .map_err(|e| format!("Failed to create keyring entry: {}", e))?;
+        let entry = Entry::new(SERVICE_NAME, SESSION_KEY).map_err(|e| format!("Failed to create keyring entry: {}", e))?;
 
         match entry.delete_credential() {
             Ok(()) => {

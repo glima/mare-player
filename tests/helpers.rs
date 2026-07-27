@@ -288,10 +288,7 @@ mod special_fp {
         // the function should at least not panic. We just verify it returns
         // something containing digits.
         let result = format_seconds(f64::INFINITY);
-        assert!(
-            !result.is_empty(),
-            "should produce some output for +infinity"
-        );
+        assert!(!result.is_empty(), "should produce some output for +infinity");
     }
 
     #[test]
@@ -351,13 +348,7 @@ mod padding {
             let result = format_seconds(s as f64);
             let parts: Vec<&str> = result.split(':').collect();
             let last = parts.last().unwrap();
-            assert_eq!(
-                last.len(),
-                2,
-                "seconds part '{}' should be 2 digits in '{}'",
-                last,
-                result
-            );
+            assert_eq!(last.len(), 2, "seconds part '{}' should be 2 digits in '{}'", last, result);
         }
     }
 
@@ -370,13 +361,7 @@ mod padding {
             let parts: Vec<&str> = result.split(':').collect();
             assert_eq!(parts.len(), 3, "should have H:MM:SS format for {}", result);
             let minutes_part = parts[1];
-            assert_eq!(
-                minutes_part.len(),
-                2,
-                "minutes '{}' should be 2 digits in '{}'",
-                minutes_part,
-                result
-            );
+            assert_eq!(minutes_part.len(), 2, "minutes '{}' should be 2 digits in '{}'", minutes_part, result);
         }
     }
 
@@ -387,22 +372,11 @@ mod padding {
             let seconds = (m as f64) * 60.0;
             let result = format_seconds(seconds);
             let parts: Vec<&str> = result.split(':').collect();
-            assert_eq!(
-                parts.len(),
-                2,
-                "should have M:SS format for {} seconds",
-                seconds
-            );
+            assert_eq!(parts.len(), 2, "should have M:SS format for {} seconds", seconds);
             let minutes_part = parts[0];
             // Single digit minutes should NOT be zero-padded (e.g., "3:00" not "03:00")
             if m < 10 {
-                assert_eq!(
-                    minutes_part.len(),
-                    1,
-                    "minutes '{}' should be 1 digit in '{}'",
-                    minutes_part,
-                    result
-                );
+                assert_eq!(minutes_part.len(), 1, "minutes '{}' should be 1 digit in '{}'", minutes_part, result);
             }
         }
     }
@@ -493,11 +467,7 @@ mod sweep {
                 panic!("unexpected format: '{}'", result);
             };
 
-            assert_eq!(
-                total, s,
-                "format_seconds({}) = '{}' roundtrips to {}",
-                s, result, total
-            );
+            assert_eq!(total, s, "format_seconds({}) = '{}' roundtrips to {}", s, result, total);
         }
     }
 
@@ -599,10 +569,7 @@ mod max_description_chars_scaling {
     fn wider_window_gives_more_chars() {
         let narrow = max_description_chars(360.0);
         let wide = max_description_chars(720.0);
-        assert!(
-            wide > narrow,
-            "720px ({wide}) should give more chars than 360px ({narrow})"
-        );
+        assert!(wide > narrow, "720px ({wide}) should give more chars than 360px ({narrow})");
     }
 
     #[test]
@@ -631,10 +598,7 @@ mod max_description_chars_scaling {
         let mut prev = 0;
         for w in (50..=2000).step_by(50) {
             let chars = max_description_chars(w as f32);
-            assert!(
-                chars >= prev,
-                "chars should not decrease: width={w}, got {chars}, prev was {prev}"
-            );
+            assert!(chars >= prev, "chars should not decrease: width={w}, got {chars}, prev was {prev}");
             prev = chars;
         }
     }
@@ -642,10 +606,7 @@ mod max_description_chars_scaling {
     #[test]
     fn very_large_width() {
         let chars = max_description_chars(10000.0);
-        assert!(
-            chars > 1000,
-            "very wide window should give many chars, got {chars}"
-        );
+        assert!(chars > 1000, "very wide window should give many chars, got {chars}");
     }
 }
 
@@ -675,10 +636,7 @@ mod max_description_chars_minimum {
     fn never_below_150() {
         for w in 1..=500 {
             let chars = max_description_chars(w as f32);
-            assert!(
-                chars >= 150,
-                "should never be below 150: width={w}, got {chars}"
-            );
+            assert!(chars >= 150, "should never be below 150: width={w}, got {chars}");
         }
     }
 
@@ -705,10 +663,7 @@ mod max_description_chars_special_fp {
     #[test]
     fn positive_infinity_returns_large_value() {
         let chars = max_description_chars(f32::INFINITY);
-        assert!(
-            chars > 1000,
-            "infinity should give a large value, got {chars}"
-        );
+        assert!(chars > 1000, "infinity should give a large value, got {chars}");
     }
 
     #[test]
@@ -768,36 +723,24 @@ mod max_description_chars_typical {
     fn typical_popup_350px() {
         let chars = max_description_chars(350.0);
         // Should be close to but slightly below 300
-        assert!(
-            chars >= 250 && chars <= 320,
-            "350px should give ~292 chars, got {chars}"
-        );
+        assert!(chars >= 250 && chars <= 320, "350px should give ~292 chars, got {chars}");
     }
 
     #[test]
     fn typical_popup_400px() {
         let chars = max_description_chars(400.0);
-        assert!(
-            chars > 300,
-            "400px should give more than baseline 300, got {chars}"
-        );
+        assert!(chars > 300, "400px should give more than baseline 300, got {chars}");
     }
 
     #[test]
     fn standalone_window_800px() {
         let chars = max_description_chars(800.0);
-        assert!(
-            chars > 500,
-            "800px wide window should give >500 chars, got {chars}"
-        );
+        assert!(chars > 500, "800px wide window should give >500 chars, got {chars}");
     }
 
     #[test]
     fn standalone_window_1200px() {
         let chars = max_description_chars(1200.0);
-        assert!(
-            chars > 800,
-            "1200px wide window should give >800 chars, got {chars}"
-        );
+        assert!(chars > 800, "1200px wide window should give >800 chars, got {chars}");
     }
 }

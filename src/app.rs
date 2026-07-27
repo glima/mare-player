@@ -77,9 +77,7 @@ impl cosmic::Application for AppModel {
         // reads. The playback pipeline's PCM tap feeds it; created at 44.1 kHz
         // with one band per visualizer bar (no oversampling).
         let mut visualizer_state = VisualizerState::new();
-        visualizer_state.set_analyzer(crate::audio::spectrum::SharedSpectrumAnalyzer::with_bands(
-            44100, 12,
-        ));
+        visualizer_state.set_analyzer(crate::audio::spectrum::SharedSpectrumAnalyzer::with_bands(44100, 12));
 
         let image_cache_max_mb = config.image_cache_max_mb;
         let saved_volume = config.volume_level.clamp(0.0, 1.0);
@@ -220,9 +218,7 @@ impl cosmic::Application for AppModel {
             if let Some(id) = main_id {
                 app.set_window_title("Maré Player".to_string(), id)
             } else {
-                tracing::warn!(
-                    "main_window_id() returned None — cannot set window title during init"
-                );
+                tracing::warn!("main_window_id() returned None — cannot set window title during init");
                 Task::none()
             }
         };
@@ -231,15 +227,9 @@ impl cosmic::Application for AppModel {
 
         // Start MPRIS service
         let mpris_task = Task::perform(
-            async {
-                crate::tidal::mpris::start_mpris_service()
-                    .await
-                    .map(|(handle, rx)| (handle, Arc::new(Mutex::new(rx))))
-            },
+            async { crate::tidal::mpris::start_mpris_service().await.map(|(handle, rx)| (handle, Arc::new(Mutex::new(rx)))) },
             |result| match result {
-                Ok((handle, rx)) => {
-                    cosmic::Action::App(Message::MprisServiceStarted(Ok((handle, rx))))
-                }
+                Ok((handle, rx)) => cosmic::Action::App(Message::MprisServiceStarted(Ok((handle, rx)))),
                 Err(e) => cosmic::Action::App(Message::MprisServiceStarted(Err(e))),
             },
         );
@@ -303,12 +293,10 @@ impl cosmic::Application for AppModel {
         #[cfg(not(feature = "panel-applet"))]
         {
             vec![
-                cosmic::widget::button::icon(cosmic::widget::icon::from_name(
-                    "system-search-symbolic",
-                ))
-                .on_press(Message::ShowSearch)
-                .padding(8)
-                .into(),
+                cosmic::widget::button::icon(cosmic::widget::icon::from_name("system-search-symbolic"))
+                    .on_press(Message::ShowSearch)
+                    .padding(8)
+                    .into(),
             ]
         }
         #[cfg(feature = "panel-applet")]
@@ -353,9 +341,7 @@ impl cosmic::Application for AppModel {
                 })
             }),
             // Watch for application configuration changes.
-            self.core()
-                .watch_config::<Config>(Self::APP_ID)
-                .map(|update| Message::UpdateConfig(update.config)),
+            self.core().watch_config::<Config>(Self::APP_ID).map(|update| Message::UpdateConfig(update.config)),
         ];
 
         // Only tick when something needs it: active playback, visualizer
@@ -378,26 +364,19 @@ impl cosmic::Application for AppModel {
             // Video needs frequent redraws to present new frames (~30 Hz);
             // audio only needs ~2 Hz for the position slider.
             let interval = if video_active { 33 } else { 500 };
-            subs.push(
-                time::every(std::time::Duration::from_millis(interval))
-                    .map(|_| Message::PlaybackTick),
-            );
+            subs.push(time::every(std::time::Duration::from_millis(interval)).map(|_| Message::PlaybackTick));
         }
 
         // Screenshot hotkey: Ctrl+Shift+S
-        subs.push(
-            cosmic::iced::keyboard::listen().filter_map(|event| match event {
-                cosmic::iced::keyboard::Event::KeyPressed { key, modifiers, .. }
-                    if modifiers.control() && modifiers.shift() =>
-                {
-                    match key.as_ref() {
-                        Key::Character("s" | "S") => Some(Message::TakeScreenshot),
-                        _ => None,
-                    }
+        subs.push(cosmic::iced::keyboard::listen().filter_map(|event| match event {
+            cosmic::iced::keyboard::Event::KeyPressed { key, modifiers, .. } if modifiers.control() && modifiers.shift() => {
+                match key.as_ref() {
+                    Key::Character("s" | "S") => Some(Message::TakeScreenshot),
+                    _ => None,
                 }
-                _ => None,
-            }),
-        );
+            }
+            _ => None,
+        }));
 
         // Add MPRIS command subscription.
         // We wrap the Arc receiver in a newtype that implements Hash (by
@@ -408,9 +387,7 @@ impl cosmic::Application for AppModel {
             /// Newtype wrapper around the MPRIS command receiver that
             /// implements [`Hash`] via the [`Arc`] pointer address, allowing
             /// it to be used as `run_with` subscription data.
-            struct MprisRx(
-                Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<crate::tidal::mpris::MprisCommand>>>,
-            );
+            struct MprisRx(Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<crate::tidal::mpris::MprisCommand>>>);
 
             impl std::hash::Hash for MprisRx {
                 fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -418,21 +395,18 @@ impl cosmic::Application for AppModel {
                 }
             }
 
-            subs.push(Subscription::run_with(
-                MprisRx(rx.clone()),
-                |data: &MprisRx| {
-                    let rx = data.0.clone();
-                    cosmic::iced::stream::channel(4, async move |mut channel| {
-                        let mut rx = rx.lock().await;
-                        while let Some(cmd) = rx.recv().await {
-                            if channel.send(Message::MprisCommand(cmd)).await.is_err() {
-                                break;
-                            }
+            subs.push(Subscription::run_with(MprisRx(rx.clone()), |data: &MprisRx| {
+                let rx = data.0.clone();
+                cosmic::iced::stream::channel(4, async move |mut channel| {
+                    let mut rx = rx.lock().await;
+                    while let Some(cmd) = rx.recv().await {
+                        if channel.send(Message::MprisCommand(cmd)).await.is_err() {
+                            break;
                         }
-                        futures_util::future::pending().await
-                    })
-                },
-            ));
+                    }
+                    futures_util::future::pending().await
+                })
+            }));
         }
 
         // Lazy thumbnail-load subscription: drain the channel populated by
@@ -448,21 +422,18 @@ impl cosmic::Application for AppModel {
                 }
             }
 
-            subs.push(Subscription::run_with(
-                ThumbRx(rx.clone()),
-                |data: &ThumbRx| {
-                    let rx = data.0.clone();
-                    cosmic::iced::stream::channel(64, async move |mut channel| {
-                        let mut rx = rx.lock().await;
-                        while let Some(url) = rx.recv().await {
-                            if channel.send(Message::LoadImage(url)).await.is_err() {
-                                break;
-                            }
+            subs.push(Subscription::run_with(ThumbRx(rx.clone()), |data: &ThumbRx| {
+                let rx = data.0.clone();
+                cosmic::iced::stream::channel(64, async move |mut channel| {
+                    let mut rx = rx.lock().await;
+                    while let Some(url) = rx.recv().await {
+                        if channel.send(Message::LoadImage(url)).await.is_err() {
+                            break;
                         }
-                        futures_util::future::pending().await
-                    })
-                },
-            ));
+                    }
+                    futures_util::future::pending().await
+                })
+            }));
         }
 
         // Popped-out video child events: drain the channel fed by the child's
@@ -476,21 +447,18 @@ impl cosmic::Application for AppModel {
                 }
             }
 
-            subs.push(Subscription::run_with(
-                VideoRx(rx.clone()),
-                |data: &VideoRx| {
-                    let rx = data.0.clone();
-                    cosmic::iced::stream::channel(16, async move |mut channel| {
-                        let mut rx = rx.lock().await;
-                        while let Some(line) = rx.recv().await {
-                            if channel.send(Message::VideoWindowEvent(line)).await.is_err() {
-                                break;
-                            }
+            subs.push(Subscription::run_with(VideoRx(rx.clone()), |data: &VideoRx| {
+                let rx = data.0.clone();
+                cosmic::iced::stream::channel(16, async move |mut channel| {
+                    let mut rx = rx.lock().await;
+                    while let Some(line) = rx.recv().await {
+                        if channel.send(Message::VideoWindowEvent(line)).await.is_err() {
+                            break;
                         }
-                        futures_util::future::pending().await
-                    })
-                },
-            ));
+                    }
+                    futures_util::future::pending().await
+                })
+            }));
         }
 
         Subscription::batch(subs)
@@ -612,9 +580,7 @@ impl cosmic::Application for AppModel {
             Message::ToggleHistoryFilter => {
                 self.history_filter_visible = !self.history_filter_visible;
                 if self.history_filter_visible {
-                    cosmic::widget::text_input::focus(cosmic::widget::Id::new(
-                        "history-filter-input",
-                    ))
+                    cosmic::widget::text_input::focus(cosmic::widget::Id::new("history-filter-input"))
                 } else {
                     self.history_filter_query.clear();
                     self.rebuild_history_track_list();
@@ -629,9 +595,7 @@ impl cosmic::Application for AppModel {
             Message::ToggleFavoriteTracksFilter => {
                 self.favorite_tracks_filter_visible = !self.favorite_tracks_filter_visible;
                 if self.favorite_tracks_filter_visible {
-                    cosmic::widget::text_input::focus(cosmic::widget::Id::new(
-                        "favorite-tracks-filter-input",
-                    ))
+                    cosmic::widget::text_input::focus(cosmic::widget::Id::new("favorite-tracks-filter-input"))
                 } else {
                     self.favorite_tracks_filter_query.clear();
                     self.rebuild_favorites_track_list();
@@ -650,9 +614,7 @@ impl cosmic::Application for AppModel {
             Message::ShowAlbums => self.handle_show_albums(),
             Message::ShowFavoriteTracks => self.handle_show_favorite_tracks(),
             Message::ShowProfiles => self.handle_show_profiles(),
-            Message::ShowMixDetail(mix_id, mix_name) => {
-                self.handle_show_mix_detail(mix_id, mix_name)
-            }
+            Message::ShowMixDetail(mix_id, mix_name) => self.handle_show_mix_detail(mix_id, mix_name),
             Message::ShowPlaylistDetail(uuid, name) => self.handle_show_playlist_detail(uuid, name),
             Message::ShowAlbumDetail(album) => self.handle_show_album_detail(album),
             Message::ShowAlbumDetailById(album_id) => self.handle_show_album_detail_by_id(album_id),
@@ -696,15 +658,9 @@ impl cosmic::Application for AppModel {
 
             // Data handlers - track detail (recommendations)
             Message::ShowTrackDetail(track) => self.handle_show_track_detail(track),
-            Message::TrackDetailArtistAlbumsLoaded(result) => {
-                self.handle_track_detail_artist_albums_loaded(result)
-            }
-            Message::TrackDetailRelatedArtistsLoaded(result) => {
-                self.handle_track_detail_related_artists_loaded(result)
-            }
-            Message::TrackDetailRelatedAlbumsLoaded(result) => {
-                self.handle_track_detail_related_albums_loaded(result)
-            }
+            Message::TrackDetailArtistAlbumsLoaded(result) => self.handle_track_detail_artist_albums_loaded(result),
+            Message::TrackDetailRelatedArtistsLoaded(result) => self.handle_track_detail_related_artists_loaded(result),
+            Message::TrackDetailRelatedAlbumsLoaded(result) => self.handle_track_detail_related_albums_loaded(result),
 
             // Data handlers - profiles
             Message::LoadProfiles => self.handle_load_profiles(),
@@ -720,9 +676,7 @@ impl cosmic::Application for AppModel {
 
             // Data handlers - search
             Message::SearchQueryChanged(query) => self.handle_search_query_changed(query),
-            Message::PerformSearchDebounced(version) => {
-                self.handle_perform_search_debounced(version)
-            }
+            Message::PerformSearchDebounced(version) => self.handle_perform_search_debounced(version),
             Message::PerformSearch => self.handle_perform_search(),
             Message::SearchComplete(result) => self.handle_search_complete(result),
 
@@ -772,9 +726,7 @@ impl cosmic::Application for AppModel {
             }
 
             // Playback handlers
-            Message::PlayTrackList(tracks, index, context) => {
-                self.handle_play_track_list(tracks, index, context)
-            }
+            Message::PlayTrackList(tracks, index, context) => self.handle_play_track_list(tracks, index, context),
             Message::ShufflePlay(tracks, context) => self.handle_shuffle_play(tracks, context),
             Message::NextTrack => self.handle_next_track(),
             Message::PreviousTrack => self.handle_previous_track(),
@@ -853,12 +805,8 @@ impl cosmic::Application for AppModel {
                 self.handle_show_share_prompt(track);
                 Task::none()
             }
-            Message::ShareTrack(track_id, track_title, is_video) => {
-                self.handle_share_track(track_id, track_title, is_video)
-            }
-            Message::ShareAlbum(album_id, album_title) => {
-                self.handle_share_album(album_id, album_title)
-            }
+            Message::ShareTrack(track_id, track_title, is_video) => self.handle_share_track(track_id, track_title, is_video),
+            Message::ShareAlbum(album_id, album_title) => self.handle_share_album(album_id, album_title),
             Message::CancelShare => {
                 self.handle_cancel_share();
                 Task::none()
@@ -877,10 +825,9 @@ impl cosmic::Application for AppModel {
                         self.image_cache.set_db(db.clone());
                         self.cache_db = Some(db.clone());
                         // Load persisted play history from the `play_history` table.
-                        return Task::perform(
-                            async move { crate::handlers::misc::load_play_history(&db).await },
-                            |entries| cosmic::Action::App(Message::PlayHistoryLoaded(entries)),
-                        );
+                        return Task::perform(async move { crate::handlers::misc::load_play_history(&db).await }, |entries| {
+                            cosmic::Action::App(Message::PlayHistoryLoaded(entries))
+                        });
                     }
                     Err(e) => {
                         // Surface the failure instead of silently losing data.
@@ -893,8 +840,7 @@ impl cosmic::Application for AppModel {
                              saved. Close the duplicate applet and reopen."
                                 .to_string()
                         } else {
-                            "Cache unavailable — history and images won't be saved this session."
-                                .to_string()
+                            "Cache unavailable — history and images won't be saved this session.".to_string()
                         });
                     }
                 }
@@ -948,9 +894,7 @@ impl cosmic::Application for AppModel {
 
             // Debug / API discovery
             Message::ProbeFeedPage => {
-                tracing::debug!(
-                    "ProbeFeedPage message received but probe_feed_page is not implemented"
-                );
+                tracing::debug!("ProbeFeedPage message received but probe_feed_page is not implemented");
                 Task::none()
             }
             Message::FeedProbeResult(result) => {
@@ -966,9 +910,7 @@ impl cosmic::Application for AppModel {
             }
 
             // Wayland surface action forwarding (responsive menu bar popups)
-            Message::Surface(action) => {
-                cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(action)))
-            }
+            Message::Surface(action) => cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(action))),
         }
     }
 

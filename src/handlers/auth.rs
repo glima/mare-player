@@ -24,10 +24,7 @@ impl AppModel {
                 let mut client = client.lock().await;
                 // Apply configured audio quality before restoring session
                 client.set_audio_quality(audio_quality).await;
-                client
-                    .try_restore_session()
-                    .await
-                    .map_err(|e| e.to_string())
+                client.try_restore_session().await.map_err(|e| e.to_string())
             },
             |result| cosmic::Action::App(Message::SessionRestored(result)),
         )
@@ -49,20 +46,12 @@ impl AppModel {
     }
 
     /// Poll for OAuth completion after user authorizes
-    pub(crate) fn wait_for_oauth(
-        &self,
-        device_code: String,
-        expires_in: u64,
-        interval: u64,
-    ) -> Task<cosmic::Action<Message>> {
+    pub(crate) fn wait_for_oauth(&self, device_code: String, expires_in: u64, interval: u64) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
         Task::perform(
             async move {
                 let mut client = client.lock().await;
-                client
-                    .wait_for_oauth(&device_code, expires_in, interval)
-                    .await
-                    .map_err(|e| e.to_string())
+                client.wait_for_oauth(&device_code, expires_in, interval).await.map_err(|e| e.to_string())
             },
             |result| cosmic::Action::App(Message::OAuthComplete(result)),
         )
@@ -81,10 +70,7 @@ impl AppModel {
     }
 
     /// Handle OAuth device code info received
-    pub fn handle_login_oauth_received(
-        &mut self,
-        result: Result<DeviceCodeInfo, String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_login_oauth_received(&mut self, result: Result<DeviceCodeInfo, String>) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
             Ok(device_info) => {
@@ -117,10 +103,7 @@ impl AppModel {
     }
 
     /// Handle OAuth flow completed
-    pub fn handle_oauth_complete(
-        &mut self,
-        result: Result<(), String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_oauth_complete(&mut self, result: Result<(), String>) -> Task<cosmic::Action<Message>> {
         tracing::info!("OAuthComplete received with result: {:?}", result.is_ok());
         self.is_loading = false;
         self.device_code_info = None;
@@ -166,25 +149,16 @@ impl AppModel {
     fn restore_cached_api_data(&self) -> Task<cosmic::Action<Message>> {
         use crate::tidal::models::{Album, Artist, Mix, Playlist, Track};
         Task::batch([
-            self.read_view_cache::<Vec<Playlist>, _>("library:playlists", |p| {
-                Message::PlaylistsLoaded(Ok(p))
-            }),
-            self.read_view_cache::<Vec<Album>, _>("library:albums", |a| {
-                Message::AlbumsLoaded(Ok(a))
-            }),
-            self.read_view_cache::<Vec<Track>, _>("favorites:tracks", |t| {
-                Message::FavoriteTracksLoaded(Ok(t))
-            }),
+            self.read_view_cache::<Vec<Playlist>, _>("library:playlists", |p| Message::PlaylistsLoaded(Ok(p))),
+            self.read_view_cache::<Vec<Album>, _>("library:albums", |a| Message::AlbumsLoaded(Ok(a))),
+            self.read_view_cache::<Vec<Track>, _>("favorites:tracks", |t| Message::FavoriteTracksLoaded(Ok(t))),
             self.read_view_cache::<Vec<Mix>, _>("library:mixes", |m| Message::MixesLoaded(Ok(m))),
             self.read_view_cache::<Vec<Artist>, _>("profiles", |a| Message::ProfilesLoaded(Ok(a))),
         ])
     }
 
     /// Handle session restored result
-    pub fn handle_session_restored(
-        &mut self,
-        result: Result<bool, String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_session_restored(&mut self, result: Result<bool, String>) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
             Ok(true) => {

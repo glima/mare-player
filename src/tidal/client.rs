@@ -13,9 +13,8 @@
 
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
-    Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection,
-    ExploreTarget, FeedActivity, FeedItem, Mix, PageLink, Playlist, SearchResults, Track,
-    TrackCredits, TrackLyrics, tidal_cover_url, tidal_promo_image_url,
+    Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity,
+    FeedItem, Mix, PageLink, Playlist, SearchResults, Track, TrackCredits, TrackLyrics, tidal_cover_url, tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
@@ -36,11 +35,7 @@ const TOKEN_REFRESH_MARGIN_SECS: u64 = 300;
 /// Shows hours (e.g. "4.0h") when ≥ 60 min, otherwise minutes (e.g. "5min").
 fn format_duration(secs: u64) -> String {
     let mins = secs / 60;
-    if mins >= 60 {
-        format!("{:.1}h", secs as f64 / 3600.0)
-    } else {
-        format!("{}min", mins)
-    }
+    if mins >= 60 { format!("{:.1}h", secs as f64 / 3600.0) } else { format!("{}min", mins) }
 }
 
 /// Check if a tidlers error is a transient network error (DNS, connect, timeout)
@@ -120,11 +115,7 @@ impl std::fmt::Display for PlaybackUrl {
                 write!(f, ")")
             }
             PlaybackUrl::DashManifest(manifest, rg) => {
-                write!(
-                    f,
-                    "DashManifest(<inline manifest, {} bytes>",
-                    manifest.len()
-                )?;
+                write!(f, "DashManifest(<inline manifest, {} bytes>", manifest.len())?;
                 if let Some(rg) = rg {
                     write!(f, ", {rg:+.2}dB")?;
                 }
@@ -213,20 +204,13 @@ impl From<ApiTrackData> for Track {
         // Video items (and some curated entries) have no album; fall back to
         // the item's own `imageId` thumbnail for the cover.
         let (album_name, album_id, cover_url) = match t.album {
-            Some(a) => (
-                Some(a.title),
-                Some(a.id.to_string()),
-                a.cover.map(|c| tidal_cover_url(&c)),
-            ),
+            Some(a) => (Some(a.title), Some(a.id.to_string()), a.cover.map(|c| tidal_cover_url(&c))),
             None => (None, None, t.image_id.map(|id| tidal_cover_url(&id))),
         };
         // Primary artist: the singular `artist`, falling back to the first of
         // the `artists` list when it's null (e.g. video items in playlists).
         let (artist_name, artist_id) = match t.artist.or_else(|| t.artists.into_iter().next()) {
-            Some(a) => (
-                a.name.unwrap_or_else(|| "Unknown Artist".to_string()),
-                Some(a.id.to_string()),
-            ),
+            Some(a) => (a.name.unwrap_or_else(|| "Unknown Artist".to_string()), Some(a.id.to_string())),
             None => ("Unknown Artist".to_string(), None),
         };
         Track {
@@ -381,16 +365,9 @@ impl TidalAppClient {
             })?
             .clone();
 
-        let country_code = client
-            .user_info
-            .as_ref()
-            .map(|u| u.country_code.clone())
-            .unwrap_or_else(|| "US".to_string());
+        let country_code = client.user_info.as_ref().map(|u| u.country_code.clone()).unwrap_or_else(|| "US".to_string());
 
-        Ok(AuthTokenContext {
-            access_token,
-            country_code,
-        })
+        Ok(AuthTokenContext { access_token, country_code })
     }
 
     /// Extract access token + country code + user ID from the authenticated client.
@@ -414,64 +391,34 @@ impl TidalAppClient {
             })?
             .clone();
 
-        let country_code = client
-            .user_info
-            .as_ref()
-            .map(|u| u.country_code.clone())
-            .unwrap_or_else(|| "US".to_string());
+        let country_code = client.user_info.as_ref().map(|u| u.country_code.clone()).unwrap_or_else(|| "US".to_string());
 
-        Ok(AuthUserContext {
-            user_id,
-            access_token,
-            country_code,
-        })
+        Ok(AuthUserContext { user_id, access_token, country_code })
     }
 
     /// Add `resource_id` to the user's favorites via tidlers.
-    async fn add_to_favorites(
-        &self,
-        resource: FavoriteResourceType,
-        resource_id: &str,
-    ) -> TidalResult<()> {
+    async fn add_to_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
-        let id: u32 = resource_id
-            .parse()
-            .map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
+        let id: u32 = resource_id.parse().map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        client
-            .add_to_favorites(resource, id)
-            .await
-            .map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
+        client.add_to_favorites(resource, id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
     /// Remove `resource_id` from the user's favorites via tidlers.
-    async fn remove_from_favorites(
-        &self,
-        resource: FavoriteResourceType,
-        resource_id: &str,
-    ) -> TidalResult<()> {
+    async fn remove_from_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
-        let id: u32 = resource_id
-            .parse()
-            .map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
+        let id: u32 = resource_id.parse().map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        client
-            .remove_from_favorites(resource, id)
-            .await
-            .map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
+        client.remove_from_favorites(resource, id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
     /// Create a new TidalAppClient
     pub fn new() -> Self {
-        Self {
-            client: Arc::new(Mutex::new(None)),
-            auth_manager: AuthManager::new(),
-            audio_quality: AudioQuality::High,
-        }
+        Self { client: Arc::new(Mutex::new(None)), auth_manager: AuthManager::new(), audio_quality: AudioQuality::High }
     }
 
     /// Get the current authentication state
@@ -522,10 +469,9 @@ impl TidalAppClient {
                         info!("Successfully refreshed access token");
 
                         // Log token expiry info for debugging
-                        if let (Some(expiry), Some(last_refresh)) = (
-                            client.session.auth.refresh_expiry,
-                            client.session.auth.last_refresh_time,
-                        ) {
+                        if let (Some(expiry), Some(last_refresh)) =
+                            (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time)
+                        {
                             let now = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .map(|d| d.as_secs())
@@ -559,14 +505,8 @@ impl TidalAppClient {
     /// Check if the token needs to be refreshed
     fn check_token_needs_refresh(&self, client: &TidalClient) -> bool {
         // Check token expiry based on stored refresh_expiry and last_refresh_time
-        if let (Some(expiry), Some(last_refresh)) = (
-            client.session.auth.refresh_expiry,
-            client.session.auth.last_refresh_time,
-        ) {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+        if let (Some(expiry), Some(last_refresh)) = (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time) {
+            let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
 
             let expires_at = last_refresh + expiry;
             let remaining = expires_at.saturating_sub(now);
@@ -640,14 +580,11 @@ impl TidalAppClient {
         match TidalClient::from_json(&credentials.session_json) {
             Ok(mut client) => {
                 // Log current token state
-                if let (Some(expiry), Some(last_refresh)) = (
-                    client.session.auth.refresh_expiry,
-                    client.session.auth.last_refresh_time,
-                ) {
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
+                if let (Some(expiry), Some(last_refresh)) =
+                    (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time)
+                {
+                    let now =
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
                     let expires_at = last_refresh + expiry;
                     let elapsed = now.saturating_sub(last_refresh);
                     let remaining = expires_at.saturating_sub(now);
@@ -670,10 +607,7 @@ impl TidalAppClient {
                         match &result {
                             Err(e) if is_tidlers_network_error(e) => {
                                 let delay = 2u64 << (attempt - 1); // 2s, 4s, 8s
-                                warn!(
-                                    "Network error on token refresh (attempt {}/4), retrying in {}s: {}",
-                                    attempt, delay, e
-                                );
+                                warn!("Network error on token refresh (attempt {}/4), retrying in {}s: {}", attempt, delay, e);
                                 tokio::time::sleep(std::time::Duration::from_secs(delay)).await;
                                 result = client.refresh_access_token(false).await;
                             }
@@ -703,12 +637,7 @@ impl TidalAppClient {
                             if let Some(u) = &client.user_info {
                                 info!(
                                     "TIDAL user fields — username: {:?}, first_name: {:?}, last_name: {:?}, full_name: {:?}, nickname: {:?}, email: {:?}",
-                                    u.username,
-                                    u.first_name,
-                                    u.last_name,
-                                    u.full_name,
-                                    u.nickname,
-                                    u.email
+                                    u.username, u.first_name, u.last_name, u.full_name, u.nickname, u.email
                                 );
                                 UserProfile {
                                     username: Some(u.username.clone()),
@@ -717,14 +646,11 @@ impl TidalAppClient {
                                     full_name: u.full_name.clone(),
                                     nickname: u.nickname.clone(),
                                     email: Some(u.email.clone()),
-                                    picture_url: None, // fetched separately below
+                                    picture_url: None,       // fetched separately below
                                     subscription_plan: None, // fetched separately below
                                 }
                             } else {
-                                UserProfile {
-                                    username: username.clone(),
-                                    ..Default::default()
-                                }
+                                UserProfile { username: username.clone(), ..Default::default() }
                             }
                         };
 
@@ -741,31 +667,21 @@ impl TidalAppClient {
                         }
 
                         // Log new token expiry info
-                        if let (Some(expiry), Some(last_refresh)) = (
-                            client.session.auth.refresh_expiry,
-                            client.session.auth.last_refresh_time,
-                        ) {
-                            info!(
-                                "Token valid for {}s (~{}) from last refresh",
-                                expiry,
-                                format_duration(expiry),
-                            );
+                        if let (Some(expiry), Some(last_refresh)) =
+                            (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time)
+                        {
+                            info!("Token valid for {}s (~{}) from last refresh", expiry, format_duration(expiry),);
                             let now = std::time::SystemTime::now()
                                 .duration_since(std::time::UNIX_EPOCH)
                                 .map(|d| d.as_secs())
                                 .unwrap_or(0);
                             let remaining = (last_refresh + expiry).saturating_sub(now);
-                            info!(
-                                "Token will expire in {}s (~{})",
-                                remaining,
-                                format_duration(remaining),
-                            );
+                            info!("Token will expire in {}s (~{})", remaining, format_duration(remaining),);
                         }
 
                         client.set_audio_quality(self.audio_quality.clone());
                         *self.client.lock().await = Some(client);
-                        self.auth_manager
-                            .set_state(AuthState::Authenticated { profile });
+                        self.auth_manager.set_state(AuthState::Authenticated { profile });
 
                         // Fetch subscription plan + profile picture (best-effort)
                         self.fetch_and_set_profile_extras().await;
@@ -775,10 +691,7 @@ impl TidalAppClient {
                     Err(e) => {
                         if is_tidlers_network_error(&e) {
                             // Network errors are transient — keep credentials for next attempt
-                            warn!(
-                                "Token refresh failed after retries (network error, credentials preserved): {}",
-                                e
-                            );
+                            warn!("Token refresh failed after retries (network error, credentials preserved): {}", e);
                             Err(TidalError::NetworkError(format!("{}", e)))
                         } else {
                             // Auth / protocol error — credentials are likely invalid
@@ -795,10 +708,7 @@ impl TidalAppClient {
                 // Clear invalid credentials
                 let _ = AuthManager::delete_credentials();
                 self.auth_manager.set_state(AuthState::NotAuthenticated);
-                Err(TidalError::CredentialError(format!(
-                    "Invalid stored session: {:?}",
-                    e
-                )))
+                Err(TidalError::CredentialError(format!("Invalid stored session: {:?}", e)))
             }
         }
     }
@@ -817,10 +727,7 @@ impl TidalAppClient {
         match client.get_oauth_link().await {
             Ok(oauth) => {
                 let device_info = DeviceCodeInfo {
-                    verification_uri_complete: format!(
-                        "https://{}",
-                        oauth.verification_uri_complete
-                    ),
+                    verification_uri_complete: format!("https://{}", oauth.verification_uri_complete),
                     user_code: oauth.user_code.clone(),
                     device_code: oauth.device_code.clone(),
                     expires_in: oauth.expires_in,
@@ -840,20 +747,14 @@ impl TidalAppClient {
             }
             Err(e) => {
                 error!("Failed to get OAuth link: {:?}", e);
-                self.auth_manager
-                    .set_state(AuthState::Failed(format!("{:?}", e)));
+                self.auth_manager.set_state(AuthState::Failed(format!("{:?}", e)));
                 Err(TidalError::AuthenticationFailed(format!("{:?}", e)))
             }
         }
     }
 
     /// Wait for the user to complete OAuth authorization
-    pub async fn wait_for_oauth(
-        &mut self,
-        device_code: &str,
-        expires_in: u64,
-        interval: u64,
-    ) -> TidalResult<()> {
+    pub async fn wait_for_oauth(&mut self, device_code: &str, expires_in: u64, interval: u64) -> TidalResult<()> {
         info!(
             "Waiting for user to complete OAuth authorization (device_code: {}..., expires_in: {}s, interval: {}s)",
             &device_code[..8.min(device_code.len())],
@@ -868,34 +769,20 @@ impl TidalAppClient {
         })?;
 
         info!("Calling tidlers wait_for_oauth...");
-        match client
-            .wait_for_oauth(device_code, expires_in, interval, None)
-            .await
-        {
+        match client.wait_for_oauth(device_code, expires_in, interval, None).await {
             Ok(auth_response) => {
                 info!("OAuth authorization completed successfully!");
                 debug!("Auth response received: user_id={}", auth_response.user_id);
 
                 // Log token expiry info
-                if let (Some(expiry), Some(last_refresh)) = (
-                    client.session.auth.refresh_expiry,
-                    client.session.auth.last_refresh_time,
-                ) {
-                    info!(
-                        "New OAuth token received - expires_in: {}s (~{})",
-                        expiry,
-                        format_duration(expiry),
-                    );
-                    let now = std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|d| d.as_secs())
-                        .unwrap_or(0);
+                if let (Some(expiry), Some(last_refresh)) =
+                    (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time)
+                {
+                    info!("New OAuth token received - expires_in: {}s (~{})", expiry, format_duration(expiry),);
+                    let now =
+                        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
                     let remaining = (last_refresh + expiry).saturating_sub(now);
-                    info!(
-                        "Token will expire in {}s (~{})",
-                        remaining,
-                        format_duration(remaining),
-                    );
+                    info!("Token will expire in {}s (~{})", remaining, format_duration(remaining),);
                 }
 
                 // Refresh user info
@@ -925,10 +812,7 @@ impl TidalAppClient {
                             subscription_plan: None, // fetched separately below
                         }
                     } else {
-                        UserProfile {
-                            username: username.clone(),
-                            ..Default::default()
-                        }
+                        UserProfile { username: username.clone(), ..Default::default() }
                     }
                 };
 
@@ -949,8 +833,7 @@ impl TidalAppClient {
                 // which needs &mut self (and internally re-acquires the lock).
                 drop(client_guard);
 
-                self.auth_manager
-                    .set_state(AuthState::Authenticated { profile });
+                self.auth_manager.set_state(AuthState::Authenticated { profile });
 
                 // Fetch subscription plan + profile picture (best-effort)
                 self.fetch_and_set_profile_extras().await;
@@ -959,8 +842,7 @@ impl TidalAppClient {
             }
             Err(e) => {
                 error!("OAuth authorization failed with error: {:?}", e);
-                self.auth_manager
-                    .set_state(AuthState::Failed(format!("{:?}", e)));
+                self.auth_manager.set_state(AuthState::Failed(format!("{:?}", e)));
                 *client_guard = None;
                 Err(TidalError::AuthenticationFailed(format!("{:?}", e)))
             }
@@ -989,13 +871,7 @@ impl TidalAppClient {
 
         let config = SearchConfig {
             query: query.to_string(),
-            types: vec![
-                SearchType::Tracks,
-                SearchType::Albums,
-                SearchType::Artists,
-                SearchType::Playlists,
-                SearchType::Videos,
-            ],
+            types: vec![SearchType::Tracks, SearchType::Albums, SearchType::Artists, SearchType::Playlists, SearchType::Videos],
             limit,
             ..Default::default()
         };
@@ -1021,8 +897,7 @@ impl TidalAppClient {
 
                 // Convert playlists from SearchPlaylistHit
                 if let Some(playlists) = results.playlists {
-                    search_results.playlists =
-                        playlists.items.into_iter().map(Playlist::from).collect();
+                    search_results.playlists = playlists.items.into_iter().map(Playlist::from).collect();
                 }
 
                 // Convert videos into playable tracks (is_video = true). Videos
@@ -1039,9 +914,7 @@ impl TidalAppClient {
                                 title: v.title,
                                 duration: v.duration as u32,
                                 track_number: v.track_number.unwrap_or(0),
-                                artist_name: artist
-                                    .and_then(|a| a.name.clone())
-                                    .unwrap_or_else(|| "Unknown Artist".to_string()),
+                                artist_name: artist.and_then(|a| a.name.clone()).unwrap_or_else(|| "Unknown Artist".to_string()),
                                 artist_id: artist.and_then(|a| a.id).map(|id| id.to_string()),
                                 album_name: v.album.as_ref().map(|a| a.title.clone()),
                                 album_id: v.album.as_ref().map(|a| a.id.to_string()),
@@ -1063,11 +936,7 @@ impl TidalAppClient {
         }
     }
 
-    pub async fn get_user_playlists(
-        &self,
-        _limit: Option<u32>,
-        _offset: Option<u32>,
-    ) -> TidalResult<Vec<Playlist>> {
+    pub async fn get_user_playlists(&self, _limit: Option<u32>, _offset: Option<u32>) -> TidalResult<Vec<Playlist>> {
         // Ensure token is valid before the operation
         self.ensure_valid_token().await?;
 
@@ -1078,8 +947,7 @@ impl TidalAppClient {
 
         match client.list_playlists().await {
             Ok(response) => {
-                let playlists: Vec<Playlist> =
-                    response.items.into_iter().map(Playlist::from).collect();
+                let playlists: Vec<Playlist> = response.items.into_iter().map(Playlist::from).collect();
                 Ok(playlists)
             }
             Err(e) => {
@@ -1122,32 +990,18 @@ impl TidalAppClient {
                 return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
-            let body = response
-                .text()
-                .await
-                .map_err(|e| TidalError::NetworkError(format!("reading favorites body: {}", e)))?;
+            let body = response.text().await.map_err(|e| TidalError::NetworkError(format!("reading favorites body: {}", e)))?;
 
             let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
-                serde_json::from_str(&body)
-                    .map_err(|e| TidalError::ParseError(format!("favorite tracks JSON: {}", e)))?;
+                serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("favorite tracks JSON: {}", e)))?;
 
             let total = parsed.total_number_of_items as u32;
             let page_items = parsed.items.len() as u32;
 
-            all_tracks.extend(
-                parsed
-                    .items
-                    .into_iter()
-                    .filter_map(|w| w.item)
-                    .map(Track::from),
-            );
+            all_tracks.extend(parsed.items.into_iter().filter_map(|w| w.item).map(Track::from));
 
             offset += page_items;
-            info!(
-                "Fetched favorite tracks page: {} / {} total",
-                all_tracks.len(),
-                total
-            );
+            info!("Fetched favorite tracks page: {} / {} total", all_tracks.len(), total);
 
             if page_items == 0 || offset >= total {
                 break;
@@ -1190,31 +1044,19 @@ impl TidalAppClient {
                 return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
-            let body = response.text().await.map_err(|e| {
-                TidalError::NetworkError(format!("reading favorite albums body: {}", e))
-            })?;
+            let body =
+                response.text().await.map_err(|e| TidalError::NetworkError(format!("reading favorite albums body: {}", e)))?;
 
             let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiAlbumData>> =
-                serde_json::from_str(&body)
-                    .map_err(|e| TidalError::ParseError(format!("favorite albums JSON: {}", e)))?;
+                serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("favorite albums JSON: {}", e)))?;
 
             let total = parsed.total_number_of_items as u32;
             let page_items = parsed.items.len() as u32;
 
-            all_albums.extend(
-                parsed
-                    .items
-                    .into_iter()
-                    .filter_map(|w| w.item)
-                    .map(Album::from),
-            );
+            all_albums.extend(parsed.items.into_iter().filter_map(|w| w.item).map(Album::from));
 
             offset += page_items;
-            info!(
-                "Fetched favorite albums page: {} / {} total",
-                all_albums.len(),
-                total
-            );
+            info!("Fetched favorite albums page: {} / {} total", all_albums.len(), total);
 
             if page_items == 0 || offset >= total {
                 break;
@@ -1261,9 +1103,7 @@ impl TidalAppClient {
                 .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
                 .send()
                 .await
-                .map_err(|e| {
-                    TidalError::NetworkError(format!("playlist items request failed: {}", e))
-                })?;
+                .map_err(|e| TidalError::NetworkError(format!("playlist items request failed: {}", e)))?;
 
             if !response.status().is_success() {
                 let status = response.status();
@@ -1272,13 +1112,11 @@ impl TidalAppClient {
                 return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
-            let body = response.text().await.map_err(|e| {
-                TidalError::NetworkError(format!("reading playlist items body: {}", e))
-            })?;
+            let body =
+                response.text().await.map_err(|e| TidalError::NetworkError(format!("reading playlist items body: {}", e)))?;
 
             let parsed: ApiPaginatedResponse<ApiItemWrapper<ApiTrackData>> =
-                serde_json::from_str(&body)
-                    .map_err(|e| TidalError::ParseError(format!("playlist items JSON: {}", e)))?;
+                serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("playlist items JSON: {}", e)))?;
 
             let total = parsed.total_number_of_items.max(0) as u32;
             let page_items = parsed.items.len() as u32;
@@ -1293,11 +1131,7 @@ impl TidalAppClient {
             }));
 
             offset += page_items;
-            info!(
-                "Fetched playlist tracks page: {} / {} total",
-                all_tracks.len(),
-                total
-            );
+            info!("Fetched playlist tracks page: {} / {} total", all_tracks.len(), total);
 
             if page_items == 0 || offset >= total {
                 break;
@@ -1329,9 +1163,7 @@ impl TidalAppClient {
             .header(AUTHORIZATION, format!("Bearer {}", ctx.access_token))
             .send()
             .await
-            .map_err(|e| {
-                TidalError::NetworkError(format!("video playback request failed: {}", e))
-            })?;
+            .map_err(|e| TidalError::NetworkError(format!("video playback request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -1340,10 +1172,7 @@ impl TidalAppClient {
             return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
         }
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading video playback body: {}", e)))?;
+        let body = response.text().await.map_err(|e| TidalError::NetworkError(format!("reading video playback body: {}", e)))?;
 
         #[derive(Deserialize)]
         struct VideoPlaybackInfo {
@@ -1354,27 +1183,19 @@ impl TidalAppClient {
             urls: Vec<String>,
         }
 
-        let info: VideoPlaybackInfo = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("video playback JSON: {}", e)))?;
+        let info: VideoPlaybackInfo =
+            serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("video playback JSON: {}", e)))?;
         let manifest_bytes = general_purpose::STANDARD
             .decode(info.manifest.as_bytes())
             .map_err(|e| TidalError::ParseError(format!("video manifest base64: {}", e)))?;
         let emu: EmuManifest = serde_json::from_slice(&manifest_bytes)
             .map_err(|e| TidalError::ParseError(format!("video EMU manifest JSON: {}", e)))?;
 
-        emu.urls
-            .into_iter()
-            .next()
-            .ok_or_else(|| TidalError::ParseError("video manifest contained no URLs".to_string()))
+        emu.urls.into_iter().next().ok_or_else(|| TidalError::ParseError("video manifest contained no URLs".to_string()))
     }
 
     /// Get album tracks
-    pub async fn get_album_tracks(
-        &self,
-        album_id: &str,
-        limit: Option<u32>,
-        offset: Option<u32>,
-    ) -> TidalResult<Vec<Track>> {
+    pub async fn get_album_tracks(&self, album_id: &str, limit: Option<u32>, offset: Option<u32>) -> TidalResult<Vec<Track>> {
         // Ensure token is valid before the operation
         self.ensure_valid_token().await?;
 
@@ -1383,20 +1204,9 @@ impl TidalAppClient {
 
         debug!("Getting album tracks for: {}", album_id);
 
-        match client
-            .get_album_items(
-                album_id.to_string(),
-                Some(limit.unwrap_or(100) as u64),
-                offset.map(|o| o as u64),
-            )
-            .await
-        {
+        match client.get_album_items(album_id.to_string(), Some(limit.unwrap_or(100) as u64), offset.map(|o| o as u64)).await {
             Ok(response) => {
-                let tracks: Vec<Track> = response
-                    .items
-                    .into_iter()
-                    .map(|item| Track::from(item.item))
-                    .collect();
+                let tracks: Vec<Track> = response.items.into_iter().map(|item| Track::from(item.item)).collect();
                 Ok(tracks)
             }
             Err(e) => {
@@ -1439,10 +1249,7 @@ impl TidalAppClient {
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
 
-        info!(
-            "Getting playback URL for track: {} with quality: {:?} (cache miss)",
-            track_id, self.audio_quality
-        );
+        info!("Getting playback URL for track: {} with quality: {:?} (cache miss)", track_id, self.audio_quality);
 
         // Get auth info for our own request (we need the raw manifest)
         let access_token = client.session.auth.access_token.as_ref().ok_or_else(|| {
@@ -1450,11 +1257,7 @@ impl TidalAppClient {
             TidalError::NotAuthenticated
         })?;
 
-        let country_code = client
-            .user_info
-            .as_ref()
-            .map(|u| u.country_code.as_str())
-            .unwrap_or("US");
+        let country_code = client.user_info.as_ref().map(|u| u.country_code.as_str()).unwrap_or("US");
 
         let url = format!(
             "https://api.tidal.com/v1/tracks/{}/playbackinfopostpaywall?audioquality={}&playbackmode=STREAM&assetpresentation=FULL&countryCode={}",
@@ -1476,39 +1279,21 @@ impl TidalAppClient {
             return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
         }
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::RequestFailed(format!("Failed to read response: {}", e)))?;
+        let body = response.text().await.map_err(|e| TidalError::RequestFailed(format!("Failed to read response: {}", e)))?;
 
         // Parse the response
-        let parsed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("Failed to parse JSON: {}", e)))?;
+        let parsed: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("Failed to parse JSON: {}", e)))?;
 
-        let manifest_mime_type = parsed
-            .get("manifestMimeType")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let manifest_mime_type = parsed.get("manifestMimeType").and_then(|v| v.as_str()).unwrap_or("");
 
-        let audio_quality = parsed
-            .get("audioQuality")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+        let audio_quality = parsed.get("audioQuality").and_then(|v| v.as_str()).unwrap_or("unknown");
 
-        let audio_mode = parsed
-            .get("audioMode")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
+        let audio_mode = parsed.get("audioMode").and_then(|v| v.as_str()).unwrap_or("unknown");
 
-        let replay_gain_db = parsed
-            .get("albumReplayGain")
-            .and_then(|v| v.as_f64())
-            .map(|v| v as f32);
+        let replay_gain_db = parsed.get("albumReplayGain").and_then(|v| v.as_f64()).map(|v| v as f32);
 
-        let peak_amplitude = parsed
-            .get("albumPeakAmplitude")
-            .and_then(|v| v.as_f64())
-            .map(|v| v as f32);
+        let peak_amplitude = parsed.get("albumPeakAmplitude").and_then(|v| v.as_f64()).map(|v| v as f32);
 
         info!(
             "Playback info received - audio_quality: {}, audio_mode: {}, manifest_mime_type: {}, replay_gain: {:?} dB, peak: {:?}",
@@ -1524,8 +1309,8 @@ impl TidalAppClient {
             .decode(manifest_b64)
             .map_err(|e| TidalError::ParseError(format!("Failed to decode manifest: {}", e)))?;
 
-        let manifest_str = String::from_utf8(manifest_bytes)
-            .map_err(|e| TidalError::ParseError(format!("Invalid UTF-8 in manifest: {}", e)))?;
+        let manifest_str =
+            String::from_utf8(manifest_bytes).map_err(|e| TidalError::ParseError(format!("Invalid UTF-8 in manifest: {}", e)))?;
 
         // Check if this is a DASH manifest (used for HiRes)
         if manifest_mime_type.contains("dash") {
@@ -1553,23 +1338,19 @@ impl TidalAppClient {
             return Ok(PlaybackUrl::Direct(url_str.to_string(), replay_gain_db));
         }
 
-        Err(TidalError::RequestFailed(
-            "No playback URL available".to_string(),
-        ))
+        Err(TidalError::RequestFailed("No playback URL available".to_string()))
     }
 
     /// Add a track to user's favorites
     pub async fn add_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Adding track {} to favorites", track_id);
-        self.add_to_favorites(FavoriteResourceType::Tracks, track_id)
-            .await
+        self.add_to_favorites(FavoriteResourceType::Tracks, track_id).await
     }
 
     /// Remove a track from user's favorites
     pub async fn remove_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Removing track {} from favorites", track_id);
-        self.remove_from_favorites(FavoriteResourceType::Tracks, track_id)
-            .await
+        self.remove_from_favorites(FavoriteResourceType::Tracks, track_id).await
     }
 
     // =========================================================================
@@ -1612,11 +1393,7 @@ impl TidalAppClient {
         match client.get_artist_bio(artist_id.to_string()).await {
             Ok(response) => {
                 // Prefer summary over full text for the applet UI
-                if response.summary.is_empty() {
-                    Ok(response.text)
-                } else {
-                    Ok(response.summary)
-                }
+                if response.summary.is_empty() { Ok(response.text) } else { Ok(response.summary) }
             }
             Err(e) => {
                 debug!("No bio available for artist {}: {:?}", artist_id, e);
@@ -1626,11 +1403,7 @@ impl TidalAppClient {
     }
 
     /// Get an artist's top tracks
-    pub async fn get_artist_top_tracks(
-        &self,
-        artist_id: &str,
-        limit: Option<u32>,
-    ) -> TidalResult<Vec<Track>> {
+    pub async fn get_artist_top_tracks(&self, artist_id: &str, limit: Option<u32>) -> TidalResult<Vec<Track>> {
         self.ensure_valid_token().await?;
 
         let client_guard = self.client.lock().await;
@@ -1638,10 +1411,7 @@ impl TidalAppClient {
 
         debug!("Getting top tracks for artist: {}", artist_id);
 
-        match client
-            .get_artist_tracks(artist_id.to_string(), limit.map(|l| l as u64), None)
-            .await
-        {
+        match client.get_artist_tracks(artist_id.to_string(), limit.map(|l| l as u64), None).await {
             Ok(response) => {
                 let tracks = response.items.into_iter().map(Track::from).collect();
                 Ok(tracks)
@@ -1654,11 +1424,7 @@ impl TidalAppClient {
     }
 
     /// Get an artist's albums (discography)
-    pub async fn get_artist_albums(
-        &self,
-        artist_id: &str,
-        limit: Option<u32>,
-    ) -> TidalResult<Vec<Album>> {
+    pub async fn get_artist_albums(&self, artist_id: &str, limit: Option<u32>) -> TidalResult<Vec<Album>> {
         self.ensure_valid_token().await?;
 
         let client_guard = self.client.lock().await;
@@ -1666,10 +1432,7 @@ impl TidalAppClient {
 
         debug!("Getting albums for artist: {}", artist_id);
 
-        match client
-            .get_artist_albums(artist_id.to_string(), limit.map(|l| l as u64), None)
-            .await
-        {
+        match client.get_artist_albums(artist_id.to_string(), limit.map(|l| l as u64), None).await {
             Ok(response) => {
                 let albums = response.items.into_iter().map(Album::from).collect();
                 Ok(albums)
@@ -1685,11 +1448,7 @@ impl TidalAppClient {
     ///
     /// The video thumbnail comes from `imageId` via [`tidal_cover_url`], the
     /// same cover path playlist/Explore/search video items use.
-    pub async fn get_artist_videos(
-        &self,
-        artist_id: &str,
-        limit: Option<u32>,
-    ) -> TidalResult<Vec<Track>> {
+    pub async fn get_artist_videos(&self, artist_id: &str, limit: Option<u32>) -> TidalResult<Vec<Track>> {
         self.ensure_valid_token().await?;
 
         let client_guard = self.client.lock().await;
@@ -1697,10 +1456,7 @@ impl TidalAppClient {
 
         debug!("Getting videos for artist: {}", artist_id);
 
-        match client
-            .get_artist_videos(artist_id.to_string(), limit.map(|l| l as u64), None)
-            .await
-        {
+        match client.get_artist_videos(artist_id.to_string(), limit.map(|l| l as u64), None).await {
             Ok(response) => {
                 let videos = response
                     .items
@@ -1780,9 +1536,7 @@ impl TidalAppClient {
             .map_err(|e| TidalError::RequestFailed(format!("album review: {e:?}")))?;
 
         if review.text.is_empty() {
-            return Err(TidalError::RequestFailed(
-                "Review text is empty".to_string(),
-            ));
+            return Err(TidalError::RequestFailed("Review text is empty".to_string()));
         }
 
         Ok(review.text)
@@ -1807,10 +1561,7 @@ impl TidalAppClient {
     pub async fn get_track_lyrics(&self, track_id: &str) -> TidalResult<TrackLyrics> {
         let ctx = self.auth_context().await?;
 
-        let url = format!(
-            "https://api.tidal.com/v1/tracks/{}/lyrics?countryCode={}",
-            track_id, ctx.country_code
-        );
+        let url = format!("https://api.tidal.com/v1/tracks/{}/lyrics?countryCode={}", track_id, ctx.country_code);
 
         debug!("Fetching lyrics for track {}", track_id);
 
@@ -1830,11 +1581,7 @@ impl TidalAppClient {
         }
 
         if !response.status().is_success() {
-            return Err(TidalError::RequestFailed(format!(
-                "HTTP {} fetching lyrics for track {}",
-                response.status(),
-                track_id
-            )));
+            return Err(TidalError::RequestFailed(format!("HTTP {} fetching lyrics for track {}", response.status(), track_id)));
         }
 
         #[derive(Deserialize)]
@@ -1850,20 +1597,13 @@ impl TidalAppClient {
             is_right_to_left: bool,
         }
 
-        let raw: LyricsResponse = response
-            .json()
-            .await
-            .map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+        let raw: LyricsResponse = response.json().await.map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
 
         let plain_text = raw.lyrics.and_then(|s| {
             let trimmed = s.trim();
             if trimmed.is_empty() { None } else { Some(s) }
         });
-        let lrc_lines = raw
-            .subtitles
-            .as_deref()
-            .map(crate::tidal::models::parse_lrc)
-            .unwrap_or_default();
+        let lrc_lines = raw.subtitles.as_deref().map(crate::tidal::models::parse_lrc).unwrap_or_default();
 
         info!(
             "Loaded lyrics for track {}: provider={:?} plain={} synced_lines={}",
@@ -1873,12 +1613,7 @@ impl TidalAppClient {
             lrc_lines.len()
         );
 
-        Ok(TrackLyrics {
-            provider: raw.lyrics_provider,
-            plain_text,
-            lrc_lines,
-            is_right_to_left: raw.is_right_to_left,
-        })
+        Ok(TrackLyrics { provider: raw.lyrics_provider, plain_text, lrc_lines, is_right_to_left: raw.is_right_to_left })
     }
 
     // =========================================================================
@@ -1914,19 +1649,10 @@ impl TidalAppClient {
             "https://api.tidal.com/v1/tracks/{}/credits?countryCode={}&includeContributors=true",
             track_id, ctx.country_code
         );
-        let meta_url = format!(
-            "https://api.tidal.com/v1/tracks/{}?countryCode={}",
-            track_id, ctx.country_code
-        );
+        let meta_url = format!("https://api.tidal.com/v1/tracks/{}?countryCode={}", track_id, ctx.country_code);
 
-        let credits_req = http_client
-            .get(&credits_url)
-            .header(AUTHORIZATION, bearer.clone())
-            .send();
-        let meta_req = http_client
-            .get(&meta_url)
-            .header(AUTHORIZATION, bearer)
-            .send();
+        let credits_req = http_client.get(&credits_url).header(AUTHORIZATION, bearer.clone()).send();
+        let meta_req = http_client.get(&meta_url).header(AUTHORIZATION, bearer).send();
 
         let (credits_res, meta_res) = tokio::join!(credits_req, meta_req);
 
@@ -1956,17 +1682,10 @@ impl TidalAppClient {
             return Ok(TrackCredits::default());
         }
         if !response.status().is_success() {
-            return Err(TidalError::RequestFailed(format!(
-                "HTTP {} fetching credits for track {}",
-                response.status(),
-                track_id
-            )));
+            return Err(TidalError::RequestFailed(format!("HTTP {} fetching credits for track {}", response.status(), track_id)));
         }
 
-        let raw: Vec<RawCredit> = response
-            .json()
-            .await
-            .map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+        let raw: Vec<RawCredit> = response.json().await.map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
 
         let roles: Vec<CreditRole> = raw
             .into_iter()
@@ -2015,11 +1734,7 @@ impl TidalAppClient {
                 }
             },
             Ok(resp) => {
-                debug!(
-                    "Track metadata fetch returned HTTP {} for {}",
-                    resp.status(),
-                    track_id
-                );
+                debug!("Track metadata fetch returned HTTP {} for {}", resp.status(), track_id);
                 None
             }
             Err(e) => {
@@ -2031,17 +1746,14 @@ impl TidalAppClient {
         /// Trim a value and drop it when empty, so the view can rely on
         /// `Some(_)` meaning "has something to show".
         fn non_empty(value: Option<String>) -> Option<String> {
-            value
-                .map(|s| s.trim().to_string())
-                .filter(|s| !s.is_empty())
+            value.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
         }
 
         let (copyright, released, isrc, bpm) = match meta {
             Some(m) => (
                 non_empty(m.copyright),
                 // `2014-10-27T00:00:00.000+0000` → `2014-10-27`
-                non_empty(m.stream_start_date)
-                    .map(|d| d.split('T').next().unwrap_or(&d).to_string()),
+                non_empty(m.stream_start_date).map(|d| d.split('T').next().unwrap_or(&d).to_string()),
                 non_empty(m.isrc),
                 m.bpm.filter(|b| *b > 0),
             ),
@@ -2056,13 +1768,7 @@ impl TidalAppClient {
             isrc.is_some()
         );
 
-        Ok(TrackCredits {
-            roles,
-            copyright,
-            released,
-            isrc,
-            bpm,
-        })
+        Ok(TrackCredits { roles, copyright, released, isrc, bpm })
     }
 
     // =========================================================================
@@ -2072,15 +1778,13 @@ impl TidalAppClient {
     /// Add an album to user's favorites
     pub async fn add_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Adding album {} to favorites", album_id);
-        self.add_to_favorites(FavoriteResourceType::Albums, album_id)
-            .await
+        self.add_to_favorites(FavoriteResourceType::Albums, album_id).await
     }
 
     /// Remove an album from user's favorites
     pub async fn remove_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Removing album {} from favorites", album_id);
-        self.remove_from_favorites(FavoriteResourceType::Albums, album_id)
-            .await
+        self.remove_from_favorites(FavoriteResourceType::Albums, album_id).await
     }
     /// Fetch the user's subscription plan.
     ///
@@ -2116,10 +1820,7 @@ impl TidalAppClient {
                     return Ok(label);
                 }
                 Err(e) => {
-                    warn!(
-                        "tidlers subscription() failed ({}), falling back to raw HTTP",
-                        e
-                    );
+                    warn!("tidlers subscription() failed ({}), falling back to raw HTTP", e);
                 }
             }
         } // client_guard dropped
@@ -2172,22 +1873,13 @@ impl TidalAppClient {
                 // API version / account type.
                 match serde_json::from_str::<serde_json::Value>(&body) {
                     Ok(v) => {
-                        let premium_access = v
-                            .get("premiumAccess")
-                            .and_then(|p| p.as_str().map(String::from));
-                        let sub_type = v
-                            .get("subscription")
-                            .and_then(|s| s.get("type"))
-                            .and_then(|t| t.as_str().map(String::from));
-                        let highest_quality = v
-                            .get("highestSoundQuality")
-                            .and_then(|h| h.as_str().map(String::from));
+                        let premium_access = v.get("premiumAccess").and_then(|p| p.as_str().map(String::from));
+                        let sub_type =
+                            v.get("subscription").and_then(|s| s.get("type")).and_then(|t| t.as_str().map(String::from));
+                        let highest_quality = v.get("highestSoundQuality").and_then(|h| h.as_str().map(String::from));
 
-                        let label = Self::derive_plan_label(
-                            premium_access.as_deref(),
-                            sub_type.as_deref(),
-                            highest_quality.as_deref(),
-                        );
+                        let label =
+                            Self::derive_plan_label(premium_access.as_deref(), sub_type.as_deref(), highest_quality.as_deref());
                         if let Some(l) = &label {
                             info!("User subscription plan (via raw HTTP): {}", l);
                         }
@@ -2208,10 +1900,7 @@ impl TidalAppClient {
 
     /// Derive a human-readable plan label from `subscription.type` and
     /// `highestSoundQuality` (used when we have tidlers' typed response).
-    pub fn derive_plan_label_from_type_and_quality(
-        sub_type: &str,
-        highest_quality: &str,
-    ) -> Option<String> {
+    pub fn derive_plan_label_from_type_and_quality(sub_type: &str, highest_quality: &str) -> Option<String> {
         Self::derive_plan_label(None, Some(sub_type), Some(highest_quality))
     }
 
@@ -2297,14 +1986,7 @@ impl TidalAppClient {
     ///
     /// Returns `(picture_url, display_name, first_name, last_name)` — each
     /// `Option` so callers can merge into the existing profile.
-    async fn get_user_profile_extras(
-        &self,
-    ) -> TidalResult<(
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-    )> {
+    async fn get_user_profile_extras(&self) -> TidalResult<(Option<String>, Option<String>, Option<String>, Option<String>)> {
         self.ensure_valid_token().await?;
 
         let user_id = {
@@ -2387,12 +2069,7 @@ impl TidalAppClient {
     /// Try to extract a picture URL from a JSON value that might contain
     /// picture fields in various TIDAL API formats.
     pub fn extract_picture_url_from_json(v: &serde_json::Value) -> Option<String> {
-        for field in &[
-            "profilePicture",
-            "picture",
-            "pictureUrl",
-            "profilePictureUrl",
-        ] {
+        for field in &["profilePicture", "picture", "pictureUrl", "profilePictureUrl"] {
             if let Some(val) = v.get(*field) {
                 // Direct string — could be a URL or a UUID
                 if let Some(url_str) = val.as_str()
@@ -2465,12 +2142,9 @@ impl TidalAppClient {
         }
 
         // Apply to the stored profile
-        let has_updates =
-            plan.is_some() || picture.is_some() || api_name.is_some() || api_first.is_some();
+        let has_updates = plan.is_some() || picture.is_some() || api_name.is_some() || api_first.is_some();
 
-        if has_updates
-            && let AuthState::Authenticated { profile } = self.auth_manager.state().clone()
-        {
+        if has_updates && let AuthState::Authenticated { profile } = self.auth_manager.state().clone() {
             // Merge: API-provided values take precedence over None, but
             // don't overwrite existing non-None values with None.
             let new_first = api_first.or(profile.first_name.clone());
@@ -2505,19 +2179,9 @@ impl TidalAppClient {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
 
-            let token = client
-                .session
-                .auth
-                .access_token
-                .as_ref()
-                .ok_or(TidalError::NotAuthenticated)?
-                .clone();
+            let token = client.session.auth.access_token.as_ref().ok_or(TidalError::NotAuthenticated)?.clone();
 
-            let cc = client
-                .user_info
-                .as_ref()
-                .map(|u| u.country_code.clone())
-                .unwrap_or_else(|| "US".to_string());
+            let cc = client.user_info.as_ref().map(|u| u.country_code.clone()).unwrap_or_else(|| "US".to_string());
 
             let loc = client.session.locale.clone();
             let to = client.session.time_offset.clone();
@@ -2551,13 +2215,10 @@ impl TidalAppClient {
             return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
         }
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading home feed body: {}", e)))?;
+        let body = response.text().await.map_err(|e| TidalError::NetworkError(format!("reading home feed body: {}", e)))?;
 
-        let feed: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("parsing home feed JSON: {}", e)))?;
+        let feed: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("parsing home feed JSON: {}", e)))?;
 
         let mut mixes = Vec::new();
 
@@ -2567,10 +2228,7 @@ impl TidalAppClient {
             debug!("Home feed has {} top-level items", items.len());
 
             for section in items {
-                let section_type = section
-                    .get("type")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("UNKNOWN");
+                let section_type = section.get("type").and_then(|t| t.as_str()).unwrap_or("UNKNOWN");
                 let section_title = section.get("title").and_then(|t| t.as_str()).unwrap_or("");
 
                 // Gather all sub-items from this section (could be "items",
@@ -2599,10 +2257,7 @@ impl TidalAppClient {
                 }
 
                 if section_mix_count > 0 {
-                    debug!(
-                        "Section '{}' ({}): extracted {} mixes",
-                        section_title, section_type, section_mix_count
-                    );
+                    debug!("Section '{}' ({}): extracted {} mixes", section_title, section_type, section_mix_count);
                 }
             }
         }
@@ -2618,58 +2273,33 @@ impl TidalAppClient {
     /// Parse a single Mix from a raw JSON `data` object within the home feed.
     pub fn parse_mix_from_json(data: &serde_json::Value) -> Option<Mix> {
         let id = data.get("id").and_then(|v| v.as_str())?.to_string();
-        let mix_type = data
-            .get("type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("MIX")
-            .to_string();
+        let mix_type = data.get("type").and_then(|v| v.as_str()).unwrap_or("MIX").to_string();
 
-        let title = data
-            .get("titleTextInfo")
-            .and_then(|v| v.get("text"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("Mix")
-            .to_string();
+        let title = data.get("titleTextInfo").and_then(|v| v.get("text")).and_then(|v| v.as_str()).unwrap_or("Mix").to_string();
 
         let subtitle = data
             .get("shortSubtitleTextInfo")
             .and_then(|v| v.get("text"))
             .and_then(|v| v.as_str())
-            .or_else(|| {
-                data.get("subtitleTextInfo")
-                    .and_then(|v| v.get("text"))
-                    .and_then(|v| v.as_str())
-            })
+            .or_else(|| data.get("subtitleTextInfo").and_then(|v| v.get("text")).and_then(|v| v.as_str()))
             .unwrap_or("")
             .to_string();
 
         // Pick the largest image from mixImages
-        let image_url = data
-            .get("mixImages")
-            .and_then(|v| v.as_array())
-            .and_then(|imgs| {
-                imgs.iter()
-                    .filter_map(|img| {
-                        let w = img.get("width").and_then(|v| v.as_u64()).unwrap_or(0);
-                        let url = img.get("url").and_then(|v| v.as_str())?;
-                        Some((w, url.to_string()))
-                    })
-                    .max_by_key(|(w, _)| *w)
-                    .map(|(_, url)| url)
-            });
+        let image_url = data.get("mixImages").and_then(|v| v.as_array()).and_then(|imgs| {
+            imgs.iter()
+                .filter_map(|img| {
+                    let w = img.get("width").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let url = img.get("url").and_then(|v| v.as_str())?;
+                    Some((w, url.to_string()))
+                })
+                .max_by_key(|(w, _)| *w)
+                .map(|(_, url)| url)
+        });
 
-        debug!(
-            "Parsed mix from raw JSON: id={}, type={}, title={:?}",
-            id, mix_type, title
-        );
+        debug!("Parsed mix from raw JSON: id={}, type={}, title={:?}", id, mix_type, title);
 
-        Some(Mix {
-            id,
-            title,
-            subtitle,
-            mix_type,
-            image_url,
-        })
+        Some(Mix { id, title, subtitle, mix_type, image_url })
     }
 
     // =========================================================================
@@ -2698,27 +2328,14 @@ impl TidalAppClient {
         let (access_token, country_code, locale) = {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-            let token = client
-                .session
-                .auth
-                .access_token
-                .as_ref()
-                .ok_or(TidalError::NotAuthenticated)?
-                .clone();
-            let cc = client
-                .user_info
-                .as_ref()
-                .map(|u| u.country_code.clone())
-                .unwrap_or_else(|| "US".to_string());
+            let token = client.session.auth.access_token.as_ref().ok_or(TidalError::NotAuthenticated)?.clone();
+            let cc = client.user_info.as_ref().map(|u| u.country_code.clone()).unwrap_or_else(|| "US".to_string());
             let loc = client.session.locale.clone();
             (token, cc, loc)
         };
 
         // Normalise `pages/foo` / `/v1/pages/foo` down to the bare slug.
-        let slug = path
-            .trim_start_matches('/')
-            .trim_start_matches("v1/")
-            .trim_start_matches("pages/");
+        let slug = path.trim_start_matches('/').trim_start_matches("v1/").trim_start_matches("pages/");
 
         let url = format!(
             "https://api.tidal.com/v1/pages/{slug}?countryCode={country_code}&locale={locale}&deviceType=BROWSER&platform=WEB"
@@ -2730,10 +2347,7 @@ impl TidalAppClient {
             .get(&url)
             .header(AUTHORIZATION, format!("Bearer {}", access_token))
             .header("x-tidal-client-version", "2026.1.5")
-            .header(
-                "User-Agent",
-                "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0",
-            )
+            .header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:150.0) Gecko/20100101 Firefox/150.0")
             .send()
             .await
             .map_err(|e| TidalError::NetworkError(format!("explore request failed: {}", e)))?;
@@ -2745,12 +2359,9 @@ impl TidalAppClient {
             return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
         }
 
-        let body = response
-            .text()
-            .await
-            .map_err(|e| TidalError::NetworkError(format!("reading explore body: {}", e)))?;
-        let page: serde_json::Value = serde_json::from_str(&body)
-            .map_err(|e| TidalError::ParseError(format!("parsing explore JSON: {}", e)))?;
+        let body = response.text().await.map_err(|e| TidalError::NetworkError(format!("reading explore body: {}", e)))?;
+        let page: serde_json::Value =
+            serde_json::from_str(&body).map_err(|e| TidalError::ParseError(format!("parsing explore JSON: {}", e)))?;
 
         let parsed = Self::parse_explore_page(&page);
         info!("Explore '{}': {} sections", slug, parsed.sections.len());
@@ -2763,11 +2374,7 @@ impl TidalAppClient {
     /// fields fall back to sensible defaults, so a partial/changed payload
     /// degrades gracefully instead of erroring.
     fn parse_explore_page(page: &serde_json::Value) -> ExplorePage {
-        let title = page
-            .get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or("Explore")
-            .to_string();
+        let title = page.get("title").and_then(|v| v.as_str()).unwrap_or("Explore").to_string();
 
         let mut sections: Vec<ExploreSection> = Vec::new();
 
@@ -2788,11 +2395,7 @@ impl TidalAppClient {
     /// empty or an unsupported type (e.g. videos).
     fn parse_explore_module(module: &serde_json::Value) -> Option<ExploreSection> {
         let module_type = module.get("type").and_then(|v| v.as_str()).unwrap_or("");
-        let title = module
-            .get("title")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+        let title = module.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
         match module_type {
             "FEATURED_PROMOTIONS" => {
@@ -2813,24 +2416,16 @@ impl TidalAppClient {
                 (!links.is_empty()).then_some(ExploreSection::Links { title, links })
             }
             "ALBUM_LIST" => {
-                let albums: Vec<Album> = Self::paged_items(module)
-                    .iter()
-                    .filter_map(Self::parse_explore_album)
-                    .collect();
+                let albums: Vec<Album> = Self::paged_items(module).iter().filter_map(Self::parse_explore_album).collect();
                 (!albums.is_empty()).then_some(ExploreSection::Albums { title, albums })
             }
             "PLAYLIST_LIST" => {
-                let playlists: Vec<Playlist> = Self::paged_items(module)
-                    .iter()
-                    .filter_map(Self::parse_explore_playlist)
-                    .collect();
+                let playlists: Vec<Playlist> =
+                    Self::paged_items(module).iter().filter_map(Self::parse_explore_playlist).collect();
                 (!playlists.is_empty()).then_some(ExploreSection::Playlists { title, playlists })
             }
             "ARTIST_LIST" => {
-                let artists: Vec<Artist> = Self::paged_items(module)
-                    .iter()
-                    .filter_map(Self::parse_explore_artist)
-                    .collect();
+                let artists: Vec<Artist> = Self::paged_items(module).iter().filter_map(Self::parse_explore_artist).collect();
                 (!artists.is_empty()).then_some(ExploreSection::Artists { title, artists })
             }
             _ => None,
@@ -2838,12 +2433,7 @@ impl TidalAppClient {
     }
 
     fn paged_items(module: &serde_json::Value) -> Vec<serde_json::Value> {
-        module
-            .get("pagedList")
-            .and_then(|v| v.get("items"))
-            .and_then(|v| v.as_array())
-            .cloned()
-            .unwrap_or_default()
+        module.get("pagedList").and_then(|v| v.get("items")).and_then(|v| v.as_array()).cloned().unwrap_or_default()
     }
 
     /// Parse a FEATURED_PROMOTIONS item into a card with a nav target.
@@ -2854,21 +2444,10 @@ impl TidalAppClient {
             .or_else(|| item.get("shortHeader").and_then(|v| v.as_str()))
             .unwrap_or("")
             .to_string();
-        let subtitle = item
-            .get("shortSubHeader")
-            .and_then(|v| v.as_str())
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string());
-        let image_url = item
-            .get("imageId")
-            .and_then(|v| v.as_str())
-            .map(tidal_promo_image_url);
+        let subtitle = item.get("shortSubHeader").and_then(|v| v.as_str()).filter(|s| !s.is_empty()).map(|s| s.to_string());
+        let image_url = item.get("imageId").and_then(|v| v.as_str()).map(tidal_promo_image_url);
 
-        let artifact_id = item
-            .get("artifactId")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+        let artifact_id = item.get("artifactId").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let target = match item.get("type").and_then(|v| v.as_str()).unwrap_or("") {
             "PLAYLIST" => ExploreTarget::Playlist(artifact_id),
             "ALBUM" => ExploreTarget::Album(artifact_id),
@@ -2889,12 +2468,7 @@ impl TidalAppClient {
         if title.is_empty() && image_url.is_none() {
             return None;
         }
-        Some(ExploreCard {
-            title,
-            subtitle,
-            image_url,
-            target,
-        })
+        Some(ExploreCard { title, subtitle, image_url, target })
     }
 
     /// Parse a PAGE_LINKS item (genre/mood/decade button).
@@ -2936,49 +2510,25 @@ impl TidalAppClient {
                 .and_then(|v| v.as_array())
                 .and_then(|a| a.first())
                 .and_then(|a| Self::json_id(a.get("id"))),
-            num_tracks: it
-                .get("numberOfTracks")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32,
+            num_tracks: it.get("numberOfTracks").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             duration: it.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            release_date: it
-                .get("releaseDate")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
-            cover_url: it
-                .get("cover")
-                .and_then(|v| v.as_str())
-                .map(tidal_cover_url),
-            explicit: it
-                .get("explicit")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-            audio_quality: it
-                .get("audioQuality")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            release_date: it.get("releaseDate").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            cover_url: it.get("cover").and_then(|v| v.as_str()).map(tidal_cover_url),
+            explicit: it.get("explicit").and_then(|v| v.as_bool()).unwrap_or(false),
+            audio_quality: it.get("audioQuality").and_then(|v| v.as_str()).map(|s| s.to_string()),
             review: None,
         })
     }
 
     fn parse_explore_playlist(it: &serde_json::Value) -> Option<Playlist> {
         let uuid = it.get("uuid").and_then(|v| v.as_str())?.to_string();
-        let image_id = it
-            .get("squareImage")
-            .and_then(|v| v.as_str())
-            .or_else(|| it.get("image").and_then(|v| v.as_str()));
+        let image_id = it.get("squareImage").and_then(|v| v.as_str()).or_else(|| it.get("image").and_then(|v| v.as_str()));
         Some(Playlist {
             uuid,
             title: it.get("title").and_then(|v| v.as_str())?.to_string(),
-            description: it
-                .get("description")
-                .and_then(|v| v.as_str())
-                .map(|s| s.to_string()),
+            description: it.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
             creator_name: None,
-            num_tracks: it
-                .get("numberOfTracks")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0) as u32,
+            num_tracks: it.get("numberOfTracks").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             duration: it.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             last_updated: None,
             image_url: image_id.map(tidal_cover_url),
@@ -2991,10 +2541,7 @@ impl TidalAppClient {
         Some(Artist {
             id,
             name: it.get("name").and_then(|v| v.as_str())?.to_string(),
-            picture_url: it
-                .get("picture")
-                .and_then(|v| v.as_str())
-                .map(tidal_cover_url),
+            picture_url: it.get("picture").and_then(|v| v.as_str()).map(tidal_cover_url),
             bio: None,
             popularity: None,
             roles: Vec::new(),
@@ -3067,12 +2614,7 @@ impl TidalAppClient {
         drop(client_guard);
 
         let tracks: Vec<Track> = items_response.items.into_iter().map(Track::from).collect();
-        info!(
-            "Loaded track mix {} with {} tracks for seed track {}",
-            mix_id,
-            tracks.len(),
-            track_id
-        );
+        info!("Loaded track mix {} with {} tracks for seed track {}", mix_id, tracks.len(), track_id);
         Ok((mix_id, tracks))
     }
 
@@ -3086,17 +2628,10 @@ impl TidalAppClient {
     /// Returns up to `limit` (default 20) [`Artist`] entries. Note: the
     /// `popularity` and `roles` fields are not populated because tidlers'
     /// embedded `Artist` model doesn't expose them.
-    pub async fn get_similar_artists(
-        &self,
-        artist_id: &str,
-        limit: Option<u32>,
-    ) -> TidalResult<Vec<Artist>> {
+    pub async fn get_similar_artists(&self, artist_id: &str, limit: Option<u32>) -> TidalResult<Vec<Artist>> {
         self.ensure_valid_token().await?;
         let limit_param = limit.unwrap_or(20);
-        info!(
-            "Fetching similar artists for artist {} (limit {})",
-            artist_id, limit_param
-        );
+        info!("Fetching similar artists for artist {} (limit {})", artist_id, limit_param);
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
@@ -3107,11 +2642,7 @@ impl TidalAppClient {
         drop(client_guard);
 
         let artists: Vec<Artist> = response.items.into_iter().map(Artist::from).collect();
-        info!(
-            "Loaded {} similar artists for artist {}",
-            artists.len(),
-            artist_id
-        );
+        info!("Loaded {} similar artists for artist {}", artists.len(), artist_id);
         Ok(artists)
     }
 
@@ -3131,19 +2662,9 @@ impl TidalAppClient {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
 
-            let token = client
-                .session
-                .auth
-                .access_token
-                .as_ref()
-                .ok_or(TidalError::NotAuthenticated)?
-                .clone();
+            let token = client.session.auth.access_token.as_ref().ok_or(TidalError::NotAuthenticated)?.clone();
 
-            let cc = client
-                .user_info
-                .as_ref()
-                .map(|u| u.country_code.clone())
-                .unwrap_or_else(|| "US".to_string());
+            let cc = client.user_info.as_ref().map(|u| u.country_code.clone()).unwrap_or_else(|| "US".to_string());
 
             let loc = client.session.locale.clone();
 
@@ -3173,81 +2694,48 @@ impl TidalAppClient {
                 .header(AUTHORIZATION, format!("Bearer {}", access_token))
                 .send()
                 .await
-                .map_err(|e| {
-                    TidalError::NetworkError(format!("followed artists request failed: {}", e))
-                })?;
+                .map_err(|e| TidalError::NetworkError(format!("followed artists request failed: {}", e)))?;
 
             if !response.status().is_success() {
                 let status = response.status();
                 let body = response.text().await.unwrap_or_default();
-                error!(
-                    "Followed artists request failed: HTTP {} — {}",
-                    status, body
-                );
+                error!("Followed artists request failed: HTTP {} — {}", status, body);
                 return Err(TidalError::RequestFailed(format!("HTTP {}", status)));
             }
 
-            let body = response.text().await.map_err(|e| {
-                TidalError::NetworkError(format!("reading followed artists body: {}", e))
-            })?;
+            let body =
+                response.text().await.map_err(|e| TidalError::NetworkError(format!("reading followed artists body: {}", e)))?;
 
-            let parsed: serde_json::Value = serde_json::from_str(&body).map_err(|e| {
-                TidalError::ParseError(format!("parsing followed artists JSON: {}", e))
-            })?;
+            let parsed: serde_json::Value = serde_json::from_str(&body)
+                .map_err(|e| TidalError::ParseError(format!("parsing followed artists JSON: {}", e)))?;
 
             let page_count = if let Some(items) = parsed.get("items").and_then(|v| v.as_array()) {
                 for item in items {
                     if let Some(data) = item.get("data") {
                         let id = data
                             .get("id")
-                            .and_then(|v| {
-                                v.as_u64()
-                                    .map(|n| n.to_string())
-                                    .or_else(|| v.as_str().map(String::from))
-                            })
+                            .and_then(|v| v.as_u64().map(|n| n.to_string()).or_else(|| v.as_str().map(String::from)))
                             .unwrap_or_default();
 
-                        let name = data
-                            .get("name")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
+                        let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
 
-                        let picture_url = data
-                            .get("picture")
-                            .and_then(|v| v.as_str())
-                            .filter(|p| !p.is_empty())
-                            .map(tidal_cover_url);
+                        let picture_url =
+                            data.get("picture").and_then(|v| v.as_str()).filter(|p| !p.is_empty()).map(tidal_cover_url);
 
-                        let popularity = data
-                            .get("popularity")
-                            .and_then(|v| v.as_u64())
-                            .map(|p| p as u32);
+                        let popularity = data.get("popularity").and_then(|v| v.as_u64()).map(|p| p as u32);
 
                         let roles: Vec<String> = data
                             .get("artistRoles")
                             .and_then(|v| v.as_array())
                             .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|r| {
-                                        r.get("category").and_then(|c| c.as_str()).map(String::from)
-                                    })
-                                    .collect()
+                                arr.iter().filter_map(|r| r.get("category").and_then(|c| c.as_str()).map(String::from)).collect()
                             })
                             .unwrap_or_default();
 
                         let url = data.get("url").and_then(|v| v.as_str()).map(String::from);
 
                         if !id.is_empty() && !name.is_empty() {
-                            artists.push(Artist {
-                                id,
-                                name,
-                                picture_url,
-                                bio: None,
-                                popularity,
-                                roles,
-                                url,
-                            });
+                            artists.push(Artist { id, name, picture_url, bio: None, popularity, roles, url });
                         }
                     }
                 }
@@ -3257,15 +2745,9 @@ impl TidalAppClient {
             };
 
             // Check for cursor-based pagination
-            let next_cursor = parsed
-                .get("cursor")
-                .and_then(|v| v.as_str())
-                .map(String::from);
+            let next_cursor = parsed.get("cursor").and_then(|v| v.as_str()).map(String::from);
 
-            debug!(
-                "Followed artists page: got {} items, cursor: {:?}",
-                page_count, next_cursor
-            );
+            debug!("Followed artists page: got {} items, cursor: {:?}", page_count, next_cursor);
 
             // Stop if we got fewer items than the limit (last page) or no cursor
             if page_count < page_limit || next_cursor.is_none() {
@@ -3283,8 +2765,7 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `PUT /v1/users/{userId}/favorites/artists`.
     pub async fn follow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Following artist {}", artist_id);
-        self.add_to_favorites(FavoriteResourceType::Artists, artist_id)
-            .await
+        self.add_to_favorites(FavoriteResourceType::Artists, artist_id).await
     }
 
     /// Unfollow (remove from favorites) an artist by ID.
@@ -3292,8 +2773,7 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `DELETE /v1/users/{userId}/favorites/artists/{artistId}`.
     pub async fn unfollow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Unfollowing artist {}", artist_id);
-        self.remove_from_favorites(FavoriteResourceType::Artists, artist_id)
-            .await
+        self.remove_from_favorites(FavoriteResourceType::Artists, artist_id).await
     }
 
     /// Fetch the user's feed (new releases from followed artists).
@@ -3306,14 +2786,10 @@ impl TidalAppClient {
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        let raw = client
-            .get_activity_feed()
-            .await
-            .map_err(|e| TidalError::RequestFailed(format!("feed: {e:?}")))?;
+        let raw = client.get_activity_feed().await.map_err(|e| TidalError::RequestFailed(format!("feed: {e:?}")))?;
         drop(client_guard);
 
-        let activities: Vec<FeedActivity> =
-            raw.into_iter().map(Self::from_tidlers_activity).collect();
+        let activities: Vec<FeedActivity> = raw.into_iter().map(Self::from_tidlers_activity).collect();
 
         info!("Feed: loaded {} activities", activities.len());
         Ok(activities)
@@ -3336,18 +2812,11 @@ impl TidalAppClient {
                 audio_quality: album.audio_quality,
                 review: None,
             }),
-            TItem::HistoryMix(mix) => FeedItem::HistoryMix {
-                id: mix.id,
-                title: mix.title,
-                subtitle: mix.subtitle,
-                image_url: mix.image_url,
-            },
+            TItem::HistoryMix(mix) => {
+                FeedItem::HistoryMix { id: mix.id, title: mix.title, subtitle: mix.subtitle, image_url: mix.image_url }
+            }
         };
-        FeedActivity {
-            item,
-            occurred_at: a.occurred_at,
-            seen: a.seen,
-        }
+        FeedActivity { item, occurred_at: a.occurred_at, seen: a.seen }
     }
 }
 
@@ -3422,9 +2891,7 @@ mod tests {
         assert!(tracks[1].is_video);
         assert_eq!(
             tracks[1].cover_url.as_deref(),
-            Some(
-                "https://resources.tidal.com/images/7bd9a4c2/424a/49cf/afd9/31f6e526a71e/320x320.jpg"
-            )
+            Some("https://resources.tidal.com/images/7bd9a4c2/424a/49cf/afd9/31f6e526a71e/320x320.jpg")
         );
         assert_eq!(tracks[1].artist_name, "Another Artist");
     }

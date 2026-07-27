@@ -22,8 +22,7 @@ use crate::menu::TidalMenuAction;
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{
-    Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist,
-    SearchResults, Track, TrackDetailRow,
+    Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist, SearchResults, Track, TrackDetailRow,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 use crate::tidal::play_history::PlayHistory;
@@ -63,12 +62,7 @@ pub(crate) struct HandleCache {
 impl HandleCache {
     /// Create a new cache that holds at most `capacity` entries.
     pub(crate) fn new(capacity: usize) -> Self {
-        Self {
-            map: HashMap::with_capacity(capacity),
-            capacity,
-            counter: Cell::new(0),
-            request_tx: None,
-        }
+        Self { map: HashMap::with_capacity(capacity), capacity, counter: Cell::new(0), request_tx: None }
     }
 
     /// Install the channel that [`get_or_request`] uses to request lazy
@@ -136,11 +130,7 @@ impl HandleCache {
         // Evict LRU entries until there is room.  Eviction is O(n) but
         // only happens when the cache is full; per-access cost is O(1).
         while self.map.len() >= self.capacity {
-            let oldest = self
-                .map
-                .iter()
-                .min_by_key(|(_, (_, last))| last.get())
-                .map(|(k, _)| k.clone());
+            let oldest = self.map.iter().min_by_key(|(_, (_, last))| last.get()).map(|(k, _)| k.clone());
             match oldest {
                 Some(k) => {
                     self.map.remove(&k);
@@ -355,15 +345,13 @@ pub struct AppModel {
     /// [`HandleCache::get_or_request`] which pushes onto the sender side;
     /// the subscription drains this receiver and dispatches
     /// [`Message::LoadImage`] for each URL.
-    pub(crate) thumbnail_request_rx:
-        Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
+    pub(crate) thumbnail_request_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
     /// Set of track IDs that are in user's favorites
     pub(crate) favorite_track_ids: HashSet<String>,
     /// MPRIS D-Bus handle for external media control
     pub(crate) mpris_handle: Option<MprisHandle>,
     /// Receiver for MPRIS commands (wrapped in `Arc<Mutex>` for sharing)
-    pub(crate) mpris_command_rx:
-        Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<MprisCommand>>>>,
+    pub(crate) mpris_command_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<MprisCommand>>>>,
     /// Search debounce version counter (incremented on each keystroke)
     pub(crate) search_debounce_version: u64,
     /// Audio visualizer state

@@ -20,18 +20,15 @@ impl AppModel {
         let big_size: u16 = 18;
 
         // Title row: text on the left, buttons on the right.
-        let mut title_row = widget::Row::new()
-            .push(branded_text(big_size))
-            .spacing(6)
-            .align_y(Alignment::Center);
+        let mut title_row = widget::Row::new().push(branded_text(big_size)).spacing(6).align_y(Alignment::Center);
 
         if cfg!(debug_assertions) {
-            title_row = title_row.push(text(fl!("debug-unoptimized")).size(12).class(
-                cosmic::theme::Text::Custom(|_theme| cosmic::iced::widget::text::Style {
+            title_row = title_row.push(text(fl!("debug-unoptimized")).size(12).class(cosmic::theme::Text::Custom(|_theme| {
+                cosmic::iced::widget::text::Style {
                     color: Some(cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2)),
                     selected_fill: cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2),
-                }),
-            ));
+                }
+            })));
         }
 
         let header = widget::Row::new()
@@ -54,29 +51,15 @@ impl AppModel {
             .width(Length::Fill);
 
         // Collection category items
-        let playlists_count = if self.user_playlists.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.user_playlists.len())
-        };
+        let playlists_count =
+            if self.user_playlists.is_empty() { String::new() } else { format!(" ({})", self.user_playlists.len()) };
 
-        let albums_count = if self.user_albums.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.user_albums.len())
-        };
+        let albums_count = if self.user_albums.is_empty() { String::new() } else { format!(" ({})", self.user_albums.len()) };
 
-        let tracks_count = if self.user_favorite_tracks.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.user_favorite_tracks.len())
-        };
+        let tracks_count =
+            if self.user_favorite_tracks.is_empty() { String::new() } else { format!(" ({})", self.user_favorite_tracks.len()) };
 
-        let mixes_count = if self.user_mixes.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.user_mixes.len())
-        };
+        let mixes_count = if self.user_mixes.is_empty() { String::new() } else { format!(" ({})", self.user_mixes.len()) };
 
         let mixes_btn = {
             use crate::views::components::RADIO_SVG;
@@ -99,11 +82,8 @@ impl AppModel {
             Message::ShowPlaylists,
         );
 
-        let albums_btn = AppModel::menu_row(
-            "media-optical-symbolic",
-            format!("{}{}", fl!("albums"), albums_count),
-            Message::ShowAlbums,
-        );
+        let albums_btn =
+            AppModel::menu_row("media-optical-symbolic", format!("{}{}", fl!("albums"), albums_count), Message::ShowAlbums);
 
         let tracks_btn = AppModel::menu_row(
             "emblem-favorite-symbolic",
@@ -117,17 +97,10 @@ impl AppModel {
             format!(" ({})", self.user_followed_artists.len())
         };
 
-        let profiles_btn = AppModel::menu_row(
-            "system-users-symbolic",
-            format!("{}{}", fl!("profiles"), profiles_count),
-            Message::ShowProfiles,
-        );
+        let profiles_btn =
+            AppModel::menu_row("system-users-symbolic", format!("{}{}", fl!("profiles"), profiles_count), Message::ShowProfiles);
 
-        let history_count = if self.play_history.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.play_history.len())
-        };
+        let history_count = if self.play_history.is_empty() { String::new() } else { format!(" ({})", self.play_history.len()) };
 
         let history_btn = AppModel::menu_row(
             "document-open-recent-symbolic",
@@ -135,11 +108,8 @@ impl AppModel {
             Message::ShowHistory,
         );
 
-        let feed_count = if self.feed_activities.is_empty() {
-            String::new()
-        } else {
-            format!(" ({})", self.feed_activities.len())
-        };
+        let feed_count =
+            if self.feed_activities.is_empty() { String::new() } else { format!(" ({})", self.feed_activities.len()) };
 
         let feed_btn = AppModel::menu_row(
             "preferences-system-notifications-symbolic",
@@ -147,11 +117,7 @@ impl AppModel {
             Message::ShowFeed,
         );
 
-        let explore_btn = AppModel::menu_row(
-            "find-location-symbolic",
-            fl!("explore"),
-            Message::ShowExplore,
-        );
+        let explore_btn = AppModel::menu_row("find-location-symbolic", fl!("explore"), Message::ShowExplore);
 
         let collection_section = widget::Column::new()
             .push(albums_btn)
@@ -164,12 +130,6 @@ impl AppModel {
             .push(tracks_btn)
             .spacing(4);
 
-        widget::Column::new()
-            .push(header)
-            .push(collection_section)
-            .spacing(8)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(collection_section).spacing(8).padding(12).width(Length::Fill).into()
     }
 }

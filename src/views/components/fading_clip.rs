@@ -96,12 +96,7 @@ struct FadingClipState {
 
 impl<'a, Msg> FadingClip<'a, Msg> {
     pub(crate) fn new(child: impl Into<cosmic::Element<'a, Msg>>, fade_width: f32) -> Self {
-        Self {
-            child: child.into(),
-            width: cosmic::iced::Length::Shrink,
-            height: cosmic::iced::Length::Shrink,
-            fade_width,
-        }
+        Self { child: child.into(), width: cosmic::iced::Length::Shrink, height: cosmic::iced::Length::Shrink, fade_width }
     }
 
     pub(crate) fn width(mut self, width: cosmic::iced::Length) -> Self {
@@ -114,9 +109,7 @@ impl<'a, Msg> FadingClip<'a, Msg> {
 // `layout.children().next().unwrap()` — there is no fallible API for
 // accessing the single mandatory child node.
 #[allow(clippy::indexing_slicing, clippy::unwrap_used)]
-impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
-    for FadingClip<'_, Msg>
-{
+impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer> for FadingClip<'_, Msg> {
     fn size(&self) -> cosmic::iced::Size<cosmic::iced::Length> {
         cosmic::iced::Size::new(self.width, self.height)
     }
@@ -148,26 +141,16 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         // child laid out exactly once.
         let unbounded = cosmic::iced::core::layout::Limits::NONE.max_height(limits.max().height);
         let mut probe = cosmic::iced::core::widget::Tree::new(self.child.as_widget());
-        let natural_width = self
-            .child
-            .as_widget_mut()
-            .layout(&mut probe, renderer, &unbounded)
-            .bounds()
-            .width;
+        let natural_width = self.child.as_widget_mut().layout(&mut probe, renderer, &unbounded).bounds().width;
 
         // Real layout with the actual (constrained) limits.
-        let node =
-            cosmic::iced::core::layout::contained(limits, self.width, self.height, |limits| {
-                self.child
-                    .as_widget_mut()
-                    .layout(&mut tree.children[0], renderer, limits)
-            });
+        let node = cosmic::iced::core::layout::contained(limits, self.width, self.height, |limits| {
+            self.child.as_widget_mut().layout(&mut tree.children[0], renderer, limits)
+        });
 
         // Record whether the child overflows so draw() can skip the
         // fade when it would be invisible.
-        tree.state
-            .downcast_mut::<FadingClipState>()
-            .content_overflows = natural_width > node.bounds().width + 1.0;
+        tree.state.downcast_mut::<FadingClipState>().content_overflows = natural_width > node.bounds().width + 1.0;
 
         node
     }
@@ -192,26 +175,14 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
 
         let child = self.child.as_widget();
         let child_tree = &tree.children[0];
-        let child_layout = layout
-            .children()
-            .next()
-            .unwrap()
-            .with_virtual_offset(layout.virtual_offset());
+        let child_layout = layout.children().next().unwrap().with_virtual_offset(layout.virtual_offset());
 
         let state = tree.state.downcast_ref::<FadingClipState>();
 
         // Content fits — no fade needed; draw the child clipped to bounds.
         if !state.content_overflows {
             renderer.with_layer(clipped, |renderer| {
-                child.draw(
-                    child_tree,
-                    renderer,
-                    theme,
-                    style,
-                    child_layout,
-                    cursor,
-                    &clipped,
-                );
+                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &clipped);
             });
             return;
         }
@@ -225,32 +196,17 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         let band_x = bounds.x + bounds.width - self.fade_width;
 
         // 1. Solid part: the child clipped to everything left of the band.
-        let solid = Rectangle {
-            width: (band_x - bounds.x).max(0.0),
-            ..bounds
-        };
+        let solid = Rectangle { width: (band_x - bounds.x).max(0.0), ..bounds };
         if let Some(solid_clip) = solid.intersection(viewport) {
             renderer.with_layer(solid_clip, |renderer| {
-                child.draw(
-                    child_tree,
-                    renderer,
-                    theme,
-                    style,
-                    child_layout,
-                    cursor,
-                    &solid_clip,
-                );
+                child.draw(child_tree, renderer, theme, style, child_layout, cursor, &solid_clip);
             });
         }
 
         // 2. Fade band: `FADE_STRIPS` strips of decreasing text alpha.
         let strip_w = self.fade_width / FADE_STRIPS as f32;
         for i in 0..FADE_STRIPS {
-            let strip = Rectangle {
-                x: band_x + i as f32 * strip_w,
-                width: strip_w,
-                ..bounds
-            };
+            let strip = Rectangle { x: band_x + i as f32 * strip_w, width: strip_w, ..bounds };
             let Some(strip_clip) = strip.intersection(viewport) else {
                 continue;
             };
@@ -258,20 +214,9 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
             // ~0.0 at the outer edge.
             let factor = 1.0 - (i as f32 + 0.5) / FADE_STRIPS as f32;
             let mut faded = *style;
-            faded.text_color = Color {
-                a: style.text_color.a * factor,
-                ..style.text_color
-            };
+            faded.text_color = Color { a: style.text_color.a * factor, ..style.text_color };
             renderer.with_layer(strip_clip, |renderer| {
-                child.draw(
-                    child_tree,
-                    renderer,
-                    theme,
-                    &faded,
-                    child_layout,
-                    cursor,
-                    &strip_clip,
-                );
+                child.draw(child_tree, renderer, theme, &faded, child_layout, cursor, &strip_clip);
             });
         }
     }
@@ -307,13 +252,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         viewport: &Rectangle,
         renderer: &cosmic::Renderer,
     ) -> cosmic::iced::core::mouse::Interaction {
-        self.child.as_widget().mouse_interaction(
-            &tree.children[0],
-            layout.children().next().unwrap(),
-            cursor,
-            viewport,
-            renderer,
-        )
+        self.child.as_widget().mouse_interaction(&tree.children[0], layout.children().next().unwrap(), cursor, viewport, renderer)
     }
 
     fn overlay<'b>(
@@ -323,8 +262,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
         renderer: &cosmic::Renderer,
         viewport: &Rectangle,
         translation: cosmic::iced::Vector,
-    ) -> Option<cosmic::iced::core::overlay::Element<'b, Msg, cosmic::Theme, cosmic::Renderer>>
-    {
+    ) -> Option<cosmic::iced::core::overlay::Element<'b, Msg, cosmic::Theme, cosmic::Renderer>> {
         self.child.as_widget_mut().overlay(
             &mut tree.children[0],
             layout.children().next().unwrap(),

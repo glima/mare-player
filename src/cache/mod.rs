@@ -62,10 +62,7 @@ impl std::fmt::Debug for Db {
 
 /// Seconds since the Unix epoch, used for LRU `accessed_at` / `updated_at`.
 fn now_secs() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
 impl Db {
@@ -77,9 +74,7 @@ impl Db {
         let path_str = path.to_str().unwrap_or(":memory:");
         let db = Builder::new_local(path_str).build().await?;
         let conn = db.connect()?;
-        let me = Self {
-            conn: Arc::new(Mutex::new(conn)),
-        };
+        let me = Self { conn: Arc::new(Mutex::new(conn)) };
         me.init_schema().await?;
         Ok(me)
     }
@@ -145,8 +140,7 @@ impl Db {
         )
         .await?;
 
-        conn.execute(&format!("PRAGMA user_version = {SCHEMA_VERSION}"), ())
-            .await?;
+        conn.execute(&format!("PRAGMA user_version = {SCHEMA_VERSION}"), ()).await?;
         Ok(())
     }
 
@@ -155,18 +149,10 @@ impl Db {
     /// Fetch a cached view payload by key, bumping its LRU timestamp.
     pub async fn get_view(&self, key: &str) -> Option<Vec<u8>> {
         let conn = self.conn.lock().await;
-        let mut rows = conn
-            .query("SELECT payload FROM view_cache WHERE key = ?1", [key])
-            .await
-            .ok()?;
+        let mut rows = conn.query("SELECT payload FROM view_cache WHERE key = ?1", [key]).await.ok()?;
         let row = rows.next().await.ok()??;
         let data = row.get_value(0).ok()?.as_blob().cloned()?;
-        let _ = conn
-            .execute(
-                "UPDATE view_cache SET accessed_at = ?1 WHERE key = ?2",
-                (now_secs(), key),
-            )
-            .await;
+        let _ = conn.execute("UPDATE view_cache SET accessed_at = ?1 WHERE key = ?2", (now_secs(), key)).await;
         Some(data)
     }
 
@@ -200,18 +186,10 @@ impl Db {
     /// Fetch a cached image by URL, bumping its LRU timestamp.
     pub async fn get_image(&self, url: &str) -> Option<Vec<u8>> {
         let conn = self.conn.lock().await;
-        let mut rows = conn
-            .query("SELECT data FROM image WHERE url = ?1", [url])
-            .await
-            .ok()?;
+        let mut rows = conn.query("SELECT data FROM image WHERE url = ?1", [url]).await.ok()?;
         let row = rows.next().await.ok()??;
         let data = row.get_value(0).ok()?.as_blob().cloned()?;
-        let _ = conn
-            .execute(
-                "UPDATE image SET accessed_at = ?1 WHERE url = ?2",
-                (now_secs(), url),
-            )
-            .await;
+        let _ = conn.execute("UPDATE image SET accessed_at = ?1 WHERE url = ?2", (now_secs(), url)).await;
         Some(data)
     }
 
@@ -245,10 +223,7 @@ impl Db {
     pub async fn get_play_history(&self) -> Vec<Vec<u8>> {
         let conn = self.conn.lock().await;
         let mut out = Vec::new();
-        let mut rows = match conn
-            .query("SELECT entry FROM play_history ORDER BY played_at DESC", ())
-            .await
-        {
+        let mut rows = match conn.query("SELECT entry FROM play_history ORDER BY played_at DESC", ()).await {
             Ok(rows) => rows,
             Err(e) => {
                 tracing::warn!("cache get_play_history failed: {e}");
@@ -301,16 +276,9 @@ impl Db {
             return;
         }
         loop {
-            let total: i64 = match conn
-                .query(&format!("SELECT COALESCE(SUM(bytes), 0) FROM {table}"), ())
-                .await
-            {
+            let total: i64 = match conn.query(&format!("SELECT COALESCE(SUM(bytes), 0) FROM {table}"), ()).await {
                 Ok(mut rows) => match rows.next().await {
-                    Ok(Some(row)) => row
-                        .get_value(0)
-                        .ok()
-                        .and_then(|v| v.as_integer().copied())
-                        .unwrap_or(0),
+                    Ok(Some(row)) => row.get_value(0).ok().and_then(|v| v.as_integer().copied()).unwrap_or(0),
                     _ => 0,
                 },
                 Err(_) => return,
@@ -348,8 +316,7 @@ mod tests {
     async fn view_blob_round_trips() {
         let db = mem_db().await;
         let payload = vec![0u8, 1, 2, 3, 250, 251, 252, 253];
-        db.put_view("album:42", &payload, Some("etag-1"), 1024 * 1024)
-            .await;
+        db.put_view("album:42", &payload, Some("etag-1"), 1024 * 1024).await;
         let got = db.get_view("album:42").await;
         assert_eq!(got.as_deref(), Some(payload.as_slice()));
         assert!(db.get_view("album:nope").await.is_none());
@@ -366,12 +333,8 @@ mod tests {
     #[tokio::test]
     async fn image_round_trips() {
         let db = mem_db().await;
-        db.put_image("https://x/y.jpg", &[9u8; 64], 1024 * 1024)
-            .await;
-        assert_eq!(
-            db.get_image("https://x/y.jpg").await.map(|d| d.len()),
-            Some(64)
-        );
+        db.put_image("https://x/y.jpg", &[9u8; 64], 1024 * 1024).await;
+        assert_eq!(db.get_image("https://x/y.jpg").await.map(|d| d.len()), Some(64));
     }
 
     #[tokio::test]

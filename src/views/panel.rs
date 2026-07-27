@@ -20,8 +20,7 @@ use crate::tidal::player::PlaybackState;
 use crate::views::components::{PANEL_ART_SIZE, VOLUME_BAR_WIDTH, scroll_to_volume_delta};
 
 /// Static ID for the autosize widget
-static AUTOSIZE_MAIN_ID: std::sync::LazyLock<widget::Id> =
-    std::sync::LazyLock::new(widget::Id::unique);
+static AUTOSIZE_MAIN_ID: std::sync::LazyLock<widget::Id> = std::sync::LazyLock::new(widget::Id::unique);
 
 impl AppModel {
     /// Render the panel button view.
@@ -34,19 +33,12 @@ impl AppModel {
             // Build the album art thumbnail (small, fits panel)
             let base_art: Element<'_, Message> = if let Some(url) = &np.cover_url {
                 if let Some(handle) = self.loaded_images.get(url) {
-                    cosmic::widget::image(handle.clone())
-                        .width(PANEL_ART_SIZE)
-                        .height(PANEL_ART_SIZE)
-                        .into()
+                    cosmic::widget::image(handle.clone()).width(PANEL_ART_SIZE).height(PANEL_ART_SIZE).into()
                 } else {
-                    widget::icon::from_name("media-optical-symbolic")
-                        .size(PANEL_ART_SIZE)
-                        .into()
+                    widget::icon::from_name("media-optical-symbolic").size(PANEL_ART_SIZE).into()
                 }
             } else {
-                widget::icon::from_name("media-optical-symbolic")
-                    .size(PANEL_ART_SIZE)
-                    .into()
+                widget::icon::from_name("media-optical-symbolic").size(PANEL_ART_SIZE).into()
             };
 
             // During loading, overlay an opaque mask that shrinks downward,
@@ -58,41 +50,31 @@ impl AppModel {
 
                 // Mask: opaque bg at top (hides art), transparent at bottom (reveals art).
                 // As progress goes 0→1 the cutoff rises, uncovering more image.
-                let mask = container(
-                    widget::Space::new()
-                        .width(Length::Fixed(size.into()))
-                        .height(Length::Fixed(size.into())),
-                )
-                .class(cosmic::theme::Container::custom(move |theme| {
-                    let cosmic = theme.cosmic();
-                    let solid: Color = cosmic.bg_color().into();
-                    let clear = Color { a: 0.0, ..solid };
+                let mask = container(widget::Space::new().width(Length::Fixed(size.into())).height(Length::Fixed(size.into())))
+                    .class(cosmic::theme::Container::custom(move |theme| {
+                        let cosmic = theme.cosmic();
+                        let solid: Color = cosmic.bg_color().into();
+                        let clear = Color { a: 0.0, ..solid };
 
-                    // cutoff 1.0 = everything masked; 0.0 = fully revealed
-                    let cutoff = (1.0 - progress).clamp(0.0, 1.0);
-                    let bg = Background::Gradient(
-                        gradient::Linear::new(Radians(std::f32::consts::PI)) // top→bottom
-                            .add_stop(0.0, solid)
-                            .add_stop(cutoff, solid)
-                            .add_stop((cutoff + 0.01).min(1.0), clear)
-                            .add_stop(1.0, clear)
-                            .into(),
-                    );
+                        // cutoff 1.0 = everything masked; 0.0 = fully revealed
+                        let cutoff = (1.0 - progress).clamp(0.0, 1.0);
+                        let bg = Background::Gradient(
+                            gradient::Linear::new(Radians(std::f32::consts::PI)) // top→bottom
+                                .add_stop(0.0, solid)
+                                .add_stop(cutoff, solid)
+                                .add_stop((cutoff + 0.01).min(1.0), clear)
+                                .add_stop(1.0, clear)
+                                .into(),
+                        );
 
-                    container::Style {
-                        background: Some(bg),
-                        border: Border {
-                            radius: radius.into(),
+                        container::Style {
+                            background: Some(bg),
+                            border: Border { radius: radius.into(), ..Default::default() },
                             ..Default::default()
-                        },
-                        ..Default::default()
-                    }
-                }));
+                        }
+                    }));
 
-                cosmic::iced::widget::Stack::new()
-                    .push(base_art)
-                    .push(mask)
-                    .into()
+                cosmic::iced::widget::Stack::new().push(base_art).push(mask).into()
             } else {
                 base_art
             };
@@ -127,23 +109,13 @@ impl AppModel {
             // This ensures the FadingClip gradient (which uses the hover
             // colour) matches the button background on press too.
             let class = cosmic::theme::Button::Custom {
-                active: Box::new(|focused, theme| {
-                    Catalog::active(theme, focused, false, &cosmic::theme::Button::AppletIcon)
-                }),
-                disabled: Box::new(|theme| {
-                    Catalog::disabled(theme, &cosmic::theme::Button::AppletIcon)
-                }),
-                hovered: Box::new(|focused, theme| {
-                    Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)
-                }),
-                pressed: Box::new(|focused, theme| {
-                    Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)
-                }),
+                active: Box::new(|focused, theme| Catalog::active(theme, focused, false, &cosmic::theme::Button::AppletIcon)),
+                disabled: Box::new(|theme| Catalog::disabled(theme, &cosmic::theme::Button::AppletIcon)),
+                hovered: Box::new(|focused, theme| Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)),
+                pressed: Box::new(|focused, theme| Catalog::hovered(theme, focused, false, &cosmic::theme::Button::AppletIcon)),
             };
 
-            let btn = button::custom(content)
-                .on_press_down(Message::TogglePopup)
-                .class(class);
+            let btn = button::custom(content).on_press_down(Message::TogglePopup).class(class);
 
             // Wrap in mouse_area for right-click and scroll
             let interactive = widget::mouse_area(btn)
@@ -160,24 +132,17 @@ impl AppModel {
             // frame and matches the panel button height.
             let icon_size = self.core.applet.suggested_size(false).0;
             let (pad_h, pad_v) = self.core.applet.suggested_padding(false);
-            let icon_btn = button::custom(
-                cosmic::widget::icon::from_name("io.github.cosmic-applet-mare").size(icon_size),
-            )
-            .padding([pad_v, pad_h])
-            .class(cosmic::theme::Button::AppletIcon)
-            .on_press(Message::TogglePopup);
+            let icon_btn = button::custom(cosmic::widget::icon::from_name("io.github.cosmic-applet-mare").size(icon_size))
+                .padding([pad_v, pad_h])
+                .class(cosmic::theme::Button::AppletIcon)
+                .on_press(Message::TogglePopup);
 
             // Wrap for scroll support even when not playing
-            let interactive = widget::mouse_area(icon_btn)
-                .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
+            let interactive =
+                widget::mouse_area(icon_btn).on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
 
             if self.show_volume_bar {
-                widget::Row::new()
-                    .push(interactive)
-                    .push(self.build_volume_bar())
-                    .spacing(2)
-                    .align_y(Alignment::Center)
-                    .into()
+                widget::Row::new().push(interactive).push(self.build_volume_bar()).spacing(2).align_y(Alignment::Center).into()
             } else {
                 interactive.into()
             }
@@ -195,26 +160,15 @@ impl AppModel {
         let green_color = cosmic::iced::Color::from_rgb(0.2, 0.9, 0.2);
 
         // Filled portion
-        let filled = container(
-            widget::Space::new()
-                .width(Length::Fixed(VOLUME_BAR_WIDTH))
-                .height(Length::Fixed(filled_height)),
-        )
-        .class(cosmic::theme::Container::custom(move |_theme| {
-            container::Style {
+        let filled = container(widget::Space::new().width(Length::Fixed(VOLUME_BAR_WIDTH)).height(Length::Fixed(filled_height)))
+            .class(cosmic::theme::Container::custom(move |_theme| container::Style {
                 background: Some(Background::Color(green_color)),
-                border: Border {
-                    radius: 2.0.into(),
-                    ..Default::default()
-                },
+                border: Border { radius: 2.0.into(), ..Default::default() },
                 ..Default::default()
-            }
-        }));
+            }));
 
         // Empty portion (spacer)
-        let empty = widget::Space::new()
-            .width(Length::Fixed(VOLUME_BAR_WIDTH))
-            .height(Length::Fixed(empty_height));
+        let empty = widget::Space::new().width(Length::Fixed(VOLUME_BAR_WIDTH)).height(Length::Fixed(empty_height));
 
         // Stack: empty on top, filled on bottom
         widget::Column::new().push(empty).push(filled).into()

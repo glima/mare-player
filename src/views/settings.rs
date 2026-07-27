@@ -17,21 +17,10 @@ use crate::tidal::auth::AuthState;
 use crate::views::components::back_button;
 
 /// Available audio quality options
-static QUALITY_OPTIONS: &[AudioQuality] = &[
-    AudioQuality::Low,
-    AudioQuality::High,
-    AudioQuality::Lossless,
-    AudioQuality::HiRes,
-];
+static QUALITY_OPTIONS: &[AudioQuality] = &[AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes];
 
 /// Available console log-level options (least to most verbose)
-static LOG_LEVEL_OPTIONS: &[LogLevel] = &[
-    LogLevel::Error,
-    LogLevel::Warn,
-    LogLevel::Info,
-    LogLevel::Debug,
-    LogLevel::Trace,
-];
+static LOG_LEVEL_OPTIONS: &[LogLevel] = &[LogLevel::Error, LogLevel::Warn, LogLevel::Info, LogLevel::Debug, LogLevel::Trace];
 
 impl AppModel {
     /// Render the settings view.
@@ -52,21 +41,13 @@ impl AppModel {
 
         // Audio quality section
         let current_quality = self.config.audio_quality;
-        let selected_idx = QUALITY_OPTIONS
-            .iter()
-            .position(|q| *q == current_quality)
-            .unwrap_or(1);
+        let selected_idx = QUALITY_OPTIONS.iter().position(|q| *q == current_quality).unwrap_or(1);
 
         let quality_section = widget::Column::new()
             .push(text(fl!("audio-quality")).size(14))
             .push(
                 widget::dropdown(QUALITY_OPTIONS, Some(selected_idx), |idx| {
-                    Message::SetAudioQuality(
-                        QUALITY_OPTIONS
-                            .get(idx)
-                            .copied()
-                            .unwrap_or(AudioQuality::High),
-                    )
+                    Message::SetAudioQuality(QUALITY_OPTIONS.get(idx).copied().unwrap_or(AudioQuality::High))
                 })
                 .width(Length::Fill),
             )
@@ -84,21 +65,13 @@ impl AppModel {
         // Logging section — controls terminal/journal verbosity live. Labels
         // are technical (Error/Warn/Info/…) and intentionally not localized.
         let current_log_level = self.config.log_level;
-        let log_selected_idx = LOG_LEVEL_OPTIONS
-            .iter()
-            .position(|l| *l == current_log_level)
-            .unwrap_or(2);
+        let log_selected_idx = LOG_LEVEL_OPTIONS.iter().position(|l| *l == current_log_level).unwrap_or(2);
 
         let logging_section = widget::Column::new()
             .push(text("Logging").size(14))
             .push(
                 widget::dropdown(LOG_LEVEL_OPTIONS, Some(log_selected_idx), |idx| {
-                    Message::SetLogLevel(
-                        LOG_LEVEL_OPTIONS
-                            .get(idx)
-                            .copied()
-                            .unwrap_or(LogLevel::Info),
-                    )
+                    Message::SetLogLevel(LOG_LEVEL_OPTIONS.get(idx).copied().unwrap_or(LogLevel::Info))
                 })
                 .width(Length::Fill),
             )
@@ -112,10 +85,7 @@ impl AppModel {
             let avatar: Element<'_, Message> = if let Some(pic_url) = &profile.picture_url
                 && let Some(handle) = self.loaded_images.get(pic_url)
             {
-                widget::image(handle.clone())
-                    .width(Length::Fixed(40.0))
-                    .height(Length::Fixed(40.0))
-                    .into()
+                widget::image(handle.clone()).width(Length::Fixed(40.0)).height(Length::Fixed(40.0)).into()
             } else {
                 // Initials circle fallback
                 widget::container(text(profile.initials()).size(16))
@@ -128,13 +98,8 @@ impl AppModel {
                         cosmic::widget::container::Style {
                             icon_color: Some(cosmic.accent.on.into()),
                             text_color: Some(cosmic.accent.on.into()),
-                            background: Some(cosmic::iced::Background::Color(
-                                cosmic.accent.base.into(),
-                            )),
-                            border: cosmic::iced::Border {
-                                radius: 20.0.into(),
-                                ..Default::default()
-                            },
+                            background: Some(cosmic::iced::Background::Color(cosmic.accent.base.into())),
+                            border: cosmic::iced::Border { radius: 20.0.into(), ..Default::default() },
                             shadow: Default::default(),
                             snap: false,
                         }
@@ -150,36 +115,29 @@ impl AppModel {
             if let Some(email) = &profile.email
                 && email != &display_name
             {
-                info_col = info_col.push(text(email.clone()).size(11).class(
-                    cosmic::theme::Text::Custom(|theme| cosmic::iced::widget::text::Style {
+                info_col = info_col.push(text(email.clone()).size(11).class(cosmic::theme::Text::Custom(|theme| {
+                    cosmic::iced::widget::text::Style {
                         color: Some(theme.cosmic().palette.neutral_7.into()),
                         ..Default::default()
-                    }),
-                ));
+                    }
+                })));
             }
 
             // Plan badge — shows subscription tier from /v1/users/{id}/subscription
             if let Some(plan) = &profile.subscription_plan {
-                info_col = info_col.push(
-                    widget::container(text(plan.clone()).size(10))
-                        .padding([2, 8])
-                        .class(cosmic::theme::Container::custom(|theme| {
-                            let cosmic = theme.cosmic();
-                            cosmic::widget::container::Style {
-                                icon_color: Some(cosmic.accent.on.into()),
-                                text_color: Some(cosmic.accent.on.into()),
-                                background: Some(cosmic::iced::Background::Color(
-                                    cosmic.accent.base.into(),
-                                )),
-                                border: cosmic::iced::Border {
-                                    radius: 4.0.into(),
-                                    ..Default::default()
-                                },
-                                shadow: Default::default(),
-                                snap: false,
-                            }
-                        })),
-                );
+                info_col = info_col.push(widget::container(text(plan.clone()).size(10)).padding([2, 8]).class(
+                    cosmic::theme::Container::custom(|theme| {
+                        let cosmic = theme.cosmic();
+                        cosmic::widget::container::Style {
+                            icon_color: Some(cosmic.accent.on.into()),
+                            text_color: Some(cosmic.accent.on.into()),
+                            background: Some(cosmic::iced::Background::Color(cosmic.accent.base.into())),
+                            border: cosmic::iced::Border { radius: 4.0.into(), ..Default::default() },
+                            shadow: Default::default(),
+                            snap: false,
+                        }
+                    }),
+                ));
             }
 
             let user_row = widget::Row::new()
@@ -190,20 +148,12 @@ impl AppModel {
                 .spacing(12)
                 .align_y(Alignment::Center);
 
-            widget::Column::new()
-                .push(text(fl!("account")).size(14))
-                .push(user_row)
-                .spacing(12)
-                .into()
+            widget::Column::new().push(text(fl!("account")).size(14)).push(user_row).spacing(12).into()
         } else {
             widget::Column::new()
                 .push(text(fl!("account")).size(14))
                 .push(text(fl!("not-signed-in")).size(12))
-                .push(
-                    button::suggested(fl!("sign-in-button"))
-                        .on_press(Message::StartLogin)
-                        .width(Length::Fill),
-                )
+                .push(button::suggested(fl!("sign-in-button")).on_press(Message::StartLogin).width(Length::Fill))
                 .spacing(12)
                 .into()
         };
@@ -223,9 +173,7 @@ impl AppModel {
         // App icon at bottom center
         static APP_ICON_SVG: &[u8] = include_bytes!("../../resources/icon.svg");
         let icon_handle = widget::icon::from_svg_bytes(APP_ICON_SVG);
-        let app_icon = widget::container(widget::icon(icon_handle).size(64))
-            .width(Length::Fill)
-            .align_x(Alignment::Center);
+        let app_icon = widget::container(widget::icon(icon_handle).size(64)).width(Length::Fill).align_x(Alignment::Center);
 
         widget::Column::new()
             .push(header)

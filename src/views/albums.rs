@@ -21,8 +21,8 @@ use crate::state::AppModel;
 use crate::views::artist::strip_markup;
 use crate::views::components::rows::{build_album_row, build_track_row};
 use crate::views::components::{
-    ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, favorite_icon_handle,
-    scrollable_element, scrollable_list, virtual_list_row,
+    ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, favorite_icon_handle, scrollable_element,
+    scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -46,43 +46,26 @@ impl AppModel {
             }
         } else {
             let loaded_images = &self.loaded_images;
-            let list = cosmic::iced::widget::list::List::new(
-                &self.albums_content,
-                move |_index, album| virtual_list_row(build_album_row(loaded_images, album), 2),
-            );
+            let list = cosmic::iced::widget::list::List::new(&self.albums_content, move |_index, album| {
+                virtual_list_row(build_album_row(loaded_images, album), 2)
+            });
             scrollable_element(list)
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
 
     /// Render the album detail view showing album info, favorite button, and tracks.
     pub fn view_album_detail(&self) -> Element<'_, Message> {
         let fallback_album = fl!("fallback-album");
-        let title = self
-            .selected_album
-            .as_ref()
-            .map(|a| a.title.as_str())
-            .unwrap_or(&fallback_album);
+        let title = self.selected_album.as_ref().map(|a| a.title.as_str()).unwrap_or(&fallback_album);
         // Header row: back button, title, favorite heart, shuffle button
-        let mut header = widget::Row::new()
-            .push(back_button(Message::NavigateBack))
-            .push(fading_header_title(title));
+        let mut header = widget::Row::new().push(back_button(Message::NavigateBack)).push(fading_header_title(title));
 
         // Favorite heart for the album
         if let Some(album) = &self.selected_album {
             let is_favorite = self.favorite_album_ids.contains(&album.id);
-            let tooltip = if is_favorite {
-                fl!("tooltip-remove-from-favorites")
-            } else {
-                fl!("tooltip-add-to-favorites")
-            };
+            let tooltip = if is_favorite { fl!("tooltip-remove-from-favorites") } else { fl!("tooltip-add-to-favorites") };
             header = header.push(
                 button::icon(favorite_icon_handle(is_favorite))
                     .tooltip(tooltip)
@@ -100,12 +83,9 @@ impl AppModel {
                 } else {
                     Some(Message::ShufflePlay(
                         Arc::clone(&self.track_list_arc),
-                        self.selected_album.as_ref().map(|a| {
-                            crate::tidal::models::PlaybackSource::album(
-                                a.id.clone(),
-                                a.title.clone(),
-                            )
-                        }),
+                        self.selected_album
+                            .as_ref()
+                            .map(|a| crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone())),
                     ))
                 })
                 .padding(4),
@@ -122,42 +102,27 @@ impl AppModel {
         }
 
         // Tracks section
-        let tracks_content: Element<'_, Message> =
-            if self.is_loading && self.selected_album_tracks.is_empty() {
-                text(fl!("loading-tracks")).size(14).into()
-            } else if self.selected_album_tracks.is_empty() {
-                text(fl!("no-tracks-album")).size(14).into()
-            } else {
-                let source = self.selected_album.as_ref().map(|a| {
-                    crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone())
-                });
-                let loaded_images = &self.loaded_images;
-                let opts = TrackRowOptions {
-                    tracks: Arc::clone(&self.track_list_arc),
-                    source,
-                    ..Default::default()
-                };
-                let track_list = cosmic::iced::widget::list::List::new(
-                    &self.track_list_content,
-                    move |index, track| {
-                        virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
-                    },
-                );
+        let tracks_content: Element<'_, Message> = if self.is_loading && self.selected_album_tracks.is_empty() {
+            text(fl!("loading-tracks")).size(14).into()
+        } else if self.selected_album_tracks.is_empty() {
+            text(fl!("no-tracks-album")).size(14).into()
+        } else {
+            let source =
+                self.selected_album.as_ref().map(|a| crate::tidal::models::PlaybackSource::album(a.id.clone(), a.title.clone()));
+            let loaded_images = &self.loaded_images;
+            let opts = TrackRowOptions { tracks: Arc::clone(&self.track_list_arc), source, ..Default::default() };
+            let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
-                track_list.into()
-            };
+            track_list.into()
+        };
 
         body = body.push(tracks_content);
 
         let scrollable_body = scrollable_list(body);
 
-        widget::Column::new()
-            .push(header)
-            .push(scrollable_body)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(scrollable_body).spacing(12).padding(12).width(Length::Fill).into()
     }
 
     /// Render the album info section: large cover, artist (clickable), release date,
@@ -167,39 +132,24 @@ impl AppModel {
         let cover: Element<'_, Message> = if let Some(url) = &album.cover_url
             && let Some(handle) = self.loaded_images.get(url)
         {
-            cosmic::widget::image(handle.clone())
-                .width(ALBUM_COVER_SIZE)
-                .height(ALBUM_COVER_SIZE)
-                .into()
+            cosmic::widget::image(handle.clone()).width(ALBUM_COVER_SIZE).height(ALBUM_COVER_SIZE).into()
         } else {
-            widget::icon::from_name("media-optical-symbolic")
-                .size(ALBUM_COVER_SIZE)
-                .into()
+            widget::icon::from_name("media-optical-symbolic").size(ALBUM_COVER_SIZE).into()
         };
 
         // Metadata column
-        let mut details = widget::Column::new()
-            .spacing(3)
-            .width(Length::Fill)
-            .clip(true);
+        let mut details = widget::Column::new().spacing(3).width(Length::Fill).clip(true);
 
         // Artist name — clickable to navigate to artist detail
         let artist_element: Element<'_, Message> = if let Some(ref artist_id) = album.artist_id {
-            button::custom(
-                text(album.artist_name.clone())
-                    .size(13)
-                    .wrapping(Wrapping::None),
-            )
-            .on_press(Message::ShowArtistDetail(artist_id.clone()))
-            .width(Length::Shrink)
-            .padding(0)
-            .class(cosmic::theme::Button::MenuItem)
-            .into()
-        } else {
-            text(album.artist_name.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
+            button::custom(text(album.artist_name.clone()).size(13).wrapping(Wrapping::None))
+                .on_press(Message::ShowArtistDetail(artist_id.clone()))
+                .width(Length::Shrink)
+                .padding(0)
+                .class(cosmic::theme::Button::MenuItem)
                 .into()
+        } else {
+            text(album.artist_name.clone()).size(13).wrapping(Wrapping::None).into()
         };
         details = details.push(artist_element);
 
@@ -240,11 +190,7 @@ impl AppModel {
         }
 
         // Row: cover + details
-        let info_row = widget::Row::new()
-            .push(cover)
-            .push(details)
-            .spacing(12)
-            .align_y(Alignment::Center);
+        let info_row = widget::Row::new().push(cover).push(details).spacing(12).align_y(Alignment::Center);
 
         let mut section = widget::Column::new().spacing(8).push(info_row);
 
@@ -257,10 +203,7 @@ impl AppModel {
             let char_count = clean_review.chars().count();
             let display_review = if char_count > max_chars {
                 let truncated: String = clean_review.chars().take(max_chars).collect();
-                if let Some(last_dot) = truncated
-                    .rfind(". ")
-                    .or_else(|| truncated.strip_suffix('.').map(|s| s.len()))
-                {
+                if let Some(last_dot) = truncated.rfind(". ").or_else(|| truncated.strip_suffix('.').map(|s| s.len())) {
                     let sentence_end = last_dot + 1;
                     if sentence_end >= max_chars / 3 {
                         truncated[..sentence_end].to_string()
@@ -273,11 +216,7 @@ impl AppModel {
             } else {
                 clean_review
             };
-            section = section.push(
-                text(display_review)
-                    .size(12)
-                    .wrapping(Wrapping::WordOrGlyph),
-            );
+            section = section.push(text(display_review).size(12).wrapping(Wrapping::WordOrGlyph));
         }
 
         section.into()

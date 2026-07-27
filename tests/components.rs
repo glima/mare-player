@@ -71,18 +71,12 @@ mod constants {
 
     #[test]
     fn thumbnail_smaller_than_now_playing_art() {
-        assert!(
-            THUMBNAIL_SIZE < NOW_PLAYING_ART_SIZE,
-            "list thumbnails should be smaller than now-playing art"
-        );
+        assert!(THUMBNAIL_SIZE < NOW_PLAYING_ART_SIZE, "list thumbnails should be smaller than now-playing art");
     }
 
     #[test]
     fn panel_art_smallest() {
-        assert!(
-            PANEL_ART_SIZE < THUMBNAIL_SIZE,
-            "panel art should be the smallest size"
-        );
+        assert!(PANEL_ART_SIZE < THUMBNAIL_SIZE, "panel art should be the smallest size");
     }
 
     #[test]
@@ -165,46 +159,25 @@ mod track_row_options_fields {
     #[test]
     fn can_disable_radio_button() {
         let tracks: Vec<Track> = vec![];
-        let opts = TrackRowOptions {
-            show_radio_button: false,
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { show_radio_button: false, tracks: tracks.into(), ..Default::default() };
         assert!(!opts.show_radio_button);
     }
 
     #[test]
     fn can_set_custom_fallback_icon() {
         let tracks: Vec<Track> = vec![];
-        let opts = TrackRowOptions {
-            fallback_icon: "media-optical-symbolic",
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { fallback_icon: "media-optical-symbolic", tracks: tracks.into(), ..Default::default() };
         assert_eq!(opts.fallback_icon, "media-optical-symbolic");
     }
 
     #[test]
     fn can_reference_external_tracks_slice() {
         let tracks = vec![
-            Track {
-                id: "1".to_string(),
-                title: "Track One".to_string(),
-                duration: 200,
-                ..Default::default()
-            },
-            Track {
-                id: "2".to_string(),
-                title: "Track Two".to_string(),
-                duration: 300,
-                ..Default::default()
-            },
+            Track { id: "1".to_string(), title: "Track One".to_string(), duration: 200, ..Default::default() },
+            Track { id: "2".to_string(), title: "Track Two".to_string(), duration: 300, ..Default::default() },
         ];
         let tracks: Arc<[Track]> = tracks.into();
-        let opts = TrackRowOptions {
-            tracks: Arc::clone(&tracks),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: Arc::clone(&tracks), ..Default::default() };
         assert_eq!(opts.tracks.len(), 2);
         assert_eq!(opts.tracks[0].id, "1");
         assert_eq!(opts.tracks[1].id, "2");
@@ -224,10 +197,7 @@ mod duration_column_width {
         let width = opts.duration_column_width();
         // Fallback is "0:00" → 1 digit + 2 digits + 1 colon = 3 digits * 6 + 1 colon * 3 + 1 = 22.0
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for empty tracks, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for empty tracks, got {width}");
     }
 
     #[test]
@@ -236,17 +206,11 @@ mod duration_column_width {
             duration: 65, // 1:05
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "1:05" → 3 digits, 1 colon → 3*6 + 1*3 + 1 = 22.0
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 1:05, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 1:05, got {width}");
     }
 
     #[test]
@@ -259,20 +223,11 @@ mod duration_column_width {
             duration: 3661, // 61:01
             ..Default::default()
         }];
-        let short_opts = TrackRowOptions {
-            tracks: short_tracks.into(),
-            ..Default::default()
-        };
-        let long_opts = TrackRowOptions {
-            tracks: long_tracks.into(),
-            ..Default::default()
-        };
+        let short_opts = TrackRowOptions { tracks: short_tracks.into(), ..Default::default() };
+        let long_opts = TrackRowOptions { tracks: long_tracks.into(), ..Default::default() };
         let short_width = short_opts.duration_column_width();
         let long_width = long_opts.duration_column_width();
-        assert!(
-            long_width >= short_width,
-            "longer duration should produce wider column: short={short_width}, long={long_width}"
-        );
+        assert!(long_width >= short_width, "longer duration should produce wider column: short={short_width}, long={long_width}");
     }
 
     #[test]
@@ -291,18 +246,12 @@ mod duration_column_width {
                 ..Default::default()
             },
         ];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "10:00" is the longest string (5 chars: 4 digits + 1 colon)
         // 4 digits * 6 + 1 colon * 3 + 1 = 28.0
         let expected = 4.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for max duration 10:00, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for max duration 10:00, got {width}");
     }
 
     #[test]
@@ -311,17 +260,11 @@ mod duration_column_width {
             duration: 36000, // 600:00 (10 hours)
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "600:00" → 5 digits, 1 colon → 5*6 + 1*3 + 1 = 34.0
         let expected = 5.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 600:00, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 600:00, got {width}");
     }
 
     #[test]
@@ -330,17 +273,11 @@ mod duration_column_width {
             duration: 0, // 0:00
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "0:00" → 3 digits, 1 colon → 3*6 + 1*3 + 1 = 22.0
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 0:00, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 0:00, got {width}");
     }
 
     #[test]
@@ -349,17 +286,11 @@ mod duration_column_width {
             duration: 1, // 0:01
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "0:01" → 3 digits, 1 colon → 3*6 + 1*3 + 1 = 22.0
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 0:01, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 0:01, got {width}");
     }
 
     #[test]
@@ -368,95 +299,47 @@ mod duration_column_width {
             duration: 60, // 1:00
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "1:00" → 3 digits, 1 colon
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 1:00, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 1:00, got {width}");
     }
 
     #[test]
     fn width_is_always_positive() {
-        let tracks = vec![Track {
-            duration: 0,
-            ..Default::default()
-        }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
-        assert!(
-            opts.duration_column_width() > 0.0,
-            "duration column width should always be positive"
-        );
+        let tracks = vec![Track { duration: 0, ..Default::default() }];
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
+        assert!(opts.duration_column_width() > 0.0, "duration column width should always be positive");
     }
 
     #[test]
     fn width_is_positive_even_for_empty_tracks() {
         let opts = TrackRowOptions::default();
-        assert!(
-            opts.duration_column_width() > 0.0,
-            "duration column width should be positive even with no tracks"
-        );
+        assert!(opts.duration_column_width() > 0.0, "duration column width should be positive even with no tracks");
     }
 
     #[test]
     fn deterministic_for_same_input() {
-        let tracks = vec![
-            Track {
-                duration: 180,
-                ..Default::default()
-            },
-            Track {
-                duration: 240,
-                ..Default::default()
-            },
-        ];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let tracks = vec![Track { duration: 180, ..Default::default() }, Track { duration: 240, ..Default::default() }];
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let w1 = opts.duration_column_width();
         let w2 = opts.duration_column_width();
-        assert!(
-            (w1 - w2).abs() < f32::EPSILON,
-            "should be deterministic: {w1} vs {w2}"
-        );
+        assert!((w1 - w2).abs() < f32::EPSILON, "should be deterministic: {w1} vs {w2}");
     }
 
     #[test]
     fn all_same_duration_uses_that_duration() {
         let tracks = vec![
-            Track {
-                duration: 90,
-                ..Default::default()
-            },
-            Track {
-                duration: 90,
-                ..Default::default()
-            },
-            Track {
-                duration: 90,
-                ..Default::default()
-            },
+            Track { duration: 90, ..Default::default() },
+            Track { duration: 90, ..Default::default() },
+            Track { duration: 90, ..Default::default() },
         ];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "1:30" → 3 digits, 1 colon → 22.0
         let expected = 3.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for uniform 1:30, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for uniform 1:30, got {width}");
     }
 
     #[test]
@@ -465,17 +348,11 @@ mod duration_column_width {
             duration: 3600, // 60:00
             ..Default::default()
         }];
-        let opts = TrackRowOptions {
-            tracks: tracks.into(),
-            ..Default::default()
-        };
+        let opts = TrackRowOptions { tracks: tracks.into(), ..Default::default() };
         let width = opts.duration_column_width();
         // "60:00" → 4 digits, 1 colon → 4*6 + 1*3 + 1 = 28.0
         let expected = 4.0 * 6.0 + 1.0 * 3.0 + 1.0;
-        assert!(
-            (width - expected).abs() < f32::EPSILON,
-            "expected {expected} for 60:00, got {width}"
-        );
+        assert!((width - expected).abs() < f32::EPSILON, "expected {expected} for 60:00, got {width}");
     }
 }
 
@@ -494,47 +371,31 @@ mod radio_svg {
     #[test]
     fn radio_svg_starts_with_svg_tag() {
         let s = std::str::from_utf8(RADIO_SVG).expect("RADIO_SVG should be valid UTF-8");
-        assert!(
-            s.starts_with("<svg"),
-            "RADIO_SVG should start with <svg, got: {}",
-            &s[..s.len().min(20)]
-        );
+        assert!(s.starts_with("<svg"), "RADIO_SVG should start with <svg, got: {}", &s[..s.len().min(20)]);
     }
 
     #[test]
     fn radio_svg_ends_with_closing_tag() {
         let s = std::str::from_utf8(RADIO_SVG).expect("RADIO_SVG should be valid UTF-8");
-        assert!(
-            s.trim_end().ends_with("</svg>"),
-            "RADIO_SVG should end with </svg>"
-        );
+        assert!(s.trim_end().ends_with("</svg>"), "RADIO_SVG should end with </svg>");
     }
 
     #[test]
     fn radio_svg_is_16x16() {
         let s = std::str::from_utf8(RADIO_SVG).expect("RADIO_SVG should be valid UTF-8");
-        assert!(
-            s.contains("width=\"16\"") && s.contains("height=\"16\""),
-            "RADIO_SVG should be 16x16"
-        );
+        assert!(s.contains("width=\"16\"") && s.contains("height=\"16\""), "RADIO_SVG should be 16x16");
     }
 
     #[test]
     fn radio_svg_is_valid_utf8() {
-        assert!(
-            std::str::from_utf8(RADIO_SVG).is_ok(),
-            "RADIO_SVG should be valid UTF-8"
-        );
+        assert!(std::str::from_utf8(RADIO_SVG).is_ok(), "RADIO_SVG should be valid UTF-8");
     }
 
     #[test]
     fn radio_svg_contains_path_elements() {
         let s = std::str::from_utf8(RADIO_SVG).unwrap();
         // A radio icon should have some SVG drawing primitives
-        let has_drawing = s.contains("<path")
-            || s.contains("<circle")
-            || s.contains("<rect")
-            || s.contains("<line");
+        let has_drawing = s.contains("<path") || s.contains("<circle") || s.contains("<rect") || s.contains("<line");
         assert!(has_drawing, "RADIO_SVG should contain SVG drawing elements");
     }
 }
@@ -554,50 +415,31 @@ mod lyrics_svg {
     #[test]
     fn lyrics_svg_starts_with_svg_tag() {
         let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
-        assert!(
-            s.starts_with("<svg"),
-            "LYRICS_SVG should start with <svg, got: {}",
-            &s[..s.len().min(20)]
-        );
+        assert!(s.starts_with("<svg"), "LYRICS_SVG should start with <svg, got: {}", &s[..s.len().min(20)]);
     }
 
     #[test]
     fn lyrics_svg_ends_with_closing_tag() {
         let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
-        assert!(
-            s.trim_end().ends_with("</svg>"),
-            "LYRICS_SVG should end with </svg>"
-        );
+        assert!(s.trim_end().ends_with("</svg>"), "LYRICS_SVG should end with </svg>");
     }
 
     #[test]
     fn lyrics_svg_is_16x16() {
         let s = std::str::from_utf8(LYRICS_SVG).expect("LYRICS_SVG should be valid UTF-8");
-        assert!(
-            s.contains("width=\"16\"") && s.contains("height=\"16\""),
-            "LYRICS_SVG should be 16x16"
-        );
+        assert!(s.contains("width=\"16\"") && s.contains("height=\"16\""), "LYRICS_SVG should be 16x16");
     }
 
     #[test]
     fn lyrics_svg_is_valid_utf8() {
-        assert!(
-            std::str::from_utf8(LYRICS_SVG).is_ok(),
-            "LYRICS_SVG should be valid UTF-8"
-        );
+        assert!(std::str::from_utf8(LYRICS_SVG).is_ok(), "LYRICS_SVG should be valid UTF-8");
     }
 
     #[test]
     fn lyrics_svg_contains_path_elements() {
         let s = std::str::from_utf8(LYRICS_SVG).unwrap();
-        let has_drawing = s.contains("<path")
-            || s.contains("<circle")
-            || s.contains("<rect")
-            || s.contains("<line");
-        assert!(
-            has_drawing,
-            "LYRICS_SVG should contain SVG drawing elements"
-        );
+        let has_drawing = s.contains("<path") || s.contains("<circle") || s.contains("<rect") || s.contains("<line");
+        assert!(has_drawing, "LYRICS_SVG should contain SVG drawing elements");
     }
 
     #[test]
@@ -607,10 +449,7 @@ mod lyrics_svg {
         // visual semantics break — force the test to catch it.
         let s = std::str::from_utf8(LYRICS_SVG).unwrap();
         let line_count = s.matches("<line").count();
-        assert!(
-            line_count >= 3,
-            "LYRICS_SVG should contain >=3 <line> elements (text lines), got {line_count}"
-        );
+        assert!(line_count >= 3, "LYRICS_SVG should contain >=3 <line> elements (text lines), got {line_count}");
     }
 }
 

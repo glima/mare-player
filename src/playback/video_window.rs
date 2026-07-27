@@ -34,13 +34,7 @@ impl VideoWindowChild {
     /// Each line the child writes to stdout is forwarded over `events`. Returns
     /// `None` if the binary could not be located or spawned (the caller then
     /// falls back to inline playback).
-    pub fn spawn(
-        url: &str,
-        position: f64,
-        volume: f32,
-        preamp_db: f32,
-        events: UnboundedSender<String>,
-    ) -> Option<Self> {
+    pub fn spawn(url: &str, position: f64, volume: f32, preamp_db: f32, events: UnboundedSender<String>) -> Option<Self> {
         let exe = locate_binary();
         let mut child = match Command::new(&exe)
             .arg(url)

@@ -22,9 +22,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
-use crate::views::components::{
-    TrackRowOptions, back_button, scrollable_element, virtual_list_row,
-};
+use crate::views::components::{TrackRowOptions, back_button, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the play history list view.
@@ -53,9 +51,7 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                                "context-history"
-                            ))),
+                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-history"))),
                         ))
                     })
                     .padding(4),
@@ -63,31 +59,21 @@ impl AppModel {
             .push(
                 button::icon(widget::icon::from_name("edit-clear-all-symbolic"))
                     .tooltip(fl!("clear-history"))
-                    .on_press_maybe(if self.play_history.is_empty() {
-                        None
-                    } else {
-                        Some(Message::ClearHistory)
-                    })
+                    .on_press_maybe(if self.play_history.is_empty() { None } else { Some(Message::ClearHistory) })
                     .padding(4),
             )
             .spacing(8)
             .align_y(Alignment::Center);
 
         // --- optional filter bar ---
-        let mut col = widget::Column::new()
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill);
+        let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
         col = col.push(header);
 
         if self.history_filter_visible {
-            let filter_bar = text_input(
-                &fl!("history-filter-placeholder"),
-                &self.history_filter_query,
-            )
-            .id("history-filter-input")
-            .on_input(Message::HistoryFilterChanged)
-            .width(Length::Fill);
+            let filter_bar = text_input(&fl!("history-filter-placeholder"), &self.history_filter_query)
+                .id("history-filter-input")
+                .on_input(Message::HistoryFilterChanged)
+                .width(Length::Fill);
             col = col.push(filter_bar);
         }
 
@@ -103,19 +89,14 @@ impl AppModel {
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                    "context-history"
-                ))),
+                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-history"))),
                 fallback_icon: "document-open-recent-symbolic",
                 ..Default::default()
             };
 
-            let track_list = cosmic::iced::widget::list::List::new(
-                &self.track_list_content,
-                move |index, track| {
-                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
-                },
-            );
+            let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
             scrollable_element(track_list)
         };

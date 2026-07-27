@@ -15,9 +15,7 @@ use crate::messages::Message;
 use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Artist;
 use crate::views::components::rows::build_thumbnail;
-use crate::views::components::{
-    back_button, fading_text_column, list_item, scrollable_element, virtual_list_row,
-};
+use crate::views::components::{back_button, fading_text_column, list_item, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the followed artists (profiles) list view.
@@ -47,47 +45,24 @@ impl AppModel {
             }
         } else {
             let count = self.user_followed_artists.len();
-            let count_label = widget::Row::new()
-                .push(text(fl!("artist-count", count = count)).size(12))
-                .padding([0, 0, 4, 0]);
+            let count_label = widget::Row::new().push(text(fl!("artist-count", count = count)).size(12)).padding([0, 0, 4, 0]);
 
             let loaded_images = &self.loaded_images;
-            let list = cosmic::iced::widget::list::List::new(
-                &self.profiles_content,
-                move |_index, artist| {
-                    virtual_list_row(build_profile_artist_row(loaded_images, artist), 2)
-                },
-            );
+            let list = cosmic::iced::widget::list::List::new(&self.profiles_content, move |_index, artist| {
+                virtual_list_row(build_profile_artist_row(loaded_images, artist), 2)
+            });
 
-            widget::Column::new()
-                .push(count_label)
-                .push(scrollable_element(list))
-                .spacing(4)
-                .into()
+            widget::Column::new().push(count_label).push(scrollable_element(list)).spacing(4).into()
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
 }
 
 /// Build a followed-artist list-item (picture + name + role) for the virtual
 /// `List`. Navigates to the artist detail view on click.
-fn build_profile_artist_row<'a>(
-    loaded_images: &HandleCache,
-    artist: &Artist,
-) -> Element<'a, Message> {
-    let mut info_children: Vec<Element<'_, Message>> = vec![
-        text(artist.name.clone())
-            .size(13)
-            .wrapping(Wrapping::None)
-            .into(),
-    ];
+fn build_profile_artist_row<'a>(loaded_images: &HandleCache, artist: &Artist) -> Element<'a, Message> {
+    let mut info_children: Vec<Element<'_, Message>> = vec![text(artist.name.clone()).size(13).wrapping(Wrapping::None).into()];
 
     // Show primary role if available (e.g. "Artist", "Producer", "DJ")
     if let Some(role) = artist.roles.first() {
@@ -95,11 +70,7 @@ fn build_profile_artist_row<'a>(
     }
 
     let row = widget::Row::new()
-        .push(build_thumbnail(
-            loaded_images,
-            artist.picture_url.as_deref(),
-            "system-users-symbolic",
-        ))
+        .push(build_thumbnail(loaded_images, artist.picture_url.as_deref(), "system-users-symbolic"))
         .push(fading_text_column(info_children))
         .spacing(8)
         .align_y(Alignment::Center)

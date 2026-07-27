@@ -128,10 +128,7 @@ fn main() -> cosmic::iced::Result {
     // applet is spawned by cosmic-panel (which forwards a child's stderr to the
     // journal but not its stdout), these logs reach `journalctl`.
     let (console_filter, console_reload) = tracing_subscriber::reload::Layer::new(filter);
-    let console_layer = fmt::layer()
-        .with_writer(std::io::stderr)
-        .with_timer(local_time)
-        .with_filter(console_filter);
+    let console_layer = fmt::layer().with_writer(std::io::stderr).with_timer(local_time).with_filter(console_filter);
 
     tracing_subscriber::registry().with(console_layer).init();
 

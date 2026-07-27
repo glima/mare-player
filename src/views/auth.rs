@@ -20,21 +20,13 @@ impl AppModel {
             .push(branded_title(24))
             .push(text(fl!("sign-in-prompt")).size(14))
             .push(widget::space::vertical().height(20))
-            .push(
-                button::standard(fl!("sign-in"))
-                    .on_press(Message::StartLogin)
-                    .width(Length::Fill),
-            )
+            .push(button::standard(fl!("sign-in")).on_press(Message::StartLogin).width(Length::Fill))
             .spacing(12)
             .align_x(Alignment::Center)
             .padding(20)
             .width(Length::Fill);
 
-        container(content)
-            .width(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .into()
+        container(content).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).into()
     }
 
     /// Render the OAuth waiting view shown during login flow.
@@ -53,9 +45,8 @@ impl AppModel {
                 .spacing(8)
                 .align_x(Alignment::Center)
         } else if let Some(info) = &self.device_code_info {
-            let url_container = container(text(&info.verification_uri_complete).size(11))
-                .padding(8)
-                .class(cosmic::theme::Container::Card);
+            let url_container =
+                container(text(&info.verification_uri_complete).size(11)).padding(8).class(cosmic::theme::Container::Card);
 
             widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
@@ -75,30 +66,16 @@ impl AppModel {
                 .spacing(8)
                 .align_x(Alignment::Center)
         } else {
-            widget::Column::new()
-                .push(text(fl!("preparing-login")).size(16))
-                .align_x(Alignment::Center)
+            widget::Column::new().push(text(fl!("preparing-login")).size(16)).align_x(Alignment::Center)
         };
 
-        container(content.padding(20))
-            .width(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .into()
+        container(content.padding(20)).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).into()
     }
 
     /// Render a simple loading view.
     pub fn view_loading(&self) -> Element<'_, Message> {
-        let content = widget::Column::new()
-            .push(text(fl!("loading")).size(16))
-            .spacing(8)
-            .align_x(Alignment::Center);
+        let content = widget::Column::new().push(text(fl!("loading")).size(16)).spacing(8).align_x(Alignment::Center);
 
-        container(content)
-            .width(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
-            .padding(20)
-            .into()
+        container(content).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).padding(20).into()
     }
 }

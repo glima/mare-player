@@ -18,9 +18,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
-use crate::views::components::{
-    TrackRowOptions, back_button, fading_header_title, scrollable_element, virtual_list_row,
-};
+use crate::views::components::{TrackRowOptions, back_button, fading_header_title, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the track radio view showing similar tracks based on a seed track.
@@ -39,16 +37,9 @@ impl AppModel {
         // Radio" tile via the mix's mixType=TRACK_MIX).  Before the mix
         // resolves no playback can start (the list is empty), so the
         // seed-track TRACK_RADIO fallback is purely defensive.
-        let radio_source = match (
-            &self.selected_radio_mix_id,
-            &self.selected_radio_source_track,
-        ) {
-            (Some(mix_id), _) => {
-                crate::tidal::models::PlaybackSource::mix(mix_id.clone(), title.clone())
-            }
-            (None, Some(seed)) => {
-                crate::tidal::models::PlaybackSource::track_radio(seed.id.clone(), title.clone())
-            }
+        let radio_source = match (&self.selected_radio_mix_id, &self.selected_radio_source_track) {
+            (Some(mix_id), _) => crate::tidal::models::PlaybackSource::mix(mix_id.clone(), title.clone()),
+            (None, Some(seed)) => crate::tidal::models::PlaybackSource::track_radio(seed.id.clone(), title.clone()),
             (None, None) => crate::tidal::models::PlaybackSource::ad_hoc(title.clone()),
         };
 
@@ -61,10 +52,7 @@ impl AppModel {
                     .on_press_maybe(if tracks.is_empty() {
                         None
                     } else {
-                        Some(Message::ShufflePlay(
-                            Arc::clone(&tracks),
-                            Some(radio_source.clone()),
-                        ))
+                        Some(Message::ShufflePlay(Arc::clone(&tracks), Some(radio_source.clone())))
                     })
                     .padding(4),
             )
@@ -84,22 +72,13 @@ impl AppModel {
                 ..Default::default()
             };
 
-            let track_list = cosmic::iced::widget::list::List::new(
-                &self.track_list_content,
-                move |index, track| {
-                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
-                },
-            );
+            let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
             scrollable_element(track_list)
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(tracks_content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(tracks_content).spacing(12).padding(12).width(Length::Fill).into()
     }
 }

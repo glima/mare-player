@@ -21,8 +21,8 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, ArtistRow, PlaybackSource, Track};
 use crate::views::components::rows::{build_thumbnail, build_track_row};
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, TrackRowOptions, back_button, fading_header_title, fading_text_column,
-    favorite_icon_handle, list_item, scrollable_element, virtual_list_row,
+    ARTIST_PICTURE_SIZE, TrackRowOptions, back_button, fading_header_title, fading_text_column, favorite_icon_handle, list_item,
+    scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
@@ -30,25 +30,15 @@ impl AppModel {
     /// rows (info block, section headers, tracks, videos, album cards).
     pub fn view_artist_detail(&self) -> Element<'_, Message> {
         let fallback_artist = fl!("fallback-artist");
-        let artist_name = self
-            .selected_artist
-            .as_ref()
-            .map(|a| a.name.as_str())
-            .unwrap_or(&fallback_artist);
+        let artist_name = self.selected_artist.as_ref().map(|a| a.name.as_str()).unwrap_or(&fallback_artist);
 
         // Header row: back button, title, follow heart
-        let mut header = widget::Row::new()
-            .push(back_button(Message::NavigateBack))
-            .push(fading_header_title(artist_name));
+        let mut header = widget::Row::new().push(back_button(Message::NavigateBack)).push(fading_header_title(artist_name));
 
         // Follow/unfollow heart for the artist (pushed to far right)
         if let Some(artist) = &self.selected_artist {
             let is_followed = self.followed_artist_ids.contains(&artist.id);
-            let tooltip = if is_followed {
-                fl!("tooltip-unfollow-artist")
-            } else {
-                fl!("tooltip-follow-artist")
-            };
+            let tooltip = if is_followed { fl!("tooltip-unfollow-artist") } else { fl!("tooltip-follow-artist") };
             header = header.push(
                 button::icon(favorite_icon_handle(is_followed))
                     .tooltip(tooltip)
@@ -67,47 +57,22 @@ impl AppModel {
 
             // Per-section playback context: clicking a top track / video plays
             // that section's list starting at the clicked index.
-            let source = self.selected_artist.as_ref().map(|a| {
-                PlaybackSource::artist(
-                    a.id.clone(),
-                    fl!("artist-top-tracks-context", artist = a.name.clone()),
-                )
-            });
+            let source = self
+                .selected_artist
+                .as_ref()
+                .map(|a| PlaybackSource::artist(a.id.clone(), fl!("artist-top-tracks-context", artist = a.name.clone())));
             let top_tracks: Arc<[Track]> = self.selected_artist_top_tracks.clone().into();
             let videos: Arc<[Track]> = self.selected_artist_videos.clone().into();
-            let top_opts = TrackRowOptions {
-                tracks: Arc::clone(&top_tracks),
-                source: source.clone(),
-                ..Default::default()
-            };
-            let video_opts = TrackRowOptions {
-                tracks: Arc::clone(&videos),
-                source,
-                ..Default::default()
-            };
+            let top_opts = TrackRowOptions { tracks: Arc::clone(&top_tracks), source: source.clone(), ..Default::default() };
+            let video_opts = TrackRowOptions { tracks: Arc::clone(&videos), source, ..Default::default() };
 
-            let list =
-                cosmic::iced::widget::list::List::new(&self.artist_rows, move |_index, row| {
-                    build_artist_row(
-                        loaded_images,
-                        window_width,
-                        &top_tracks,
-                        &top_opts,
-                        &videos,
-                        &video_opts,
-                        row,
-                    )
-                });
+            let list = cosmic::iced::widget::list::List::new(&self.artist_rows, move |_index, row| {
+                build_artist_row(loaded_images, window_width, &top_tracks, &top_opts, &videos, &video_opts, row)
+            });
             scrollable_element(list)
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
 }
 
@@ -124,9 +89,7 @@ fn build_artist_row<'a>(
 ) -> Element<'a, Message> {
     let inner: Element<'a, Message> = match row {
         ArtistRow::Info(artist) => build_artist_info_row(loaded_images, artist, window_width),
-        ArtistRow::SectionHeader(title) => widget::container(text(title.clone()).size(15))
-            .padding([8, 0, 2, 0])
-            .into(),
+        ArtistRow::SectionHeader(title) => widget::container(text(title.clone()).size(15)).padding([8, 0, 2, 0]).into(),
         // `.get()` guards against a transiently stale index (rows and the
         // backing vecs are rebuilt together, so this normally always hits).
         ArtistRow::TopTrack(i) => match top_tracks.get(*i) {
@@ -143,23 +106,14 @@ fn build_artist_row<'a>(
 }
 
 /// Build the artist info block: picture, roles, popularity, and bio.
-fn build_artist_info_row<'a>(
-    loaded_images: &HandleCache,
-    artist: &Artist,
-    window_width: f32,
-) -> Element<'a, Message> {
+fn build_artist_info_row<'a>(loaded_images: &HandleCache, artist: &Artist, window_width: f32) -> Element<'a, Message> {
     // Artist picture (large)
     let picture: Element<'a, Message> = if let Some(url) = &artist.picture_url
         && let Some(handle) = loaded_images.get_or_request(url)
     {
-        cosmic::widget::image(handle.clone())
-            .width(ARTIST_PICTURE_SIZE)
-            .height(ARTIST_PICTURE_SIZE)
-            .into()
+        cosmic::widget::image(handle.clone()).width(ARTIST_PICTURE_SIZE).height(ARTIST_PICTURE_SIZE).into()
     } else {
-        widget::icon::from_name("avatar-default-symbolic")
-            .size(ARTIST_PICTURE_SIZE)
-            .into()
+        widget::icon::from_name("avatar-default-symbolic").size(ARTIST_PICTURE_SIZE).into()
     };
 
     // Details column next to the picture
@@ -168,12 +122,7 @@ fn build_artist_info_row<'a>(
     // Roles (e.g., "Artist, Producer"), deduplicated
     if !artist.roles.is_empty() {
         let mut seen = std::collections::HashSet::new();
-        let unique_roles: Vec<&str> = artist
-            .roles
-            .iter()
-            .filter(|r| seen.insert(r.as_str()))
-            .map(|r| r.as_str())
-            .collect();
+        let unique_roles: Vec<&str> = artist.roles.iter().filter(|r| seen.insert(r.as_str())).map(|r| r.as_str()).collect();
         let roles_text = unique_roles.join(", ");
         details = details.push(text(roles_text).size(12).wrapping(Wrapping::WordOrGlyph));
     }
@@ -184,11 +133,7 @@ fn build_artist_info_row<'a>(
     }
 
     // Top row: picture + details side by side
-    let info_row = widget::Row::new()
-        .push(picture)
-        .push(details)
-        .spacing(12)
-        .align_y(Alignment::Center);
+    let info_row = widget::Row::new().push(picture).push(details).spacing(12).align_y(Alignment::Center);
 
     let mut section = widget::Column::new().spacing(8).push(info_row);
 
@@ -201,16 +146,9 @@ fn build_artist_info_row<'a>(
         let char_count = clean_bio.chars().count();
         let display_bio = if char_count > max_chars {
             let truncated: String = clean_bio.chars().take(max_chars).collect();
-            if let Some(last_dot) = truncated
-                .rfind(". ")
-                .or_else(|| truncated.strip_suffix('.').map(|s| s.len()))
-            {
+            if let Some(last_dot) = truncated.rfind(". ").or_else(|| truncated.strip_suffix('.').map(|s| s.len())) {
                 let sentence_end = last_dot + 1; // include the '.'
-                if sentence_end >= max_chars / 3 {
-                    truncated[..sentence_end].to_string()
-                } else {
-                    format!("{}…", truncated)
-                }
+                if sentence_end >= max_chars / 3 { truncated[..sentence_end].to_string() } else { format!("{}…", truncated) }
             } else {
                 format!("{}…", truncated)
             }
@@ -225,12 +163,7 @@ fn build_artist_info_row<'a>(
 
 /// Build a single discography album card (thumbnail + title + meta + quality).
 fn build_artist_album_row<'a>(loaded_images: &HandleCache, album: &Album) -> Element<'a, Message> {
-    let mut info_children: Vec<Element<'a, Message>> = vec![
-        text(album.title.clone())
-            .size(13)
-            .wrapping(Wrapping::None)
-            .into(),
-    ];
+    let mut info_children: Vec<Element<'a, Message>> = vec![text(album.title.clone()).size(13).wrapping(Wrapping::None).into()];
 
     // Release year + track count
     let mut meta_parts: Vec<String> = Vec::new();
@@ -242,30 +175,16 @@ fn build_artist_album_row<'a>(loaded_images: &HandleCache, album: &Album) -> Ele
         meta_parts.push(fl!("track-count", count = album.num_tracks));
     }
     if !meta_parts.is_empty() {
-        info_children.push(
-            text(meta_parts.join(" • "))
-                .size(11)
-                .wrapping(Wrapping::None)
-                .into(),
-        );
+        info_children.push(text(meta_parts.join(" • ")).size(11).wrapping(Wrapping::None).into());
     }
 
     // Quality badge
     if let Some(ref quality) = album.audio_quality {
-        info_children.push(
-            text(quality.clone())
-                .size(10)
-                .wrapping(Wrapping::None)
-                .into(),
-        );
+        info_children.push(text(quality.clone()).size(10).wrapping(Wrapping::None).into());
     }
 
     let row_content = widget::Row::new()
-        .push(build_thumbnail(
-            loaded_images,
-            album.cover_url.as_deref(),
-            "media-optical-symbolic",
-        ))
+        .push(build_thumbnail(loaded_images, album.cover_url.as_deref(), "media-optical-symbolic"))
         .push(fading_text_column(info_children))
         .spacing(8)
         .align_y(Alignment::Center)

@@ -15,8 +15,7 @@ use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
 use crate::views::components::{
-    TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list,
-    virtual_list_row,
+    TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list, virtual_list_row,
 };
 
 impl AppModel {
@@ -39,31 +38,19 @@ impl AppModel {
                     .into()
             }
         } else {
-            let playlist_items: Vec<Element<'_, Message>> = self
-                .user_playlists
-                .iter()
-                .map(|playlist| self.playlist_row(playlist))
-                .collect();
+            let playlist_items: Vec<Element<'_, Message>> =
+                self.user_playlists.iter().map(|playlist| self.playlist_row(playlist)).collect();
 
             scrollable_list(widget::Column::with_children(playlist_items).spacing(4))
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
 
     /// Render the playlist detail view showing tracks in a playlist.
     pub fn view_playlist_detail(&self) -> Element<'_, Message> {
         let fallback_playlist = fl!("fallback-playlist");
-        let title = self
-            .selected_playlist_name
-            .as_deref()
-            .unwrap_or(&fallback_playlist);
+        let title = self.selected_playlist_name.as_deref().unwrap_or(&fallback_playlist);
 
         let header = widget::Row::new()
             .push(back_button(Message::NavigateBack))
@@ -78,10 +65,7 @@ impl AppModel {
                             Arc::clone(&self.track_list_arc),
                             match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
                                 (Some(uuid), Some(name)) => {
-                                    Some(crate::tidal::models::PlaybackSource::playlist(
-                                        uuid.clone(),
-                                        name.clone(),
-                                    ))
+                                    Some(crate::tidal::models::PlaybackSource::playlist(uuid.clone(), name.clone()))
                                 }
                                 _ => None,
                             },
@@ -99,34 +83,18 @@ impl AppModel {
         } else {
             let loaded_images = &self.loaded_images;
             let source = match (&self.selected_playlist_uuid, &self.selected_playlist_name) {
-                (Some(uuid), Some(name)) => Some(crate::tidal::models::PlaybackSource::playlist(
-                    uuid.clone(),
-                    name.clone(),
-                )),
+                (Some(uuid), Some(name)) => Some(crate::tidal::models::PlaybackSource::playlist(uuid.clone(), name.clone())),
                 _ => None,
             };
-            let opts = TrackRowOptions {
-                tracks: Arc::clone(&self.track_list_arc),
-                source,
-                ..Default::default()
-            };
+            let opts = TrackRowOptions { tracks: Arc::clone(&self.track_list_arc), source, ..Default::default() };
 
-            let track_list = cosmic::iced::widget::list::List::new(
-                &self.track_list_content,
-                move |index, track| {
-                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
-                },
-            );
+            let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
             scrollable_element(track_list)
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(tracks_content)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(tracks_content).spacing(12).padding(12).width(Length::Fill).into()
     }
 }

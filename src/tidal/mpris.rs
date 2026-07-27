@@ -160,11 +160,7 @@ impl MprisMetadata {
             album_artists: vec![track.artist_name.clone()],
             length_us: (track.duration as i64) * 1_000_000,
             art_url: track.cover_url.clone(),
-            track_number: if track.track_number > 0 {
-                Some(track.track_number as i32)
-            } else {
-                None
-            },
+            track_number: if track.track_number > 0 { Some(track.track_number as i32) } else { None },
             disc_number: None,
         }
     }
@@ -312,13 +308,7 @@ impl MprisHandle {
     /// Update the MPRIS state (will emit PropertiesChanged signals)
     pub async fn update_state(&self, state: MprisState) {
         // Snapshot the old tracklist so we can detect changes
-        let old_tracklist: Vec<String> = self
-            .state_tx
-            .borrow()
-            .tracklist
-            .iter()
-            .map(|e| e.object_path.clone())
-            .collect();
+        let old_tracklist: Vec<String> = self.state_tx.borrow().tracklist.iter().map(|e| e.object_path.clone()).collect();
 
         // Send state update
         if self.state_tx.send(state.clone()).is_err() {
@@ -330,10 +320,7 @@ impl MprisHandle {
             let object_server = conn.object_server();
 
             // Get interface reference and emit Player property changes
-            if let Ok(iface_ref) = object_server
-                .interface::<_, MprisPlayer>(MPRIS_OBJECT_PATH)
-                .await
-            {
+            if let Ok(iface_ref) = object_server.interface::<_, MprisPlayer>(MPRIS_OBJECT_PATH).await {
                 let emitter = iface_ref.signal_emitter();
                 // Emit property changes
                 if let Err(e) = MprisPlayer::emit_properties_changed(emitter, &state).await {
@@ -342,34 +329,20 @@ impl MprisHandle {
             }
 
             // Check if the tracklist changed and emit TrackListReplaced
-            let new_tracklist: Vec<String> = state
-                .tracklist
-                .iter()
-                .map(|e| e.object_path.clone())
-                .collect();
+            let new_tracklist: Vec<String> = state.tracklist.iter().map(|e| e.object_path.clone()).collect();
 
             if new_tracklist != old_tracklist
-                && let Ok(iface_ref) = object_server
-                    .interface::<_, MprisTrackList>(MPRIS_OBJECT_PATH)
-                    .await
+                && let Ok(iface_ref) = object_server.interface::<_, MprisTrackList>(MPRIS_OBJECT_PATH).await
             {
                 let emitter = iface_ref.signal_emitter();
                 // Build the track path list and current track path
-                let track_paths: Vec<ObjectPath<'_>> = new_tracklist
-                    .iter()
-                    .filter_map(|p| ObjectPath::try_from(p.as_str()).ok())
-                    .collect();
+                let track_paths: Vec<ObjectPath<'_>> =
+                    new_tracklist.iter().filter_map(|p| ObjectPath::try_from(p.as_str()).ok()).collect();
 
-                let current = if state.current_track_path.is_empty() {
-                    MPRIS_NO_TRACK
-                } else {
-                    &state.current_track_path
-                };
+                let current = if state.current_track_path.is_empty() { MPRIS_NO_TRACK } else { &state.current_track_path };
 
                 if let Ok(current_path) = ObjectPath::try_from(current)
-                    && let Err(e) =
-                        MprisTrackList::track_list_replaced(emitter, track_paths, current_path)
-                            .await
+                    && let Err(e) = MprisTrackList::track_list_replaced(emitter, track_paths, current_path).await
                 {
                     debug!("Failed to emit TrackListReplaced: {}", e);
                 }
@@ -476,19 +449,13 @@ struct MprisPlayer {
 
 impl MprisPlayer {
     /// Emit PropertiesChanged signal for changed properties
-    async fn emit_properties_changed(
-        emitter: &SignalEmitter<'_>,
-        state: &MprisState,
-    ) -> zbus::Result<()> {
+    async fn emit_properties_changed(emitter: &SignalEmitter<'_>, state: &MprisState) -> zbus::Result<()> {
         use zbus::fdo::Properties;
 
         let mut changed: HashMap<&str, Value<'_>> = HashMap::new();
 
         // Always include these in the changed properties
-        changed.insert(
-            "PlaybackStatus",
-            Value::Str(state.playback_status.as_str().into()),
-        );
+        changed.insert("PlaybackStatus", Value::Str(state.playback_status.as_str().into()));
 
         // Convert metadata to owned value
         let metadata_map = state.metadata.to_dbus_metadata();
@@ -565,19 +532,9 @@ impl MprisPlayer {
 
     /// Set absolute position
     fn set_position(&self, track_id: ObjectPath<'_>, position: i64) {
-        debug!(
-            "MPRIS: SetPosition called: track={}, pos={}",
-            track_id, position
-        );
-        let track_id_str = track_id
-            .as_str()
-            .rsplit('/')
-            .next()
-            .unwrap_or("")
-            .to_string();
-        let _ = self
-            .command_tx
-            .send(MprisCommand::SetPosition(track_id_str, position));
+        debug!("MPRIS: SetPosition called: track={}, pos={}", track_id, position);
+        let track_id_str = track_id.as_str().rsplit('/').next().unwrap_or("").to_string();
+        let _ = self.command_tx.send(MprisCommand::SetPosition(track_id_str, position));
     }
 
     /// Open a URI
@@ -610,9 +567,7 @@ impl MprisPlayer {
             let _ = self.command_tx.send(MprisCommand::SetLoopStatus(ls));
             Ok(())
         } else {
-            Err(zbus::Error::Failure(format!(
-                "Invalid loop status: {status}"
-            )))
+            Err(zbus::Error::Failure(format!("Invalid loop status: {status}")))
         }
     }
 
@@ -735,40 +690,24 @@ struct MprisTrackList {
 #[interface(name = "org.mpris.MediaPlayer2.TrackList")]
 impl MprisTrackList {
     /// Get metadata for a set of tracks.
-    fn get_tracks_metadata(
-        &self,
-        track_ids: Vec<ObjectPath<'_>>,
-    ) -> Vec<HashMap<String, OwnedValue>> {
+    fn get_tracks_metadata(&self, track_ids: Vec<ObjectPath<'_>>) -> Vec<HashMap<String, OwnedValue>> {
         let state = self.state_rx.borrow();
         track_ids
             .iter()
             .filter_map(|requested| {
-                state
-                    .tracklist
-                    .iter()
-                    .find(|e| e.object_path == requested.as_str())
-                    .map(|e| e.metadata.to_dbus_metadata())
+                state.tracklist.iter().find(|e| e.object_path == requested.as_str()).map(|e| e.metadata.to_dbus_metadata())
             })
             .collect()
     }
 
     /// Add a URI to the tracklist (not supported — CanEditTracks is false).
-    fn add_track(
-        &self,
-        _uri: &str,
-        _after_track: ObjectPath<'_>,
-        _set_as_current: bool,
-    ) -> zbus::fdo::Result<()> {
-        Err(zbus::fdo::Error::NotSupported(
-            "This player does not support editing the tracklist".into(),
-        ))
+    fn add_track(&self, _uri: &str, _after_track: ObjectPath<'_>, _set_as_current: bool) -> zbus::fdo::Result<()> {
+        Err(zbus::fdo::Error::NotSupported("This player does not support editing the tracklist".into()))
     }
 
     /// Remove a track from the tracklist (not supported — CanEditTracks is false).
     fn remove_track(&self, _track_id: ObjectPath<'_>) -> zbus::fdo::Result<()> {
-        Err(zbus::fdo::Error::NotSupported(
-            "This player does not support editing the tracklist".into(),
-        ))
+        Err(zbus::fdo::Error::NotSupported("This player does not support editing the tracklist".into()))
     }
 
     /// Skip to the specified track.
@@ -796,10 +735,7 @@ impl MprisTrackList {
 
     /// Emitted when a track is removed (unused — we always replace).
     #[zbus(signal)]
-    async fn track_removed(
-        emitter: &SignalEmitter<'_>,
-        track_id: ObjectPath<'_>,
-    ) -> zbus::Result<()>;
+    async fn track_removed(emitter: &SignalEmitter<'_>, track_id: ObjectPath<'_>) -> zbus::Result<()>;
 
     /// Emitted when a track's metadata changes (unused currently).
     #[zbus(signal)]
@@ -834,8 +770,7 @@ impl MprisTrackList {
 /// A tuple of (MprisHandle, command receiver)
 /// - The handle is used to update MPRIS state from the app
 /// - The receiver is used to receive commands from D-Bus
-pub async fn start_mpris_service()
--> Result<(MprisHandle, mpsc::UnboundedReceiver<MprisCommand>), String> {
+pub async fn start_mpris_service() -> Result<(MprisHandle, mpsc::UnboundedReceiver<MprisCommand>), String> {
     info!("Starting MPRIS D-Bus service");
 
     // Create communication channels
@@ -849,28 +784,11 @@ pub async fn start_mpris_service()
         .map_err(|e| format!("Failed to create session bus builder: {}", e))?
         .name(bus_name.as_str())
         .map_err(|e| format!("Failed to request bus name: {}", e))?
-        .serve_at(
-            MPRIS_OBJECT_PATH,
-            MprisRoot {
-                command_tx: command_tx.clone(),
-            },
-        )
+        .serve_at(MPRIS_OBJECT_PATH, MprisRoot { command_tx: command_tx.clone() })
         .map_err(|e| format!("Failed to serve MprisRoot: {}", e))?
-        .serve_at(
-            MPRIS_OBJECT_PATH,
-            MprisPlayer {
-                command_tx: command_tx.clone(),
-                state_rx: state_rx.clone(),
-            },
-        )
+        .serve_at(MPRIS_OBJECT_PATH, MprisPlayer { command_tx: command_tx.clone(), state_rx: state_rx.clone() })
         .map_err(|e| format!("Failed to serve MprisPlayer: {}", e))?
-        .serve_at(
-            MPRIS_OBJECT_PATH,
-            MprisTrackList {
-                command_tx: command_tx.clone(),
-                state_rx,
-            },
-        )
+        .serve_at(MPRIS_OBJECT_PATH, MprisTrackList { command_tx: command_tx.clone(), state_rx })
         .map_err(|e| format!("Failed to serve MprisTrackList: {}", e))?
         .build()
         .await
@@ -878,10 +796,7 @@ pub async fn start_mpris_service()
 
     info!("MPRIS service registered at {} on session bus", bus_name);
 
-    let handle = MprisHandle {
-        state_tx,
-        connection: Arc::new(Mutex::new(Some(connection))),
-    };
+    let handle = MprisHandle { state_tx, connection: Arc::new(Mutex::new(Some(connection))) };
 
     Ok((handle, command_rx))
 }

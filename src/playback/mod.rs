@@ -153,11 +153,7 @@ fn extract_rgba_frame(sample: &gst::Sample) -> Option<VideoFrame> {
         let start = row * stride;
         rgba.extend_from_slice(src.get(start..start + row_bytes)?);
     }
-    (rgba.len() == row_bytes * h).then_some(VideoFrame {
-        width: w as u32,
-        height: h as u32,
-        rgba: Arc::new(rgba),
-    })
+    (rgba.len() == row_bytes * h).then_some(VideoFrame { width: w as u32, height: h as u32, rgba: Arc::new(rgba) })
 }
 
 /// Reinterpret a raw `F32LE` audio sample's bytes as interleaved `f32` PCM.
@@ -172,12 +168,7 @@ fn extract_f32_samples(sample: &gst::Sample) -> Option<Vec<f32>> {
     if bytes.len() < 4 {
         return None;
     }
-    Some(
-        bytes
-            .chunks_exact(4)
-            .filter_map(|c| c.try_into().ok().map(f32::from_le_bytes))
-            .collect(),
-    )
+    Some(bytes.chunks_exact(4).filter_map(|c| c.try_into().ok().map(f32::from_le_bytes)).collect())
 }
 
 /// Log how far the analyzer tap runs ahead of (or behind) what the speakers
@@ -201,11 +192,8 @@ fn log_tap_drift(sample: &gst::Sample, sink: &gst::glib::WeakRef<gst::Element>) 
     let Some(pts) = sample.buffer().and_then(|b| b.pts()) else {
         return;
     };
-    let tap = sample
-        .segment()
-        .and_then(|s| s.downcast_ref::<gst::ClockTime>())
-        .and_then(|s| s.to_stream_time(pts))
-        .unwrap_or(pts);
+    let tap =
+        sample.segment().and_then(|s| s.downcast_ref::<gst::ClockTime>()).and_then(|s| s.to_stream_time(pts)).unwrap_or(pts);
     let Some(audible) = sink.query_position::<gst::ClockTime>() else {
         return;
     };
@@ -238,12 +226,9 @@ fn build_audio_sink_bin(
     analyzer: Option<SharedSpectrumAnalyzer>,
     replay_gain_db: f32,
 ) -> Result<(gst::Element, gst::Element), String> {
-    let convert = gst::ElementFactory::make("audioconvert")
-        .build()
-        .map_err(|e| format!("failed to create audioconvert: {e}"))?;
-    let resample = gst::ElementFactory::make("audioresample")
-        .build()
-        .map_err(|e| format!("failed to create audioresample: {e}"))?;
+    let convert = gst::ElementFactory::make("audioconvert").build().map_err(|e| format!("failed to create audioconvert: {e}"))?;
+    let resample =
+        gst::ElementFactory::make("audioresample").build().map_err(|e| format!("failed to create audioresample: {e}"))?;
 
     // Replay-gain / pre-amp stage. Named so the player can adjust it live and
     // so a future computed-loudness scheme can swap just this element.
@@ -264,17 +249,12 @@ fn build_audio_sink_bin(
         .property("caps", &caps)
         .build()
         .map_err(|e| format!("failed to create capsfilter: {e}"))?;
-    let tee = gst::ElementFactory::make("tee")
-        .build()
-        .map_err(|e| format!("failed to create tee: {e}"))?;
+    let tee = gst::ElementFactory::make("tee").build().map_err(|e| format!("failed to create tee: {e}"))?;
 
     // Branch 1 — actually play the audio through the default sink.
-    let play_queue = gst::ElementFactory::make("queue")
-        .build()
-        .map_err(|e| format!("failed to create play queue: {e}"))?;
-    let audiosink = gst::ElementFactory::make("autoaudiosink")
-        .build()
-        .map_err(|e| format!("failed to create autoaudiosink: {e}"))?;
+    let play_queue = gst::ElementFactory::make("queue").build().map_err(|e| format!("failed to create play queue: {e}"))?;
+    let audiosink =
+        gst::ElementFactory::make("autoaudiosink").build().map_err(|e| format!("failed to create autoaudiosink: {e}"))?;
 
     // Branch 2 — tap PCM into the spectrum analyzer.
     //
@@ -288,15 +268,8 @@ fn build_audio_sink_bin(
     // pipeline's async state change, or a PAUSED→PLAYING resume can stall
     // forever waiting for this drop-mode tap to preroll, leaving the real
     // audio sink silent.
-    let tap_queue = gst::ElementFactory::make("queue")
-        .build()
-        .map_err(|e| format!("failed to create tap queue: {e}"))?;
-    let tap_sink = gst_app::AppSink::builder()
-        .caps(&caps)
-        .max_buffers(8)
-        .drop(true)
-        .sync(true)
-        .build();
+    let tap_queue = gst::ElementFactory::make("queue").build().map_err(|e| format!("failed to create tap queue: {e}"))?;
+    let tap_sink = gst_app::AppSink::builder().caps(&caps).max_buffers(8).drop(true).sync(true).build();
     tap_sink.set_property("async", false);
     // Drift probe: a weak ref to the audible sink plus a coarse throttle, so
     // the tap can periodically report how far ahead of the speakers it is
@@ -311,9 +284,7 @@ fn build_audio_sink_bin(
                     return Ok(gst::FlowSuccess::Ok);
                 };
                 let now_ms = tap_started.elapsed().as_millis() as u64;
-                if now_ms.saturating_sub(last_probe_ms.load(Ordering::Relaxed))
-                    >= TAP_DRIFT_PROBE_MS
-                {
+                if now_ms.saturating_sub(last_probe_ms.load(Ordering::Relaxed)) >= TAP_DRIFT_PROBE_MS {
                     last_probe_ms.store(now_ms, Ordering::Relaxed);
                     log_tap_drift(&sample, &drift_sink);
                 }
@@ -331,49 +302,27 @@ fn build_audio_sink_bin(
 
     let bin = gst::Bin::new();
     let tap_sink_el = tap_sink.upcast_ref::<gst::Element>();
-    bin.add_many([
-        &convert,
-        &resample,
-        &rg_volume,
-        &capsfilter,
-        &tee,
-        &play_queue,
-        &audiosink,
-        &tap_queue,
-        tap_sink_el,
-    ])
-    .map_err(|e| format!("failed to assemble audio sink bin: {e}"))?;
+    bin.add_many([&convert, &resample, &rg_volume, &capsfilter, &tee, &play_queue, &audiosink, &tap_queue, tap_sink_el])
+        .map_err(|e| format!("failed to assemble audio sink bin: {e}"))?;
 
     gst::Element::link_many([&convert, &resample, &rg_volume, &capsfilter, &tee])
         .map_err(|e| format!("failed to link audio chain: {e}"))?;
-    gst::Element::link_many([&play_queue, &audiosink])
-        .map_err(|e| format!("failed to link audio play branch: {e}"))?;
-    gst::Element::link_many([&tap_queue, tap_sink_el])
-        .map_err(|e| format!("failed to link audio tap branch: {e}"))?;
+    gst::Element::link_many([&play_queue, &audiosink]).map_err(|e| format!("failed to link audio play branch: {e}"))?;
+    gst::Element::link_many([&tap_queue, tap_sink_el]).map_err(|e| format!("failed to link audio tap branch: {e}"))?;
 
     // Wire the tee's request pads to each branch's queue.
     let link_branch = |queue: &gst::Element| -> Result<(), String> {
-        let tee_src = tee
-            .request_pad_simple("src_%u")
-            .ok_or_else(|| "tee has no request pad".to_string())?;
-        let q_sink = queue
-            .static_pad("sink")
-            .ok_or_else(|| "queue has no sink pad".to_string())?;
-        tee_src
-            .link(&q_sink)
-            .map_err(|e| format!("failed to link tee branch: {e}"))?;
+        let tee_src = tee.request_pad_simple("src_%u").ok_or_else(|| "tee has no request pad".to_string())?;
+        let q_sink = queue.static_pad("sink").ok_or_else(|| "queue has no sink pad".to_string())?;
+        tee_src.link(&q_sink).map_err(|e| format!("failed to link tee branch: {e}"))?;
         Ok(())
     };
     link_branch(&play_queue)?;
     link_branch(&tap_queue)?;
 
-    let sink_pad = convert
-        .static_pad("sink")
-        .ok_or_else(|| "audioconvert has no sink pad".to_string())?;
-    let ghost = gst::GhostPad::with_target(&sink_pad)
-        .map_err(|e| format!("failed to create audio ghost pad: {e}"))?;
-    bin.add_pad(&ghost)
-        .map_err(|e| format!("failed to add audio ghost pad: {e}"))?;
+    let sink_pad = convert.static_pad("sink").ok_or_else(|| "audioconvert has no sink pad".to_string())?;
+    let ghost = gst::GhostPad::with_target(&sink_pad).map_err(|e| format!("failed to create audio ghost pad: {e}"))?;
+    bin.add_pad(&ghost).map_err(|e| format!("failed to add audio ghost pad: {e}"))?;
 
     Ok((bin.upcast(), rg_volume))
 }
@@ -381,11 +330,7 @@ fn build_audio_sink_bin(
 /// Build the video-sink bin: `videoconvert ! videoscale ! appsink` yielding
 /// fixed-width RGBA frames (height follows the stream's aspect ratio) into the
 /// shared [`FrameBuffer`].
-fn build_video_sink_bin(
-    frame: FrameBuffer,
-    seq: Arc<AtomicU64>,
-    eos: Arc<AtomicBool>,
-) -> Result<gst::Element, String> {
+fn build_video_sink_bin(frame: FrameBuffer, seq: Arc<AtomicU64>, eos: Arc<AtomicBool>) -> Result<gst::Element, String> {
     // Constrain only the width; leaving the height free lets videoscale pick a
     // DAR-preserving height (square pixels), so the frame carries the picture's
     // true aspect ratio with no baked-in letterbox bars.
@@ -394,11 +339,7 @@ fn build_video_sink_bin(
         .width(FRAME_W)
         .pixel_aspect_ratio(gst::Fraction::new(1, 1))
         .build();
-    let appsink = gst_app::AppSink::builder()
-        .caps(&caps)
-        .max_buffers(2)
-        .drop(true)
-        .build();
+    let appsink = gst_app::AppSink::builder().caps(&caps).max_buffers(2).drop(true).build();
 
     appsink.set_callbacks(
         gst_app::AppSinkCallbacks::builder()
@@ -420,24 +361,16 @@ fn build_video_sink_bin(
             .build(),
     );
 
-    let convert = gst::ElementFactory::make("videoconvert")
-        .build()
-        .map_err(|e| format!("failed to create videoconvert: {e}"))?;
-    let scale = gst::ElementFactory::make("videoscale")
-        .build()
-        .map_err(|e| format!("failed to create videoscale: {e}"))?;
+    let convert = gst::ElementFactory::make("videoconvert").build().map_err(|e| format!("failed to create videoconvert: {e}"))?;
+    let scale = gst::ElementFactory::make("videoscale").build().map_err(|e| format!("failed to create videoscale: {e}"))?;
     let bin = gst::Bin::new();
     bin.add_many([&convert, &scale, appsink.upcast_ref::<gst::Element>()])
         .map_err(|e| format!("failed to assemble video sink bin: {e}"))?;
     gst::Element::link_many([&convert, &scale, appsink.upcast_ref::<gst::Element>()])
         .map_err(|e| format!("failed to link video sink bin: {e}"))?;
-    let sink_pad = convert
-        .static_pad("sink")
-        .ok_or_else(|| "videoconvert has no sink pad".to_string())?;
-    let ghost = gst::GhostPad::with_target(&sink_pad)
-        .map_err(|e| format!("failed to create video ghost pad: {e}"))?;
-    bin.add_pad(&ghost)
-        .map_err(|e| format!("failed to add video ghost pad: {e}"))?;
+    let sink_pad = convert.static_pad("sink").ok_or_else(|| "videoconvert has no sink pad".to_string())?;
+    let ghost = gst::GhostPad::with_target(&sink_pad).map_err(|e| format!("failed to create video ghost pad: {e}"))?;
+    bin.add_pad(&ghost).map_err(|e| format!("failed to add video ghost pad: {e}"))?;
 
     Ok(bin.upcast())
 }
@@ -448,9 +381,7 @@ fn make_playbin() -> Result<gst::Element, String> {
     if let Ok(pb) = gst::ElementFactory::make("playbin3").build() {
         return Ok(pb);
     }
-    gst::ElementFactory::make("playbin")
-        .build()
-        .map_err(|e| format!("failed to create playbin/playbin3: {e}"))
+    gst::ElementFactory::make("playbin").build().map_err(|e| format!("failed to create playbin/playbin3: {e}"))
 }
 
 /// A running unified playback pipeline for audio or video.
@@ -490,11 +421,7 @@ impl MediaPlayer {
     /// `uri` is a GStreamer URI: `file:///tmp/<id>.mpd` for a DASH manifest
     /// written to disk, or a direct `https://…` URL for single-file/BTS
     /// qualities. `replay_gain_db` is TIDAL's authored album replay gain.
-    pub fn new_audio(
-        uri: &str,
-        analyzer: Option<SharedSpectrumAnalyzer>,
-        replay_gain_db: f32,
-    ) -> Result<Self, String> {
+    pub fn new_audio(uri: &str, analyzer: Option<SharedSpectrumAnalyzer>, replay_gain_db: f32) -> Result<Self, String> {
         Self::build(uri, MediaKind::Audio, analyzer, replay_gain_db, None)
     }
 
@@ -502,11 +429,7 @@ impl MediaPlayer {
     ///
     /// `replay_gain_db` is the fixed video pre-amp from config (TIDAL authors
     /// no replay-gain for videos).
-    pub fn new_video(
-        uri: &str,
-        analyzer: Option<SharedSpectrumAnalyzer>,
-        replay_gain_db: f32,
-    ) -> Result<Self, String> {
+    pub fn new_video(uri: &str, analyzer: Option<SharedSpectrumAnalyzer>, replay_gain_db: f32) -> Result<Self, String> {
         Self::build(uri, MediaKind::Video, analyzer, replay_gain_db, None)
     }
 
@@ -521,13 +444,7 @@ impl MediaPlayer {
         replay_gain_db: f32,
         position_secs: f64,
     ) -> Result<Self, String> {
-        Self::build(
-            uri,
-            MediaKind::Video,
-            analyzer,
-            replay_gain_db,
-            Some(position_secs),
-        )
+        Self::build(uri, MediaKind::Video, analyzer, replay_gain_db, Some(position_secs))
     }
 
     fn build(
@@ -552,14 +469,11 @@ impl MediaPlayer {
         playbin.set_property("audio-sink", &audio_bin);
 
         if kind.has_video() {
-            let video_bin =
-                build_video_sink_bin(Arc::clone(&frame), Arc::clone(&seq), Arc::clone(&eos))?;
+            let video_bin = build_video_sink_bin(Arc::clone(&frame), Arc::clone(&seq), Arc::clone(&eos))?;
             playbin.set_property("video-sink", &video_bin);
         }
 
-        let bus = playbin
-            .bus()
-            .ok_or_else(|| "playbin has no bus".to_string())?;
+        let bus = playbin.bus().ok_or_else(|| "playbin has no bus".to_string())?;
 
         // Gapless playback: when the current stream is about to finish, hand
         // playbin the pre-resolved next URI (if the app staged one). Setting
@@ -586,19 +500,13 @@ impl MediaPlayer {
         // after the seek lands, so nothing plays from 0:00 first. Otherwise
         // start playing immediately.
         let resume = resume_at.filter(|&s| s > 0.5);
-        let start_state = if resume.is_some() {
-            gst::State::Paused
-        } else {
-            gst::State::Playing
-        };
+        let start_state = if resume.is_some() { gst::State::Paused } else { gst::State::Playing };
         // While a resume seek is pending, keep `intended_playing` false: the
         // `poll()` buffering handler only forces PLAYING when it's set, so this
         // stops the app's tick from racing the resume by un-pausing the
         // pipeline before the seek lands. The resume thread sets it true.
         let intended_playing = Arc::new(AtomicBool::new(resume.is_none()));
-        playbin
-            .set_state(start_state)
-            .map_err(|e| format!("failed to start playback: {e}"))?;
+        playbin.set_state(start_state).map_err(|e| format!("failed to start playback: {e}"))?;
         if let Some(pos) = resume {
             let pb = playbin.clone();
             let intended = Arc::clone(&intended_playing);
@@ -666,20 +574,12 @@ impl MediaPlayer {
                     // paused mid-buffer). Without this, a resume on a network
                     // stream that triggers re-buffering gets stuck silent.
                     if self.intended_playing.load(Ordering::Acquire) {
-                        let target = if percent < 100 {
-                            gst::State::Paused
-                        } else {
-                            gst::State::Playing
-                        };
+                        let target = if percent < 100 { gst::State::Paused } else { gst::State::Playing };
                         let _ = self.playbin.set_state(target);
                     }
                 }
                 // Only the top-level pipeline's transitions are interesting.
-                MessageView::StateChanged(sc)
-                    if sc
-                        .src()
-                        .is_some_and(|s| s.type_().name().contains("PlayBin")) =>
-                {
+                MessageView::StateChanged(sc) if sc.src().is_some_and(|s| s.type_().name().contains("PlayBin")) => {
                     tracing::debug!("Media pipeline state: {:?} -> {:?}", sc.old(), sc.current());
                 }
                 _ => {}
@@ -749,8 +649,7 @@ impl MediaPlayer {
     /// `volume` is the perceptual slider level; see [`perceptual_to_gst_volume`]
     /// for why it's cubed before reaching playbin.
     pub fn set_volume(&self, volume: f64) {
-        self.playbin
-            .set_property("volume", perceptual_to_gst_volume(volume));
+        self.playbin.set_property("volume", perceptual_to_gst_volume(volume));
     }
 
     /// Update the replay-gain / pre-amp multiplier from a dB value.
@@ -765,24 +664,18 @@ impl MediaPlayer {
 
     /// Current playback position in seconds, if known.
     pub fn position_secs(&self) -> Option<f64> {
-        self.playbin
-            .query_position::<gst::ClockTime>()
-            .map(|t| t.seconds() as f64)
+        self.playbin.query_position::<gst::ClockTime>().map(|t| t.seconds() as f64)
     }
 
     /// Total duration in seconds, if known.
     pub fn duration_secs(&self) -> Option<f64> {
-        self.playbin
-            .query_duration::<gst::ClockTime>()
-            .map(|t| t.seconds() as f64)
+        self.playbin.query_duration::<gst::ClockTime>().map(|t| t.seconds() as f64)
     }
 
     /// Seek to the given position in seconds (best-effort).
     pub fn seek_secs(&self, secs: f64) {
         let pos = gst::ClockTime::from_mseconds((secs.max(0.0) * 1000.0) as u64);
-        let _ = self
-            .playbin
-            .seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, pos);
+        let _ = self.playbin.seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, pos);
     }
 }
 
@@ -812,11 +705,7 @@ fn resume_seek_then_play(pb: &gst::Element, secs: f64, intended: std::sync::Arc<
             break;
         }
         if std::time::Instant::now() >= deadline {
-            tracing::warn!(
-                "seek-resume: not seekable after {}ms; seeking anyway to {:.1}s",
-                waited_ms,
-                secs
-            );
+            tracing::warn!("seek-resume: not seekable after {}ms; seeking anyway to {:.1}s", waited_ms, secs);
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(150));
@@ -831,16 +720,8 @@ fn resume_seek_then_play(pb: &gst::Element, secs: f64, intended: std::sync::Arc<
         let ok = pb.seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, target);
         // Wait for this flush-seek's preroll to settle, then read the position.
         let _ = pb.state(Some(gst::ClockTime::from_seconds(5)));
-        let cur = pb
-            .query_position::<gst::ClockTime>()
-            .map(|p| p.seconds() as f64);
-        tracing::info!(
-            "seek-resume: attempt {} seek_ok={} pos={:?} (target {:.1}s)",
-            attempt,
-            ok.is_ok(),
-            cur,
-            secs
-        );
+        let cur = pb.query_position::<gst::ClockTime>().map(|p| p.seconds() as f64);
+        tracing::info!("seek-resume: attempt {} seek_ok={} pos={:?} (target {:.1}s)", attempt, ok.is_ok(), cur, secs);
         if cur.is_some_and(|c| c + 2.0 >= secs) {
             landed = true;
             break;
@@ -850,11 +731,7 @@ fn resume_seek_then_play(pb: &gst::Element, secs: f64, intended: std::sync::Arc<
     // Hand control back to the normal play/pause + buffering logic, then roll.
     intended.store(true, Ordering::Release);
     let _ = pb.set_state(gst::State::Playing);
-    tracing::info!(
-        "seek-resume: now playing (landed={}, target {:.1}s)",
-        landed,
-        secs
-    );
+    tracing::info!("seek-resume: now playing (landed={}, target {:.1}s)", landed, secs);
 }
 
 impl Drop for MediaPlayer {
@@ -910,23 +787,15 @@ mod tests {
         if gst::init().is_err() {
             return;
         }
-        let Ok(src) = gst::ElementFactory::make("videotestsrc")
-            .property("num-buffers", 1i32)
-            .build()
+        let Ok(src) = gst::ElementFactory::make("videotestsrc").property("num-buffers", 1i32).build() else {
+            return;
+        };
+        let (Ok(convert), Ok(scale)) =
+            (gst::ElementFactory::make("videoconvert").build(), gst::ElementFactory::make("videoscale").build())
         else {
             return;
         };
-        let (Ok(convert), Ok(scale)) = (
-            gst::ElementFactory::make("videoconvert").build(),
-            gst::ElementFactory::make("videoscale").build(),
-        ) else {
-            return;
-        };
-        let caps = gst_video::VideoCapsBuilder::new()
-            .format(gst_video::VideoFormat::Rgba)
-            .width(64)
-            .height(36)
-            .build();
+        let caps = gst_video::VideoCapsBuilder::new().format(gst_video::VideoFormat::Rgba).width(64).height(36).build();
         let appsink = gst_app::AppSink::builder().caps(&caps).build();
 
         let pipeline = gst::Pipeline::new();
@@ -938,9 +807,8 @@ mod tests {
             return;
         }
 
-        let sample = appsink
-            .try_pull_sample(gst::ClockTime::from_seconds(5))
-            .expect("test source should yield a sample within 5s");
+        let sample =
+            appsink.try_pull_sample(gst::ClockTime::from_seconds(5)).expect("test source should yield a sample within 5s");
         let frame = extract_rgba_frame(&sample).expect("a valid frame should extract");
 
         assert_eq!(frame.width, 64);
@@ -960,23 +828,15 @@ mod tests {
         if gst::init().is_err() {
             return;
         }
-        let Ok(src) = gst::ElementFactory::make("audiotestsrc")
-            .property("num-buffers", 1i32)
-            .build()
+        let Ok(src) = gst::ElementFactory::make("audiotestsrc").property("num-buffers", 1i32).build() else {
+            return;
+        };
+        let (Ok(convert), Ok(resample)) =
+            (gst::ElementFactory::make("audioconvert").build(), gst::ElementFactory::make("audioresample").build())
         else {
             return;
         };
-        let (Ok(convert), Ok(resample)) = (
-            gst::ElementFactory::make("audioconvert").build(),
-            gst::ElementFactory::make("audioresample").build(),
-        ) else {
-            return;
-        };
-        let Ok(rg) = gst::ElementFactory::make("volume")
-            .name("rg")
-            .property("volume", db_to_linear(-8.0))
-            .build()
-        else {
+        let Ok(rg) = gst::ElementFactory::make("volume").name("rg").property("volume", db_to_linear(-8.0)).build() else {
             return;
         };
         let caps = gst::Caps::builder("audio/x-raw")
@@ -985,10 +845,7 @@ mod tests {
             .field("channels", TAP_CHANNELS)
             .field("rate", TAP_RATE)
             .build();
-        let Ok(capsfilter) = gst::ElementFactory::make("capsfilter")
-            .property("caps", &caps)
-            .build()
-        else {
+        let Ok(capsfilter) = gst::ElementFactory::make("capsfilter").property("caps", &caps).build() else {
             return;
         };
         let appsink = gst_app::AppSink::builder().caps(&caps).build();
@@ -1000,26 +857,19 @@ mod tests {
 
         let pipeline = gst::Pipeline::new();
         let sink = appsink.upcast_ref::<gst::Element>();
-        if pipeline
-            .add_many([&src, &convert, &resample, &rg, &capsfilter, sink])
-            .is_err()
+        if pipeline.add_many([&src, &convert, &resample, &rg, &capsfilter, sink]).is_err()
             || gst::Element::link_many([&src, &convert, &resample, &rg, &capsfilter, sink]).is_err()
             || pipeline.set_state(gst::State::Playing).is_err()
         {
             return;
         }
 
-        let sample = appsink
-            .try_pull_sample(gst::ClockTime::from_seconds(5))
-            .expect("test source should yield an audio sample within 5s");
+        let sample =
+            appsink.try_pull_sample(gst::ClockTime::from_seconds(5)).expect("test source should yield an audio sample within 5s");
         let samples = extract_f32_samples(&sample).expect("PCM should extract");
 
         assert!(!samples.is_empty(), "expected some PCM samples");
-        assert_eq!(
-            samples.len() % TAP_CHANNELS as usize,
-            0,
-            "stereo PCM should be channel-aligned"
-        );
+        assert_eq!(samples.len() % TAP_CHANNELS as usize, 0, "stereo PCM should be channel-aligned");
 
         let _ = pipeline.set_state(gst::State::Null);
     }
@@ -1053,17 +903,12 @@ mod tests {
         let Ok((bin, _rg)) = build_audio_sink_bin(None, 0.0) else {
             return;
         };
-        let bin = bin
-            .downcast::<gst::Bin>()
-            .expect("audio sink should be a bin");
+        let bin = bin.downcast::<gst::Bin>().expect("audio sink should be a bin");
         let mut found = false;
         let mut it = bin.iterate_elements();
         while let Ok(Some(el)) = it.next() {
             if el.type_().name().contains("AppSink") {
-                assert!(
-                    !el.property::<bool>("async"),
-                    "tap appsink must be async=false so resume never stalls"
-                );
+                assert!(!el.property::<bool>("async"), "tap appsink must be async=false so resume never stalls");
                 found = true;
             }
         }
@@ -1081,10 +926,7 @@ mod tests {
         let Ok((bin, _rg)) = build_audio_sink_bin(None, 0.0) else {
             return;
         };
-        let Ok(src) = gst::ElementFactory::make("audiotestsrc")
-            .property("is-live", false)
-            .build()
-        else {
+        let Ok(src) = gst::ElementFactory::make("audiotestsrc").property("is-live", false).build() else {
             return;
         };
         let pipeline = gst::Pipeline::new();
@@ -1105,11 +947,7 @@ mod tests {
         let _ = pipeline.set_state(gst::State::Playing);
         let (res, current, _pending) = pipeline.state(wait);
         assert!(res.is_ok(), "resume state change should not error/stall");
-        assert_eq!(
-            current,
-            gst::State::Playing,
-            "pipeline should reach PLAYING after resume"
-        );
+        assert_eq!(current, gst::State::Playing, "pipeline should reach PLAYING after resume");
 
         let _ = pipeline.set_state(gst::State::Null);
     }

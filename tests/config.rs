@@ -50,31 +50,20 @@ mod audio_quality_display_name {
 
     #[test]
     fn lossless_display_name() {
-        assert_eq!(
-            AudioQuality::Lossless.display_name(),
-            "Lossless (CD Quality)"
-        );
+        assert_eq!(AudioQuality::Lossless.display_name(), "Lossless (CD Quality)");
     }
 
     #[test]
     fn hires_display_name() {
-        assert_eq!(
-            AudioQuality::HiRes.display_name(),
-            "Hi-Res (Master Quality)"
-        );
+        assert_eq!(AudioQuality::HiRes.display_name(), "Hi-Res (Master Quality)");
     }
 
     #[test]
     fn display_names_are_all_distinct() {
-        let names: Vec<&str> = [
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ]
-        .iter()
-        .map(|q| q.display_name())
-        .collect();
+        let names: Vec<&str> = [AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes]
+            .iter()
+            .map(|q| q.display_name())
+            .collect();
 
         for (i, a) in names.iter().enumerate() {
             for (j, b) in names.iter().enumerate() {
@@ -123,12 +112,7 @@ mod audio_quality_as_ref {
 
     #[test]
     fn as_ref_is_nonempty_for_all_variants() {
-        for q in &[
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ] {
+        for q in &[AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes] {
             let s: &str = q.as_ref();
             assert!(!s.is_empty(), "as_ref() should not be empty for {:?}", q);
         }
@@ -170,16 +154,8 @@ mod audio_quality_to_tidlers {
     #[test]
     fn roundtrip_all_variants() {
         // Ensure every local variant maps to a distinct tidlers variant
-        let variants = [
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ];
-        let tidlers_debug: Vec<String> = variants
-            .iter()
-            .map(|q| format!("{:?}", q.to_tidlers()))
-            .collect();
+        let variants = [AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes];
+        let tidlers_debug: Vec<String> = variants.iter().map(|q| format!("{:?}", q.to_tidlers())).collect();
 
         // All should be distinct
         for (i, a) in tidlers_debug.iter().enumerate() {
@@ -231,12 +207,7 @@ mod audio_quality_traits {
 
     #[test]
     fn debug_output_is_nonempty() {
-        for q in &[
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ] {
+        for q in &[AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes] {
             let dbg = format!("{:?}", q);
             assert!(!dbg.is_empty());
         }
@@ -276,12 +247,7 @@ mod audio_quality_serde {
 
     #[test]
     fn deserialize_roundtrip_all_variants() {
-        for q in &[
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ] {
+        for q in &[AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes] {
             let json = serde_json::to_string(q).unwrap();
             let deserialized: AudioQuality = serde_json::from_str(&json).unwrap();
             assert_eq!(*q, deserialized, "roundtrip failed for {:?}", q);
@@ -323,11 +289,7 @@ mod config_default {
     #[test]
     fn default_volume_level_is_in_valid_range() {
         let cfg = Config::default();
-        assert!(
-            (0.0..=1.0).contains(&cfg.volume_level),
-            "volume_level should be between 0.0 and 1.0, got {}",
-            cfg.volume_level
-        );
+        assert!((0.0..=1.0).contains(&cfg.volume_level), "volume_level should be between 0.0 and 1.0, got {}", cfg.volume_level);
     }
 
     #[test]
@@ -401,12 +363,7 @@ mod config_fields {
     #[test]
     fn all_quality_variants_can_be_assigned() {
         let mut cfg = Config::default();
-        for q in [
-            AudioQuality::Low,
-            AudioQuality::High,
-            AudioQuality::Lossless,
-            AudioQuality::HiRes,
-        ] {
+        for q in [AudioQuality::Low, AudioQuality::High, AudioQuality::Lossless, AudioQuality::HiRes] {
             cfg.audio_quality = q;
             assert_eq!(cfg.audio_quality, q);
         }

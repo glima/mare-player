@@ -21,9 +21,7 @@
     clippy::wildcard_imports
 )]
 
-use cosmic_applet_mare::tidal::mpris::{
-    LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState,
-};
+use cosmic_applet_mare::tidal::mpris::{LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState};
 
 // ===========================================================================
 // MprisPlaybackStatus — Default
@@ -76,11 +74,7 @@ mod playback_status_traits {
 
     #[test]
     fn eq_is_reflexive() {
-        for s in [
-            MprisPlaybackStatus::Stopped,
-            MprisPlaybackStatus::Playing,
-            MprisPlaybackStatus::Paused,
-        ] {
+        for s in [MprisPlaybackStatus::Stopped, MprisPlaybackStatus::Playing, MprisPlaybackStatus::Paused] {
             assert_eq!(s, s);
         }
     }
@@ -121,11 +115,7 @@ mod playback_status_debug {
 
     #[test]
     fn all_variants_produce_nonempty_debug() {
-        for s in [
-            MprisPlaybackStatus::Stopped,
-            MprisPlaybackStatus::Playing,
-            MprisPlaybackStatus::Paused,
-        ] {
+        for s in [MprisPlaybackStatus::Stopped, MprisPlaybackStatus::Playing, MprisPlaybackStatus::Paused] {
             let dbg = format!("{:?}", s);
             assert!(!dbg.is_empty());
         }
@@ -133,11 +123,7 @@ mod playback_status_debug {
 
     #[test]
     fn all_variants_produce_distinct_debug() {
-        let variants = [
-            MprisPlaybackStatus::Stopped,
-            MprisPlaybackStatus::Playing,
-            MprisPlaybackStatus::Paused,
-        ];
+        let variants = [MprisPlaybackStatus::Stopped, MprisPlaybackStatus::Playing, MprisPlaybackStatus::Paused];
         let debug_strings: Vec<String> = variants.iter().map(|s| format!("{:?}", s)).collect();
         for (i, a) in debug_strings.iter().enumerate() {
             for (j, b) in debug_strings.iter().enumerate() {
@@ -292,12 +278,7 @@ mod metadata_construction {
     #[test]
     fn multiple_artists() {
         let m = MprisMetadata {
-            artists: vec![
-                "Artist A".to_string(),
-                "Artist B".to_string(),
-                "Artist C".to_string(),
-                "Artist D".to_string(),
-            ],
+            artists: vec!["Artist A".to_string(), "Artist B".to_string(), "Artist C".to_string(), "Artist D".to_string()],
             ..Default::default()
         };
         assert_eq!(m.artists.len(), 4);
@@ -306,40 +287,27 @@ mod metadata_construction {
     #[test]
     fn very_long_track_id() {
         let long_id = "x".repeat(10000);
-        let m = MprisMetadata {
-            track_id: long_id.clone(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { track_id: long_id.clone(), ..Default::default() };
         assert_eq!(m.track_id.len(), 10000);
     }
 
     #[test]
     fn negative_length_is_possible() {
         // Metadata struct doesn't validate; it's just data
-        let m = MprisMetadata {
-            length_us: -1,
-            ..Default::default()
-        };
+        let m = MprisMetadata { length_us: -1, ..Default::default() };
         assert_eq!(m.length_us, -1);
     }
 
     #[test]
     fn large_track_number() {
-        let m = MprisMetadata {
-            track_number: Some(i32::MAX),
-            disc_number: Some(i32::MAX),
-            ..Default::default()
-        };
+        let m = MprisMetadata { track_number: Some(i32::MAX), disc_number: Some(i32::MAX), ..Default::default() };
         assert_eq!(m.track_number, Some(i32::MAX));
         assert_eq!(m.disc_number, Some(i32::MAX));
     }
 
     #[test]
     fn zero_length_us() {
-        let m = MprisMetadata {
-            length_us: 0,
-            ..Default::default()
-        };
+        let m = MprisMetadata { length_us: 0, ..Default::default() };
         assert_eq!(m.length_us, 0);
     }
 }
@@ -379,10 +347,7 @@ mod metadata_clone {
 
     #[test]
     fn clone_is_independent() {
-        let m = MprisMetadata {
-            title: "Original".to_string(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { title: "Original".to_string(), ..Default::default() };
         let mut cloned = m.clone();
         cloned.title = "Modified".to_string();
         assert_eq!(m.title, "Original");
@@ -410,28 +375,15 @@ mod metadata_debug {
     fn debug_contains_struct_name() {
         let m = MprisMetadata::default();
         let dbg = format!("{:?}", m);
-        assert!(
-            dbg.contains("MprisMetadata"),
-            "expected 'MprisMetadata' in: {dbg}"
-        );
+        assert!(dbg.contains("MprisMetadata"), "expected 'MprisMetadata' in: {dbg}");
     }
 
     #[test]
     fn debug_contains_field_values() {
-        let m = MprisMetadata {
-            track_id: "debug-test-id".to_string(),
-            title: "Debug Title".to_string(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { track_id: "debug-test-id".to_string(), title: "Debug Title".to_string(), ..Default::default() };
         let dbg = format!("{:?}", m);
-        assert!(
-            dbg.contains("debug-test-id"),
-            "expected track_id in debug: {dbg}"
-        );
-        assert!(
-            dbg.contains("Debug Title"),
-            "expected title in debug: {dbg}"
-        );
+        assert!(dbg.contains("debug-test-id"), "expected track_id in debug: {dbg}");
+        assert!(dbg.contains("Debug Title"), "expected title in debug: {dbg}");
     }
 
     #[test]
@@ -558,11 +510,7 @@ mod state_construction {
 
     #[test]
     fn stopped_state_with_no_capabilities() {
-        let s = MprisState {
-            playback_status: MprisPlaybackStatus::Stopped,
-            volume: 1.0,
-            ..Default::default()
-        };
+        let s = MprisState { playback_status: MprisPlaybackStatus::Stopped, volume: 1.0, ..Default::default() };
 
         assert_eq!(s.playback_status, MprisPlaybackStatus::Stopped);
         assert!(!s.can_go_next);
@@ -591,39 +539,27 @@ mod state_construction {
 
     #[test]
     fn volume_at_max() {
-        let s = MprisState {
-            volume: 1.0,
-            ..Default::default()
-        };
+        let s = MprisState { volume: 1.0, ..Default::default() };
         assert!((s.volume - 1.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn volume_at_zero() {
-        let s = MprisState {
-            volume: 0.0,
-            ..Default::default()
-        };
+        let s = MprisState { volume: 0.0, ..Default::default() };
         assert!((s.volume - 0.0).abs() < f64::EPSILON);
     }
 
     #[test]
     fn negative_position_is_allowed() {
         // Data struct does not validate
-        let s = MprisState {
-            position_us: -1,
-            ..Default::default()
-        };
+        let s = MprisState { position_us: -1, ..Default::default() };
         assert_eq!(s.position_us, -1);
     }
 
     #[test]
     fn very_large_position() {
         // 24 hours in microseconds
-        let s = MprisState {
-            position_us: 86_400_000_000,
-            ..Default::default()
-        };
+        let s = MprisState { position_us: 86_400_000_000, ..Default::default() };
         assert_eq!(s.position_us, 86_400_000_000);
     }
 }
@@ -688,11 +624,7 @@ mod state_clone {
 
     #[test]
     fn clone_is_independent() {
-        let s = MprisState {
-            playback_status: MprisPlaybackStatus::Playing,
-            volume: 0.8,
-            ..Default::default()
-        };
+        let s = MprisState { playback_status: MprisPlaybackStatus::Playing, volume: 0.8, ..Default::default() };
         let mut cloned = s.clone();
         cloned.playback_status = MprisPlaybackStatus::Stopped;
         cloned.volume = 0.2;
@@ -723,18 +655,12 @@ mod state_debug {
     fn debug_contains_struct_name() {
         let s = MprisState::default();
         let dbg = format!("{:?}", s);
-        assert!(
-            dbg.contains("MprisState"),
-            "expected 'MprisState' in: {dbg}"
-        );
+        assert!(dbg.contains("MprisState"), "expected 'MprisState' in: {dbg}");
     }
 
     #[test]
     fn debug_contains_status() {
-        let s = MprisState {
-            playback_status: MprisPlaybackStatus::Playing,
-            ..Default::default()
-        };
+        let s = MprisState { playback_status: MprisPlaybackStatus::Playing, ..Default::default() };
         let dbg = format!("{:?}", s);
         assert!(dbg.contains("Playing"), "expected 'Playing' in: {dbg}");
     }
@@ -801,10 +727,7 @@ mod command_variants {
         let cmd = MprisCommand::Seek(60_000_000);
         let dbg = format!("{:?}", cmd);
         assert!(dbg.contains("Seek"), "expected 'Seek' in: {dbg}");
-        assert!(
-            dbg.contains("60000000"),
-            "expected position value in: {dbg}"
-        );
+        assert!(dbg.contains("60000000"), "expected position value in: {dbg}");
     }
 
     #[test]
@@ -825,10 +748,7 @@ mod command_variants {
     fn set_position_variant() {
         let cmd = MprisCommand::SetPosition("track-1".to_string(), 120_000_000);
         let dbg = format!("{:?}", cmd);
-        assert!(
-            dbg.contains("SetPosition"),
-            "expected 'SetPosition' in: {dbg}"
-        );
+        assert!(dbg.contains("SetPosition"), "expected 'SetPosition' in: {dbg}");
         assert!(dbg.contains("track-1"), "expected track id in: {dbg}");
     }
 
@@ -844,10 +764,7 @@ mod command_variants {
         let cmd = MprisCommand::OpenUri("tidal://track/12345".to_string());
         let dbg = format!("{:?}", cmd);
         assert!(dbg.contains("OpenUri"), "expected 'OpenUri' in: {dbg}");
-        assert!(
-            dbg.contains("tidal://track/12345"),
-            "expected URI in: {dbg}"
-        );
+        assert!(dbg.contains("tidal://track/12345"), "expected URI in: {dbg}");
     }
 
     #[test]
@@ -861,10 +778,7 @@ mod command_variants {
     fn set_shuffle_true() {
         let cmd = MprisCommand::SetShuffle(true);
         let dbg = format!("{:?}", cmd);
-        assert!(
-            dbg.contains("SetShuffle"),
-            "expected 'SetShuffle' in: {dbg}"
-        );
+        assert!(dbg.contains("SetShuffle"), "expected 'SetShuffle' in: {dbg}");
         assert!(dbg.contains("true"), "expected 'true' in: {dbg}");
     }
 
@@ -1209,10 +1123,7 @@ mod scenarios {
     fn position_updates_during_playback() {
         let mut state = MprisState {
             playback_status: MprisPlaybackStatus::Playing,
-            metadata: MprisMetadata {
-                length_us: 180_000_000,
-                ..Default::default()
-            },
+            metadata: MprisMetadata { length_us: 180_000_000, ..Default::default() },
             ..Default::default()
         };
 
@@ -1230,35 +1141,20 @@ mod scenarios {
     #[test]
     fn queue_navigation_capabilities() {
         // First track in queue: can go next but not previous
-        let first = MprisState {
-            can_go_next: true,
-            can_go_previous: false,
-            can_play: true,
-            can_pause: true,
-            ..Default::default()
-        };
+        let first =
+            MprisState { can_go_next: true, can_go_previous: false, can_play: true, can_pause: true, ..Default::default() };
         assert!(first.can_go_next);
         assert!(!first.can_go_previous);
 
         // Middle of queue: can go both ways
-        let middle = MprisState {
-            can_go_next: true,
-            can_go_previous: true,
-            can_play: true,
-            can_pause: true,
-            ..Default::default()
-        };
+        let middle =
+            MprisState { can_go_next: true, can_go_previous: true, can_play: true, can_pause: true, ..Default::default() };
         assert!(middle.can_go_next);
         assert!(middle.can_go_previous);
 
         // Last track: can go previous but not next
-        let last = MprisState {
-            can_go_next: false,
-            can_go_previous: true,
-            can_play: true,
-            can_pause: true,
-            ..Default::default()
-        };
+        let last =
+            MprisState { can_go_next: false, can_go_previous: true, can_play: true, can_pause: true, ..Default::default() };
         assert!(!last.can_go_next);
         assert!(last.can_go_previous);
     }
@@ -1279,10 +1175,7 @@ mod scenarios {
 
     #[test]
     fn volume_ramp_simulation() {
-        let mut state = MprisState {
-            volume: 0.0,
-            ..Default::default()
-        };
+        let mut state = MprisState { volume: 0.0, ..Default::default() };
 
         // Ramp up volume in steps
         for step in 1..=10 {
@@ -1318,20 +1211,9 @@ mod scenarios {
     #[test]
     fn multiple_states_in_vec() {
         let states: Vec<MprisState> = vec![
-            MprisState {
-                playback_status: MprisPlaybackStatus::Stopped,
-                ..Default::default()
-            },
-            MprisState {
-                playback_status: MprisPlaybackStatus::Playing,
-                volume: 0.8,
-                ..Default::default()
-            },
-            MprisState {
-                playback_status: MprisPlaybackStatus::Paused,
-                position_us: 42_000_000,
-                ..Default::default()
-            },
+            MprisState { playback_status: MprisPlaybackStatus::Stopped, ..Default::default() },
+            MprisState { playback_status: MprisPlaybackStatus::Playing, volume: 0.8, ..Default::default() },
+            MprisState { playback_status: MprisPlaybackStatus::Paused, position_us: 42_000_000, ..Default::default() },
         ];
 
         assert_eq!(states.len(), 3);
@@ -1351,10 +1233,7 @@ mod edge_cases {
     #[test]
     fn metadata_with_very_long_title() {
         let long_title = "A".repeat(100_000);
-        let m = MprisMetadata {
-            title: long_title.clone(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { title: long_title.clone(), ..Default::default() };
         assert_eq!(m.title.len(), 100_000);
         let cloned = m.clone();
         assert_eq!(cloned.title.len(), 100_000);
@@ -1363,29 +1242,20 @@ mod edge_cases {
     #[test]
     fn metadata_with_many_artists() {
         let artists: Vec<String> = (0..1000).map(|i| format!("Artist {}", i)).collect();
-        let m = MprisMetadata {
-            artists: artists.clone(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { artists: artists.clone(), ..Default::default() };
         assert_eq!(m.artists.len(), 1000);
     }
 
     #[test]
     fn state_with_extreme_volume() {
         // Values outside 0.0..1.0 are technically allowed by the struct
-        let s = MprisState {
-            volume: 999.9,
-            ..Default::default()
-        };
+        let s = MprisState { volume: 999.9, ..Default::default() };
         assert!((s.volume - 999.9).abs() < f64::EPSILON);
     }
 
     #[test]
     fn state_with_negative_volume() {
-        let s = MprisState {
-            volume: -0.5,
-            ..Default::default()
-        };
+        let s = MprisState { volume: -0.5, ..Default::default() };
         assert!((s.volume - (-0.5)).abs() < f64::EPSILON);
     }
 
@@ -1409,10 +1279,7 @@ mod edge_cases {
     #[test]
     fn metadata_track_id_with_special_chars() {
         // Track IDs that might not form valid D-Bus object paths
-        let m = MprisMetadata {
-            track_id: "abc/def/../ghi".to_string(),
-            ..Default::default()
-        };
+        let m = MprisMetadata { track_id: "abc/def/../ghi".to_string(), ..Default::default() };
         assert_eq!(m.track_id, "abc/def/../ghi");
     }
 
@@ -1437,19 +1304,11 @@ mod edge_cases {
 
     #[test]
     fn metadata_empty_album_artists_vs_none_album() {
-        let m = MprisMetadata {
-            album: None,
-            album_artists: vec![],
-            ..Default::default()
-        };
+        let m = MprisMetadata { album: None, album_artists: vec![], ..Default::default() };
         assert!(m.album.is_none());
         assert!(m.album_artists.is_empty());
 
-        let m2 = MprisMetadata {
-            album: Some(String::new()),
-            album_artists: vec![String::new()],
-            ..Default::default()
-        };
+        let m2 = MprisMetadata { album: Some(String::new()), album_artists: vec![String::new()], ..Default::default() };
         assert_eq!(m2.album.as_deref(), Some(""));
         assert_eq!(m2.album_artists.len(), 1);
     }

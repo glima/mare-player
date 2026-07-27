@@ -96,9 +96,7 @@ impl ImageCache {
         let db = self.db.get()?;
         db.get_image(url).await.map(|data| {
             debug!("DB image cache hit: {}", url);
-            CachedImage {
-                data: Arc::new(data),
-            }
+            CachedImage { data: Arc::new(data) }
         })
     }
 
@@ -132,9 +130,7 @@ impl ImageCache {
         debug!("Cache miss, downloading: {}", url);
         match self.download_image(url).await {
             Ok(data) => {
-                let cached = CachedImage {
-                    data: Arc::new(data),
-                };
+                let cached = CachedImage { data: Arc::new(data) };
 
                 // Save to disk cache
                 self.save_to_disk(url, &cached.data).await;
@@ -184,35 +180,23 @@ impl ImageCache {
     /// Save a generated grid thumbnail PNG to the database cache.
     pub async fn save_grid(&self, cache_key: &str, png_data: &[u8]) {
         if let Some(db) = self.db.get() {
-            db.put_image(&format!("grid:{cache_key}"), png_data, self.max_disk_bytes)
-                .await;
+            db.put_image(&format!("grid:{cache_key}"), png_data, self.max_disk_bytes).await;
         }
     }
 
     /// Download an image from a URL
     async fn download_image(&self, url: &str) -> Result<Vec<u8>, String> {
-        if !url.starts_with("https://")
-            && !url.starts_with("http://127.0.0.1")
-            && !url.starts_with("http://localhost")
-        {
+        if !url.starts_with("https://") && !url.starts_with("http://127.0.0.1") && !url.starts_with("http://localhost") {
             return Err(format!("Refusing non-HTTPS image URL: {url}"));
         }
 
-        let response = self
-            .client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| format!("Request failed: {}", e))?;
+        let response = self.client.get(url).send().await.map_err(|e| format!("Request failed: {}", e))?;
 
         if !response.status().is_success() {
             return Err(format!("HTTP error: {}", response.status()));
         }
 
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| format!("Failed to read response: {}", e))?;
+        let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
 
         Ok(bytes.to_vec())
     }
@@ -263,12 +247,7 @@ pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<RgbaPix
     }
 
     // Positions: TL, TR, BL, BR
-    let positions = [
-        (0u32, 0u32),
-        (half + gap, 0),
-        (0, half + gap),
-        (half + gap, half + gap),
-    ];
+    let positions = [(0u32, 0u32), (half + gap, 0), (0, half + gap), (half + gap, half + gap)];
 
     for (i, (ox, oy)) in positions.iter().enumerate() {
         let Some(img) = decoded.get(i) else {
@@ -302,19 +281,14 @@ pub fn make_grid_thumbnail(images: &[&[u8]], output_size: u32) -> Result<RgbaPix
         }
     }
 
-    Ok(RgbaPixels {
-        width: output_size,
-        height: output_size,
-        pixels: canvas.into_raw(),
-    })
+    Ok(RgbaPixels { width: output_size, height: output_size, pixels: canvas.into_raw() })
 }
 
 /// Make an image circular by applying an alpha mask.
 /// Takes raw image bytes (JPEG/PNG) and returns raw RGBA pixels with circular transparency.
 pub fn make_circular(image_data: &[u8], max_size: u32) -> Result<RgbaPixels, String> {
     // Decode the image
-    let img = image::load_from_memory(image_data)
-        .map_err(|e| format!("Failed to decode image: {}", e))?;
+    let img = image::load_from_memory(image_data).map_err(|e| format!("Failed to decode image: {}", e))?;
 
     let (width, height) = img.dimensions();
     let size = width.min(height);
@@ -325,11 +299,8 @@ pub fn make_circular(image_data: &[u8], max_size: u32) -> Result<RgbaPixels, Str
     let cropped = img.crop_imm(x_offset, y_offset, size, size);
 
     // Downscale to save memory (320×320 RGBA = 400 KB → 160×160 = 100 KB)
-    let cropped = if size > max_size {
-        cropped.resize_exact(max_size, max_size, image::imageops::FilterType::Lanczos3)
-    } else {
-        cropped
-    };
+    let cropped =
+        if size > max_size { cropped.resize_exact(max_size, max_size, image::imageops::FilterType::Lanczos3) } else { cropped };
     let size = cropped.width();
 
     // Create RGBA image with circular mask
@@ -356,11 +327,7 @@ pub fn make_circular(image_data: &[u8], max_size: u32) -> Result<RgbaPixels, Str
         }
     }
 
-    Ok(RgbaPixels {
-        width: size,
-        height: size,
-        pixels: rgba.into_raw(),
-    })
+    Ok(RgbaPixels { width: size, height: size, pixels: rgba.into_raw() })
 }
 
 #[cfg(test)]
@@ -382,9 +349,7 @@ mod tests {
             max_disk_bytes: 50 * 1024 * 1024,
             db: Arc::new(OnceCell::new()),
         };
-        let db = crate::cache::Db::open(std::path::Path::new(":memory:"))
-            .await
-            .expect("open in-memory cache db");
+        let db = crate::cache::Db::open(std::path::Path::new(":memory:")).await.expect("open in-memory cache db");
         cache.set_db(db);
         cache
     }
@@ -394,8 +359,7 @@ mod tests {
         let img = image::RgbaImage::from_pixel(1, 1, image::Rgba([255, 0, 0, 255]));
         let mut buf = Vec::new();
         let mut cursor = std::io::Cursor::new(&mut buf);
-        img.write_to(&mut cursor, image::ImageFormat::Png)
-            .expect("encode tiny png");
+        img.write_to(&mut cursor, image::ImageFormat::Png).expect("encode tiny png");
         buf
     }
 
@@ -438,10 +402,7 @@ mod tests {
             if let Ok((mut stream, _)) = listener.accept() {
                 let mut req = [0u8; 4096];
                 let _ = stream.read(&mut req);
-                let resp = format!(
-                    "HTTP/1.1 {} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
-                    status
-                );
+                let resp = format!("HTTP/1.1 {} Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", status);
                 let _ = stream.write_all(resp.as_bytes());
                 let _ = stream.flush();
             }
@@ -486,9 +447,7 @@ mod tests {
     #[tokio::test]
     async fn test_add_to_memory_cache_basic() {
         let cache = temp_cache(1024 * 1024).await;
-        let img = CachedImage {
-            data: Arc::new(vec![1, 2, 3, 4]),
-        };
+        let img = CachedImage { data: Arc::new(vec![1, 2, 3, 4]) };
         cache.add_to_memory_cache("http://a.test/1.png", img).await;
         let mem = cache.memory_cache.read().await;
         assert_eq!(mem.get("http://a.test/1.png").unwrap().data.len(), 4);
@@ -499,12 +458,8 @@ mod tests {
         // 20-byte limit; inserting 3×8 bytes forces eviction.
         let cache = temp_cache(20).await;
         for i in 0..3u8 {
-            let img = CachedImage {
-                data: Arc::new(vec![i; 8]),
-            };
-            cache
-                .add_to_memory_cache(&format!("http://a.test/{}.png", i), img)
-                .await;
+            let img = CachedImage { data: Arc::new(vec![i; 8]) };
+            cache.add_to_memory_cache(&format!("http://a.test/{}.png", i), img).await;
         }
         let mem = cache.memory_cache.read().await;
         assert!(mem.contains_key("http://a.test/2.png"));
@@ -516,14 +471,7 @@ mod tests {
     async fn test_add_to_memory_cache_replaces_same_key() {
         let cache = temp_cache(1024 * 1024).await;
         for sz in [10usize, 20] {
-            cache
-                .add_to_memory_cache(
-                    "http://a.test/same.png",
-                    CachedImage {
-                        data: Arc::new(vec![0u8; sz]),
-                    },
-                )
-                .await;
+            cache.add_to_memory_cache("http://a.test/same.png", CachedImage { data: Arc::new(vec![0u8; sz]) }).await;
         }
         let mem = cache.memory_cache.read().await;
         assert_eq!(mem.len(), 1);
@@ -536,9 +484,7 @@ mod tests {
     async fn test_db_round_trip() {
         let cache = temp_cache(1024 * 1024).await;
         let data = tiny_png();
-        cache
-            .save_to_disk("https://example.com/art.png", &data)
-            .await;
+        cache.save_to_disk("https://example.com/art.png", &data).await;
         let loaded = cache.load_from_disk("https://example.com/art.png").await;
         assert_eq!(loaded.map(|c| (*c.data).clone()), Some(data));
     }
@@ -546,26 +492,17 @@ mod tests {
     #[tokio::test]
     async fn test_load_from_db_miss() {
         let cache = temp_cache(1024 * 1024).await;
-        assert!(
-            cache
-                .load_from_disk("https://example.com/none.png")
-                .await
-                .is_none()
-        );
+        assert!(cache.load_from_disk("https://example.com/none.png").await.is_none());
     }
 
     #[tokio::test]
     async fn test_db_round_trip_multiple_urls() {
         let cache = temp_cache(1024 * 1024).await;
         for i in 0..5u8 {
-            cache
-                .save_to_disk(&format!("https://example.com/img{}.png", i), &vec![i; 100])
-                .await;
+            cache.save_to_disk(&format!("https://example.com/img{}.png", i), &vec![i; 100]).await;
         }
         for i in 0..5u8 {
-            let loaded = cache
-                .load_from_disk(&format!("https://example.com/img{}.png", i))
-                .await;
+            let loaded = cache.load_from_disk(&format!("https://example.com/img{}.png", i)).await;
             assert_eq!(loaded.map(|c| c.data.len()), Some(100));
         }
     }
@@ -613,10 +550,7 @@ mod tests {
     #[tokio::test]
     async fn test_download_image_connection_refused() {
         let cache = temp_cache(1024 * 1024).await;
-        let err = cache
-            .download_image("http://127.0.0.1:1/image.png")
-            .await
-            .unwrap_err();
+        let err = cache.download_image("http://127.0.0.1:1/image.png").await.unwrap_err();
         assert!(err.contains("Request failed"));
     }
 
@@ -629,10 +563,7 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         let cache = temp_cache(1024 * 1024).await;
 
-        assert_eq!(
-            cache.get_or_load(&url).await.map(|c| (*c.data).clone()),
-            Some(png)
-        );
+        assert_eq!(cache.get_or_load(&url).await.map(|c| (*c.data).clone()), Some(png));
         // Promoted into the memory tier and persisted to the db tier.
         assert!(cache.memory_cache.read().await.contains_key(&url as &str));
         assert!(cache.load_from_disk(&url).await.is_some());
@@ -642,19 +573,12 @@ mod tests {
     async fn test_get_or_load_memory_hit() {
         let cache = temp_cache(1024 * 1024).await;
         let data = vec![42u8; 50];
-        cache.memory_cache.write().await.insert(
-            "http://a.test/cached.png".to_string(),
-            CachedImage {
-                data: Arc::new(data.clone()),
-            },
-        );
-        assert_eq!(
-            cache
-                .get_or_load("http://a.test/cached.png")
-                .await
-                .map(|c| (*c.data).clone()),
-            Some(data)
-        );
+        cache
+            .memory_cache
+            .write()
+            .await
+            .insert("http://a.test/cached.png".to_string(), CachedImage { data: Arc::new(data.clone()) });
+        assert_eq!(cache.get_or_load("http://a.test/cached.png").await.map(|c| (*c.data).clone()), Some(data));
     }
 
     #[tokio::test]
@@ -665,10 +589,7 @@ mod tests {
         cache.save_to_disk(url, &data).await;
         assert!(!cache.memory_cache.read().await.contains_key(url));
 
-        assert_eq!(
-            cache.get_or_load(url).await.map(|c| (*c.data).clone()),
-            Some(data)
-        );
+        assert_eq!(cache.get_or_load(url).await.map(|c| (*c.data).clone()), Some(data));
         assert!(cache.memory_cache.read().await.contains_key(url));
     }
 
@@ -689,19 +610,14 @@ mod tests {
 
         assert!(cache.get_or_load(&url).await.is_some());
         // The one-shot server has closed; a second hit must come from cache.
-        assert_eq!(
-            cache.get_or_load(&url).await.map(|c| (*c.data).clone()),
-            Some(png)
-        );
+        assert_eq!(cache.get_or_load(&url).await.map(|c| (*c.data).clone()), Some(png));
     }
 
     // ── CachedImage ─────────────────────────────────────────────────────
 
     #[test]
     fn test_cached_image_clone_shares_arc() {
-        let img = CachedImage {
-            data: Arc::new(vec![1, 2, 3]),
-        };
+        let img = CachedImage { data: Arc::new(vec![1, 2, 3]) };
         let cloned = img.clone();
         assert!(Arc::ptr_eq(&img.data, &cloned.data));
     }

@@ -65,18 +65,13 @@ impl AppModel {
     }
 
     /// Handle debounced search execution
-    pub fn handle_perform_search_debounced(
-        &mut self,
-        version: u64,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_perform_search_debounced(&mut self, version: u64) -> Task<cosmic::Action<Message>> {
         // Only perform search if version matches (no newer keystrokes)
         if version == self.search_debounce_version && !self.search_query.is_empty() {
             self.is_loading = true;
             let q = self.search_query.clone();
             Task::batch([
-                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| {
-                    Message::SearchComplete(Ok(r))
-                }),
+                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| Message::SearchComplete(Ok(r))),
                 self.perform_search(q),
             ])
         } else {
@@ -90,9 +85,7 @@ impl AppModel {
             self.is_loading = true;
             let q = self.search_query.clone();
             Task::batch([
-                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| {
-                    Message::SearchComplete(Ok(r))
-                }),
+                self.read_view_cache::<SearchResults, _>(format!("search:{q}"), |r| Message::SearchComplete(Ok(r))),
                 self.perform_search(q),
             ])
         } else {
@@ -101,10 +94,7 @@ impl AppModel {
     }
 
     /// Handle search complete
-    pub fn handle_search_complete(
-        &mut self,
-        result: Result<SearchResults, String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_search_complete(&mut self, result: Result<SearchResults, String>) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
             Ok(results) => {

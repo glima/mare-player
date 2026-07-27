@@ -58,9 +58,7 @@ pub struct PlayHistory {
 impl PlayHistory {
     /// Create an empty history.
     pub fn new() -> Self {
-        Self {
-            entries: Vec::new(),
-        }
+        Self { entries: Vec::new() }
     }
 
     /// Replace all entries (used after the database loads them at startup).
@@ -79,10 +77,7 @@ impl PlayHistory {
         // Remove any previous occurrence of this track.
         self.entries.retain(|e| e.track.id != track.id);
 
-        let entry = HistoryEntry {
-            track: track.clone(),
-            played_at: chrono::Utc::now().to_rfc3339(),
-        };
+        let entry = HistoryEntry { track: track.clone(), played_at: chrono::Utc::now().to_rfc3339() };
 
         self.entries.insert(0, entry);
     }
@@ -208,11 +203,7 @@ mod tests {
         let entry = &h.entries()[0];
         assert!(!entry.played_at.is_empty());
         // Should be a valid RFC-3339 / ISO-8601 timestamp.
-        assert!(
-            entry.played_at.contains('T'),
-            "expected ISO-8601 timestamp, got: {}",
-            entry.played_at
-        );
+        assert!(entry.played_at.contains('T'), "expected ISO-8601 timestamp, got: {}", entry.played_at);
     }
 
     #[test]
@@ -295,20 +286,14 @@ mod tests {
 
     #[test]
     fn played_at_millis_parses_rfc3339() {
-        let entry = HistoryEntry {
-            track: make_track("a", "A"),
-            played_at: "2021-02-26T00:00:00+00:00".to_string(),
-        };
+        let entry = HistoryEntry { track: make_track("a", "A"), played_at: "2021-02-26T00:00:00+00:00".to_string() };
         // 2021-02-26T00:00:00Z == 1614297600 s == 1614297600000 ms.
         assert_eq!(entry.played_at_millis(), 1_614_297_600_000);
     }
 
     #[test]
     fn played_at_millis_falls_back_on_garbage() {
-        let entry = HistoryEntry {
-            track: make_track("a", "A"),
-            played_at: "not-a-timestamp".to_string(),
-        };
+        let entry = HistoryEntry { track: make_track("a", "A"), played_at: "not-a-timestamp".to_string() };
         // Falls back to "now" rather than panicking; just assert it's positive.
         assert!(entry.played_at_millis() > 0);
     }

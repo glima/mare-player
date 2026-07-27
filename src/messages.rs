@@ -15,8 +15,7 @@ use crate::config::{AudioQuality, Config, LogLevel};
 use crate::tidal::auth::DeviceCodeInfo;
 use crate::tidal::client::PlaybackUrl;
 use crate::tidal::models::{
-    Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist,
-    SearchResults, Track,
+    Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 
@@ -24,13 +23,7 @@ use crate::tidal::mpris::{MprisCommand, MprisHandle};
 ///
 /// Carries the handle for updating MPRIS metadata/state and a receiver
 /// for playback commands sent by external media controllers.
-pub type MprisStartResult = Result<
-    (
-        MprisHandle,
-        Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<MprisCommand>>>,
-    ),
-    String,
->;
+pub type MprisStartResult = Result<(MprisHandle, Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<MprisCommand>>>), String>;
 
 /// Application messages for state updates
 #[derive(Debug, Clone)]

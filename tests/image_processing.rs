@@ -29,8 +29,7 @@ use std::io::Cursor;
 fn make_solid_png(width: u32, height: u32, r: u8, g: u8, b: u8) -> Vec<u8> {
     let img = RgbaImage::from_pixel(width, height, image::Rgba([r, g, b, 255]));
     let mut buf = Vec::new();
-    img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png)
-        .expect("encode png");
+    img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Png).expect("encode png");
     buf
 }
 
@@ -38,15 +37,13 @@ fn make_solid_png(width: u32, height: u32, r: u8, g: u8, b: u8) -> Vec<u8> {
 fn make_solid_jpeg(width: u32, height: u32, r: u8, g: u8, b: u8) -> Vec<u8> {
     let img = image::RgbImage::from_pixel(width, height, image::Rgb([r, g, b]));
     let mut buf = Vec::new();
-    img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Jpeg)
-        .expect("encode jpeg");
+    img.write_to(&mut Cursor::new(&mut buf), ImageFormat::Jpeg).expect("encode jpeg");
     buf
 }
 
 /// Convert an `RgbaPixels` result into an `RgbaImage` for inspection.
 fn rgba_image(rgba: &RgbaPixels) -> RgbaImage {
-    RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels.clone())
-        .expect("RgbaPixels should have correct dimensions")
+    RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels.clone()).expect("RgbaPixels should have correct dimensions")
 }
 
 // ===========================================================================
@@ -62,11 +59,7 @@ mod circular_basic {
         let result = make_circular(&input, 320).unwrap();
         assert_eq!(result.width, 100);
         assert_eq!(result.height, 100);
-        assert_eq!(
-            result.pixels.len(),
-            (100 * 100 * 4) as usize,
-            "should have width*height*4 RGBA bytes"
-        );
+        assert_eq!(result.pixels.len(), (100 * 100 * 4) as usize, "should have width*height*4 RGBA bytes");
     }
 
     #[test]
@@ -116,11 +109,7 @@ mod circular_basic {
         let corners = [(0, 0), (99, 0), (0, 99), (99, 99)];
         for (x, y) in corners {
             let pixel = img.get_pixel(x, y);
-            assert_eq!(
-                pixel[3], 0,
-                "corner ({},{}) should be transparent, alpha={}",
-                x, y, pixel[3]
-            );
+            assert_eq!(pixel[3], 0, "corner ({},{}) should be transparent, alpha={}", x, y, pixel[3]);
         }
     }
 
@@ -278,11 +267,7 @@ mod circular_errors {
     fn error_message_is_descriptive() {
         let result = make_circular(b"not an image", 320);
         let err = result.unwrap_err();
-        assert!(
-            err.contains("decode") || err.contains("Failed"),
-            "error message should mention decoding: {}",
-            err
-        );
+        assert!(err.contains("decode") || err.contains("Failed"), "error message should mention decoding: {}", err);
     }
 }
 
@@ -314,18 +299,10 @@ mod circular_mask {
 
                 if dist > radius + 1.0 {
                     // Well outside — should be transparent
-                    assert_eq!(
-                        pixel[3], 0,
-                        "pixel ({},{}) at dist={:.1} should be transparent, alpha={}",
-                        x, y, dist, pixel[3]
-                    );
+                    assert_eq!(pixel[3], 0, "pixel ({},{}) at dist={:.1} should be transparent, alpha={}", x, y, dist, pixel[3]);
                 } else if dist < radius - 2.0 {
                     // Well inside — should be opaque
-                    assert_eq!(
-                        pixel[3], 255,
-                        "pixel ({},{}) at dist={:.1} should be opaque, alpha={}",
-                        x, y, dist, pixel[3]
-                    );
+                    assert_eq!(pixel[3], 255, "pixel ({},{}) at dist={:.1} should be opaque, alpha={}", x, y, dist, pixel[3]);
                 }
                 // Near the edge (anti-aliasing zone) — any alpha is acceptable
             }
@@ -361,10 +338,7 @@ mod circular_mask {
             }
         }
 
-        assert!(
-            found_intermediate,
-            "should have anti-aliased edge pixels with intermediate alpha"
-        );
+        assert!(found_intermediate, "should have anti-aliased edge pixels with intermediate alpha");
     }
 }
 
@@ -381,11 +355,7 @@ mod grid_basic {
         let result = make_grid_thumbnail(&[input.as_slice()], 160).unwrap();
         assert_eq!(result.width, 160);
         assert_eq!(result.height, 160);
-        assert_eq!(
-            result.pixels.len(),
-            (160 * 160 * 4) as usize,
-            "should have width*height*4 RGBA bytes"
-        );
+        assert_eq!(result.pixels.len(), (160 * 160 * 4) as usize, "should have width*height*4 RGBA bytes");
     }
 
     #[test]
@@ -437,11 +407,7 @@ mod grid_basic {
         let corners = [(0, 0), (99, 0), (0, 99), (99, 99)];
         for (x, y) in corners {
             let pixel = img.get_pixel(x, y);
-            assert_eq!(
-                pixel[3], 0,
-                "corner ({},{}) should be transparent, alpha={}",
-                x, y, pixel[3]
-            );
+            assert_eq!(pixel[3], 0, "corner ({},{}) should be transparent, alpha={}", x, y, pixel[3]);
         }
     }
 }
@@ -511,9 +477,7 @@ mod grid_image_counts {
 
     #[test]
     fn ten_images_still_works() {
-        let imgs: Vec<Vec<u8>> = (0..10)
-            .map(|i| make_solid_png(50, 50, (i * 25) as u8, 100, 200))
-            .collect();
+        let imgs: Vec<Vec<u8>> = (0..10).map(|i| make_solid_png(50, 50, (i * 25) as u8, 100, 200)).collect();
         let refs: Vec<&[u8]> = imgs.iter().map(|v| v.as_slice()).collect();
         let result = make_grid_thumbnail(&refs, 100).unwrap();
         let img = rgba_image(&result);
@@ -534,11 +498,7 @@ mod grid_errors {
         let result = make_grid_thumbnail(&images, 100);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(
-            err.contains("No images"),
-            "error should mention no images: {}",
-            err
-        );
+        assert!(err.contains("No images"), "error should mention no images: {}", err);
     }
 
     #[test]
@@ -548,11 +508,7 @@ mod grid_errors {
         let result = make_grid_thumbnail(&images, 100);
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(
-            err.contains("decoded") || err.contains("None"),
-            "error should mention decode failure: {}",
-            err
-        );
+        assert!(err.contains("decoded") || err.contains("None"), "error should mention decode failure: {}", err);
     }
 
     #[test]
@@ -692,14 +648,7 @@ mod grid_quadrants {
             (q, q, 255, 0, 0, "top-left red"),
             (half + gap + q, q, 0, 255, 0, "top-right green"),
             (q, half + gap + q, 0, 0, 255, "bottom-left blue"),
-            (
-                half + gap + q,
-                half + gap + q,
-                255,
-                255,
-                0,
-                "bottom-right yellow",
-            ),
+            (half + gap + q, half + gap + q, 255, 255, 0, "bottom-right yellow"),
         ];
 
         for (x, y, er, eg, eb, label) in check_points {
@@ -713,14 +662,7 @@ mod grid_quadrants {
             }
 
             let pixel = img.get_pixel(x, y);
-            assert!(
-                pixel[3] > 200,
-                "{} pixel ({},{}) should be opaque, alpha={}",
-                label,
-                x,
-                y,
-                pixel[3]
-            );
+            assert!(pixel[3] > 200, "{} pixel ({},{}) should be opaque, alpha={}", label, x, y, pixel[3]);
             // Allow some tolerance for JPEG compression / resampling
             let tol = 30;
             assert!(
@@ -768,11 +710,7 @@ mod grid_circle_mask {
                 let pixel = img.get_pixel(x, y);
 
                 if dist > radius + 1.0 {
-                    assert_eq!(
-                        pixel[3], 0,
-                        "pixel ({},{}) at dist={:.1} should be transparent",
-                        x, y, dist
-                    );
+                    assert_eq!(pixel[3], 0, "pixel ({},{}) at dist={:.1} should be transparent", x, y, dist);
                 }
             }
         }
@@ -808,13 +746,7 @@ mod grid_circle_mask {
 
             if dist < radius - 2.0 {
                 let pixel = img.get_pixel(x, y);
-                assert!(
-                    pixel[3] > 200,
-                    "pixel ({},{}) inside circle should be opaque, alpha={}",
-                    x,
-                    y,
-                    pixel[3]
-                );
+                assert!(pixel[3] > 200, "pixel ({},{}) inside circle should be opaque, alpha={}", x, y, pixel[3]);
             }
         }
     }
@@ -837,10 +769,7 @@ mod grid_determinism {
 
         let result1 = make_grid_thumbnail(&images, 100).unwrap();
         let result2 = make_grid_thumbnail(&images, 100).unwrap();
-        assert_eq!(
-            result1.pixels, result2.pixels,
-            "same inputs should produce same output"
-        );
+        assert_eq!(result1.pixels, result2.pixels, "same inputs should produce same output");
     }
 
     #[test]

@@ -52,12 +52,7 @@ pub struct TrackRowOptions {
 
 impl Default for TrackRowOptions {
     fn default() -> Self {
-        Self {
-            tracks: Arc::from([]),
-            source: None,
-            fallback_icon: "audio-x-generic-symbolic",
-            show_radio_button: true,
-        }
+        Self { tracks: Arc::from([]), source: None, fallback_icon: "audio-x-generic-symbolic", show_radio_button: true }
     }
 }
 
@@ -68,12 +63,8 @@ impl TrackRowOptions {
     /// Digits and colons are measured separately: digits are ~6 px wide at
     /// size 11 in a typical COSMIC font, while colons are only ~3 px.
     pub fn duration_column_width(&self) -> f32 {
-        let max_str = self
-            .tracks
-            .iter()
-            .map(|t| t.duration_display())
-            .max_by_key(|s| s.len())
-            .unwrap_or_else(|| "0:00".to_string());
+        let max_str =
+            self.tracks.iter().map(|t| t.duration_display()).max_by_key(|s| s.len()).unwrap_or_else(|| "0:00".to_string());
 
         let digits = max_str.chars().filter(|c| c.is_ascii_digit()).count();
         let colons = max_str.chars().filter(|c| *c == ':').count();
@@ -91,35 +82,20 @@ impl TrackRowOptions {
 /// This is the **single source of truth** for list item styling across the
 /// entire applet. Every clickable row in a list (tracks, albums, playlists,
 /// menu entries, search results, discography items) should go through here.
-pub fn list_item<'a>(
-    content: impl Into<Element<'a, Message>>,
-    on_press: Message,
-    padding: u16,
-) -> Element<'a, Message> {
+pub fn list_item<'a>(content: impl Into<Element<'a, Message>>, on_press: Message, padding: u16) -> Element<'a, Message> {
     // Use a custom button class that delegates to MenuItem for every state
     // except pressed, which reuses the hovered style.  This ensures the
     // FadingClip gradient (which uses the hover colour) matches the button
     // background in ALL interactive states — base, hover, AND press —
     // without needing fragile pressed-state tracking in the widget tree.
     let class = cosmic::theme::Button::Custom {
-        active: Box::new(|focused, theme| {
-            Catalog::active(theme, focused, false, &cosmic::theme::Button::MenuItem)
-        }),
+        active: Box::new(|focused, theme| Catalog::active(theme, focused, false, &cosmic::theme::Button::MenuItem)),
         disabled: Box::new(|theme| Catalog::disabled(theme, &cosmic::theme::Button::MenuItem)),
-        hovered: Box::new(|focused, theme| {
-            Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)
-        }),
-        pressed: Box::new(|focused, theme| {
-            Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)
-        }),
+        hovered: Box::new(|focused, theme| Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)),
+        pressed: Box::new(|focused, theme| Catalog::hovered(theme, focused, false, &cosmic::theme::Button::MenuItem)),
     };
 
-    button::custom(content)
-        .on_press(on_press)
-        .width(Length::Fill)
-        .padding(padding)
-        .class(class)
-        .into()
+    button::custom(content).on_press(on_press).width(Length::Fill).padding(padding).class(class).into()
 }
 
 /// Bake an inter-row gap into a virtual-`List` row as non-interactive bottom
@@ -139,14 +115,8 @@ pub fn list_item<'a>(
 /// interactive button, so the gap stays dead space and hit-testing matches
 /// drawing. Remove this and restore `List::spacing()` once the widget is fixed
 /// upstream.
-pub fn virtual_list_row<'a>(
-    content: impl Into<Element<'a, Message>>,
-    gap: u16,
-) -> Element<'a, Message> {
-    container(content)
-        .width(Length::Fill)
-        .padding([0, 0, gap, 0])
-        .into()
+pub fn virtual_list_row<'a>(content: impl Into<Element<'a, Message>>, gap: u16) -> Element<'a, Message> {
+    container(content).width(Length::Fill).padding([0, 0, gap, 0]).into()
 }
 
 // =============================================================================
@@ -190,9 +160,7 @@ pub fn back_button<'a>(on_press: Message) -> Element<'a, Message> {
 pub fn fading_text_column<'a>(children: Vec<Element<'a, Message>>) -> Element<'a, Message> {
     let text_col = widget::Column::with_children(children).width(Length::Fill);
 
-    FadingClip::new(text_col, FADE_WIDTH)
-        .width(Length::Fill)
-        .into()
+    FadingClip::new(text_col, FADE_WIDTH).width(Length::Fill).into()
 }
 
 /// Wrap a single element in a **shrink-width** [`FadingClip`], for text placed
@@ -215,25 +183,19 @@ pub fn fading_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Me
 /// Wrap text in a [`FadingClip`] that alpha-fades overflow. For text inside
 /// suggested (accent) action buttons.
 pub fn fading_suggested_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    FadingClip::new(child, FADE_WIDTH)
-        .width(Length::Fill)
-        .into()
+    FadingClip::new(child, FADE_WIDTH).width(Length::Fill).into()
 }
 
 /// Wrap text in a [`FadingClip`] that alpha-fades overflow. For text inside
 /// standard action buttons.
 pub fn fading_standard_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    FadingClip::new(child, FADE_WIDTH)
-        .width(Length::Fill)
-        .into()
+    FadingClip::new(child, FADE_WIDTH).width(Length::Fill).into()
 }
 
 /// Wrap panel button text in a width-limited [`FadingClip`] that alpha-fades
 /// overflow on the right.
 pub fn fading_panel_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<'a, Message> {
-    container(FadingClip::new(child, FADE_WIDTH).width(Length::Shrink))
-        .max_width(MAX_PANEL_TEXT_WIDTH)
-        .into()
+    container(FadingClip::new(child, FADE_WIDTH).width(Length::Shrink)).max_width(MAX_PANEL_TEXT_WIDTH).into()
 }
 
 /// Wrap a header title in a [`FadingClip`] that alpha-fades overflow on the
@@ -241,9 +203,7 @@ pub fn fading_panel_text<'a>(child: impl Into<Element<'a, Message>>) -> Element<
 pub fn fading_header_title<'a>(title: &str) -> Element<'a, Message> {
     let label = text(title.to_string()).size(18).wrapping(Wrapping::None);
 
-    FadingClip::new(label, FADE_WIDTH)
-        .width(Length::Fill)
-        .into()
+    FadingClip::new(label, FADE_WIDTH).width(Length::Fill).into()
 }
 
 // =============================================================================
@@ -308,21 +268,15 @@ pub fn branded_title<'a>(big_size: u16) -> Element<'a, Message> {
 /// Wrap a content column in a scrollable container that fills available space
 /// in standalone mode, or caps at [`MAX_POPUP_HEIGHT`](super::constants::MAX_POPUP_HEIGHT)
 /// in panel-applet mode.
-pub fn scrollable_list(
-    content: widget::Column<'_, Message, cosmic::Theme>,
-) -> Element<'_, Message> {
+pub fn scrollable_list(content: widget::Column<'_, Message, cosmic::Theme>) -> Element<'_, Message> {
     #[cfg(feature = "panel-applet")]
     {
         use super::constants::MAX_POPUP_HEIGHT;
-        container(scrollable(content.padding([0, 12, 0, 0])).height(Length::Shrink))
-            .max_height(MAX_POPUP_HEIGHT)
-            .into()
+        container(scrollable(content.padding([0, 12, 0, 0])).height(Length::Shrink)).max_height(MAX_POPUP_HEIGHT).into()
     }
     #[cfg(not(feature = "panel-applet"))]
     {
-        scrollable(content.padding([0, 12, 0, 0]))
-            .height(Length::Fill)
-            .into()
+        scrollable(content.padding([0, 12, 0, 0])).height(Length::Fill).into()
     }
 }
 
@@ -336,17 +290,12 @@ pub fn scrollable_element<'a>(content: impl Into<Element<'a, Message>>) -> Eleme
     #[cfg(feature = "panel-applet")]
     {
         use super::constants::MAX_POPUP_HEIGHT;
-        container(
-            scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0]))
-                .height(Length::Shrink),
-        )
-        .max_height(MAX_POPUP_HEIGHT)
-        .into()
+        container(scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0])).height(Length::Shrink))
+            .max_height(MAX_POPUP_HEIGHT)
+            .into()
     }
     #[cfg(not(feature = "panel-applet"))]
     {
-        scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0]))
-            .height(Length::Fill)
-            .into()
+        scrollable(container(elem).width(Length::Fill).padding([0, 12, 0, 0])).height(Length::Fill).into()
     }
 }

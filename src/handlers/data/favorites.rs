@@ -26,17 +26,9 @@ impl AppModel {
             async move {
                 let client = client.lock().await;
                 if is_favorite {
-                    client
-                        .remove_favorite_track(&track_id)
-                        .await
-                        .map(|_| (track, false))
-                        .map_err(|e| e.to_string())
+                    client.remove_favorite_track(&track_id).await.map(|_| (track, false)).map_err(|e| e.to_string())
                 } else {
-                    client
-                        .add_favorite_track(&track_id)
-                        .await
-                        .map(|_| (track, true))
-                        .map_err(|e| e.to_string())
+                    client.add_favorite_track(&track_id).await.map(|_| (track, true)).map_err(|e| e.to_string())
                 }
             },
             |result| cosmic::Action::App(Message::FavoriteToggled(result)),
@@ -82,17 +74,9 @@ impl AppModel {
             async move {
                 let client = client.lock().await;
                 if is_favorite {
-                    client
-                        .remove_favorite_album(&album_id)
-                        .await
-                        .map(|_| (album, false))
-                        .map_err(|e| e.to_string())
+                    client.remove_favorite_album(&album_id).await.map(|_| (album, false)).map_err(|e| e.to_string())
                 } else {
-                    client
-                        .add_favorite_album(&album_id)
-                        .await
-                        .map(|_| (album, true))
-                        .map_err(|e| e.to_string())
+                    client.add_favorite_album(&album_id).await.map(|_| (album, true)).map_err(|e| e.to_string())
                 }
             },
             |result| cosmic::Action::App(Message::FavoriteAlbumToggled(result)),
@@ -138,17 +122,9 @@ impl AppModel {
             async move {
                 let client = client.lock().await;
                 if is_followed {
-                    client
-                        .unfollow_artist(&artist_id)
-                        .await
-                        .map(|_| (artist, false))
-                        .map_err(|e| e.to_string())
+                    client.unfollow_artist(&artist_id).await.map(|_| (artist, false)).map_err(|e| e.to_string())
                 } else {
-                    client
-                        .follow_artist(&artist_id)
-                        .await
-                        .map(|_| (artist, true))
-                        .map_err(|e| e.to_string())
+                    client.follow_artist(&artist_id).await.map(|_| (artist, true)).map_err(|e| e.to_string())
                 }
             },
             |result| cosmic::Action::App(Message::FollowArtistToggled(result)),

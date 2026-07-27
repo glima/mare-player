@@ -30,9 +30,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::models::{CreditContributor, TrackCredits};
-use crate::views::components::{
-    back_button, fading_header_title, fading_text, fading_text_column, scrollable_list,
-};
+use crate::views::components::{back_button, fading_header_title, fading_text, fading_text_column, scrollable_list};
 
 /// Font size for a field's caption ("PRODUCER", "LABEL", …).
 const FIELD_LABEL_SIZE: u16 = 10;
@@ -43,9 +41,7 @@ impl AppModel {
     /// Render the credits view for the currently-selected credits track.
     pub fn view_credits(&self) -> Element<'_, Message> {
         let track = self.selected_credits_track.as_ref();
-        let track_title = track
-            .map(|t| t.title.clone())
-            .unwrap_or_else(|| fl!("credits-title-fallback"));
+        let track_title = track.map(|t| t.title.clone()).unwrap_or_else(|| fl!("credits-title-fallback"));
         let header_title = fl!("credits-title", title = track_title.clone());
 
         let header = widget::Row::new()
@@ -62,23 +58,15 @@ impl AppModel {
                 .align_x(Horizontal::Center)
                 .padding([24, 0])
                 .into(),
-            Some(credits) if credits.is_empty() => {
-                container(text(fl!("no-credits-available", title = track_title)).size(14))
-                    .width(Length::Fill)
-                    .align_x(Horizontal::Center)
-                    .padding([24, 0])
-                    .into()
-            }
+            Some(credits) if credits.is_empty() => container(text(fl!("no-credits-available", title = track_title)).size(14))
+                .width(Length::Fill)
+                .align_x(Horizontal::Center)
+                .padding([24, 0])
+                .into(),
             Some(credits) => self.render_credits(credits),
         };
 
-        widget::Column::new()
-            .push(header)
-            .push(body)
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill)
-            .into()
+        widget::Column::new().push(header).push(body).spacing(12).padding(12).width(Length::Fill).into()
     }
 
     /// Render the field stack: catalog basics first, then the credit roles.
@@ -96,20 +84,12 @@ impl AppModel {
             column = column.push(field_text(fl!("credits-field-title"), &track.title));
 
             // Artist links through to the artist page when we know the id.
-            let artist = CreditContributor {
-                name: track.artist_name.clone(),
-                id: track.artist_id.clone(),
-            };
-            column = column.push(field_people(
-                fl!("credits-field-artists"),
-                std::slice::from_ref(&artist),
-            ));
+            let artist = CreditContributor { name: track.artist_name.clone(), id: track.artist_id.clone() };
+            column = column.push(field_people(fl!("credits-field-artists"), std::slice::from_ref(&artist)));
 
             if let Some(album_name) = &track.album_name {
                 let value: Element<'_, Message> = match &track.album_id {
-                    Some(album_id) => {
-                        link(album_name, Message::ShowAlbumDetailById(album_id.clone()))
-                    }
+                    Some(album_id) => link(album_name, Message::ShowAlbumDetailById(album_id.clone())),
                     None => plain_value(album_name),
                 };
                 column = column.push(field(fl!("credits-field-album"), value));
@@ -143,12 +123,7 @@ impl AppModel {
 /// One labelled field: small caption above an arbitrary value element.
 fn field<'a>(label: String, value: Element<'a, Message>) -> Element<'a, Message> {
     widget::Column::new()
-        .push(fading_text_column(vec![
-            text(label)
-                .size(FIELD_LABEL_SIZE)
-                .wrapping(Wrapping::None)
-                .into(),
-        ]))
+        .push(fading_text_column(vec![text(label).size(FIELD_LABEL_SIZE).wrapping(Wrapping::None).into()]))
         .push(value)
         .spacing(2)
         .width(Length::Fill)
@@ -175,12 +150,7 @@ fn field_people<'a>(label: String, people: &[CreditContributor]) -> Element<'a, 
 
 /// Non-interactive field value, alpha-faded when it overflows the popup width.
 fn plain_value<'a>(value: &str) -> Element<'a, Message> {
-    fading_text_column(vec![
-        text(value.to_string())
-            .size(FIELD_VALUE_SIZE)
-            .wrapping(Wrapping::None)
-            .into(),
-    ])
+    fading_text_column(vec![text(value.to_string()).size(FIELD_VALUE_SIZE).wrapping(Wrapping::None).into()])
 }
 
 /// Clickable field value (artist / album link).
@@ -189,14 +159,10 @@ fn plain_value<'a>(value: &str) -> Element<'a, Message> {
 /// colour; a shrink-width button keeps the hover highlight hugging the name
 /// instead of spanning the whole row.
 fn link<'a>(value: &str, on_press: Message) -> Element<'a, Message> {
-    button::custom(fading_text(
-        text(value.to_string())
-            .size(FIELD_VALUE_SIZE)
-            .wrapping(Wrapping::None),
-    ))
-    .on_press(on_press)
-    .width(Length::Shrink)
-    .padding(0)
-    .class(cosmic::theme::Button::MenuItem)
-    .into()
+    button::custom(fading_text(text(value.to_string()).size(FIELD_VALUE_SIZE).wrapping(Wrapping::None)))
+        .on_press(on_press)
+        .width(Length::Shrink)
+        .padding(0)
+        .class(cosmic::theme::Button::MenuItem)
+        .into()
 }

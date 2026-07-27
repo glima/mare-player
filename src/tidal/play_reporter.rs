@@ -130,8 +130,7 @@ impl PlayReporter {
     /// Spawn the background worker.
     pub fn spawn() -> Arc<Self> {
         let (tx, rx) = mpsc::unbounded_channel();
-        let log: Arc<Mutex<VecDeque<ReportLogEntry>>> =
-            Arc::new(Mutex::new(VecDeque::with_capacity(REPORT_LOG_CAP)));
+        let log: Arc<Mutex<VecDeque<ReportLogEntry>>> = Arc::new(Mutex::new(VecDeque::with_capacity(REPORT_LOG_CAP)));
         let worker_log = Arc::clone(&log);
 
         tokio::spawn(async move {
@@ -242,10 +241,7 @@ impl InProgressPlay {
 
 // ── Worker ─────────────────────────────────────────────────────────────
 
-async fn run_worker(
-    mut rx: UnboundedReceiver<PlaySession>,
-    log: Arc<Mutex<VecDeque<ReportLogEntry>>>,
-) {
+async fn run_worker(mut rx: UnboundedReceiver<PlaySession>, log: Arc<Mutex<VecDeque<ReportLogEntry>>>) {
     let http = reqwest::Client::new();
     debug!("play_reporter worker started");
     while let Some(session) = rx.recv().await {
@@ -343,16 +339,8 @@ fn build_message_body(session: &PlaySession, claims: &JwtClaims) -> String {
     let source_type = session.source_type.as_deref().unwrap_or("");
     let source_id = session.source_id.as_deref().unwrap_or("");
 
-    let user_id_int: u64 = claims
-        .uid
-        .as_deref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let client_id_int: u64 = claims
-        .cid
-        .as_deref()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
+    let user_id_int: u64 = claims.uid.as_deref().and_then(|s| s.parse().ok()).unwrap_or(0);
+    let client_id_int: u64 = claims.cid.as_deref().and_then(|s| s.parse().ok()).unwrap_or(0);
     let session_id = claims.sid.as_deref().unwrap_or("");
 
     let payload = serde_json::json!({
@@ -431,38 +419,14 @@ fn encode_sqs_batch(msg_id: &str, body: &str, headers_attr: &str) -> Vec<(String
     // AWS SQS `SendMessageBatch` form-encoded parameters.  We only ever
     // send one entry at a time; the indexing convention is 1-based.
     vec![
-        (
-            "SendMessageBatchRequestEntry.1.Id".to_string(),
-            msg_id.to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageBody".to_string(),
-            body.to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.1.Name".to_string(),
-            "Name".to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.StringValue".to_string(),
-            EVENT_NAME.to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.DataType".to_string(),
-            "String".to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.2.Name".to_string(),
-            "Headers".to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue".to_string(),
-            headers_attr.to_string(),
-        ),
-        (
-            "SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.DataType".to_string(),
-            "String".to_string(),
-        ),
+        ("SendMessageBatchRequestEntry.1.Id".to_string(), msg_id.to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageBody".to_string(), body.to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.1.Name".to_string(), "Name".to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.StringValue".to_string(), EVENT_NAME.to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.DataType".to_string(), "String".to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.2.Name".to_string(), "Headers".to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue".to_string(), headers_attr.to_string()),
+        ("SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.DataType".to_string(), "String".to_string()),
     ]
 }
 
@@ -526,10 +490,7 @@ fn decode_jwt_claims(token: &str) -> JwtClaims {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
 }
 
 fn push_log(log: &Arc<Mutex<VecDeque<ReportLogEntry>>>, entry: ReportLogEntry) {
@@ -553,8 +514,7 @@ mod tests {
         //   header   = {"alg":"none"}
         //   payload  = {"uid":12345,"cid":8017,"sid":"sess-abc"}
         let header = general_purpose::URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#);
-        let payload = general_purpose::URL_SAFE_NO_PAD
-            .encode(br#"{"uid":12345,"cid":8017,"sid":"sess-abc"}"#);
+        let payload = general_purpose::URL_SAFE_NO_PAD.encode(br#"{"uid":12345,"cid":8017,"sid":"sess-abc"}"#);
         let token = format!("{header}.{payload}.");
         let claims = decode_jwt_claims(&token);
         assert_eq!(claims.uid.as_deref(), Some("12345"));
@@ -592,11 +552,7 @@ mod tests {
             end_position_s: 180.0,
             access_token: String::new(),
         };
-        let claims = JwtClaims {
-            uid: Some("42".to_string()),
-            cid: Some("8017".to_string()),
-            sid: Some("sess-abc".to_string()),
-        };
+        let claims = JwtClaims { uid: Some("42".to_string()), cid: Some("8017".to_string()), sid: Some("sess-abc".to_string()) };
         let body = build_message_body(&session, &claims);
         let v: serde_json::Value = serde_json::from_str(&body).unwrap();
         assert_eq!(v["group"], "play_log");
@@ -681,35 +637,14 @@ mod tests {
         let map: std::collections::HashMap<_, _> = params.into_iter().collect();
 
         assert_eq!(map["SendMessageBatchRequestEntry.1.Id"], "msg-7");
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageBody"],
-            "the-body"
-        );
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageBody"], "the-body");
         // Attribute 1 = Name -> EVENT_NAME
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Name"],
-            "Name"
-        );
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.StringValue"],
-            EVENT_NAME
-        );
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.DataType"],
-            "String"
-        );
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Name"], "Name");
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.StringValue"], EVENT_NAME);
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.1.Value.DataType"], "String");
         // Attribute 2 = Headers -> headers_attr
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Name"],
-            "Headers"
-        );
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue"],
-            "the-headers"
-        );
-        assert_eq!(
-            map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.DataType"],
-            "String"
-        );
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Name"], "Headers");
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.StringValue"], "the-headers");
+        assert_eq!(map["SendMessageBatchRequestEntry.1.MessageAttribute.2.Value.DataType"], "String");
     }
 }

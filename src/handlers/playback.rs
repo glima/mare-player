@@ -104,11 +104,7 @@ impl AppModel {
         track: Track,
         source: Option<crate::tidal::models::PlaybackSource>,
     ) -> Task<cosmic::Action<Message>> {
-        tracing::info!(
-            "Play single track requested: {} (source: {:?})",
-            track,
-            source.as_ref().map(|s| (&s.kind, &s.id))
-        );
+        tracing::info!("Play single track requested: {} (source: {:?})", track, source.as_ref().map(|s| (&s.kind, &s.id)));
         self.playback_source = source;
         // Clear queue and play just this track
         self.playback_queue = vec![track.clone()];
@@ -233,8 +229,7 @@ impl AppModel {
             // Shuffle the remaining tracks (keep current track in place)
             use rand::seq::SliceRandom;
             let mut rng = rand::rng();
-            if let Some(current_track) = self.playback_queue.get(self.playback_queue_index).cloned()
-            {
+            if let Some(current_track) = self.playback_queue.get(self.playback_queue_index).cloned() {
                 let mut remaining: Vec<_> = self
                     .playback_queue
                     .iter()
@@ -276,11 +271,7 @@ impl AppModel {
     /// Song disk-caching is intentionally skipped here: capturing the encoded
     /// stream (multi-segment DASH especially) is hard and is deferred.
     /// Previously-cached files still play instantly via a `file://` URI.
-    fn start_gst_audio(
-        &mut self,
-        track: Track,
-        playback_url: PlaybackUrl,
-    ) -> Task<cosmic::Action<Message>> {
+    fn start_gst_audio(&mut self, track: Track, playback_url: PlaybackUrl) -> Task<cosmic::Action<Message>> {
         let now_playing = NowPlaying {
             track_id: track.id.clone(),
             title: track.title.clone(),
@@ -288,10 +279,7 @@ impl AppModel {
             album: track.album_name.clone(),
             cover_url: track.cover_url.clone(),
             duration: track.duration as f64,
-            playlist_name: self
-                .playback_source
-                .as_ref()
-                .map(|s| s.display_name.clone()),
+            playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
         };
 
         // Tracks carry TIDAL's authored album replay gain; unity (0 dB) when
@@ -303,15 +291,7 @@ impl AppModel {
         // DASH (HiRes) — nothing is written to disk.
         let uri = playback_url.as_url();
 
-        tracing::info!(
-            "GStreamer audio: {} ({})",
-            track,
-            if playback_url.is_dash() {
-                "DASH"
-            } else {
-                "direct"
-            },
-        );
+        tracing::info!("GStreamer audio: {} ({})", track, if playback_url.is_dash() { "DASH" } else { "direct" },);
 
         let analyzer = self.visualizer_state.analyzer();
         match crate::playback::MediaPlayer::new_audio(&uri, analyzer, replay_gain_db) {
@@ -364,19 +344,11 @@ impl AppModel {
             LoopStatus::Track => Some(self.playback_queue_index),
             LoopStatus::Playlist => {
                 let next = self.playback_queue_index + 1;
-                if next < self.playback_queue.len() {
-                    Some(next)
-                } else {
-                    Some(0)
-                }
+                if next < self.playback_queue.len() { Some(next) } else { Some(0) }
             }
             LoopStatus::None => {
                 let next = self.playback_queue_index + 1;
-                if next < self.playback_queue.len() {
-                    Some(next)
-                } else {
-                    None
-                }
+                if next < self.playback_queue.len() { Some(next) } else { None }
             }
         };
 
@@ -391,10 +363,7 @@ impl AppModel {
                 album: track.album_name.clone(),
                 duration: track.duration as f64,
                 cover_url: track.cover_url.clone(),
-                playlist_name: self
-                    .now_playing
-                    .as_ref()
-                    .and_then(|np| np.playlist_name.clone()),
+                playlist_name: self.now_playing.as_ref().and_then(|np| np.playlist_name.clone()),
             });
             self.playback_position = 0.0;
             self.playback_state = PlaybackState::Playing;
@@ -420,10 +389,7 @@ impl AppModel {
 
     /// Handle the resolved HLS URL for a music video: start the GStreamer
     /// pipeline and surface it in the now-playing pane.
-    pub fn handle_video_url_received(
-        &mut self,
-        result: Result<(Track, String), String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_video_url_received(&mut self, result: Result<(Track, String), String>) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, url)) => {
                 self.current_video_url = Some(url.clone());
@@ -443,25 +409,16 @@ impl AppModel {
                         album: track.album_name.clone(),
                         cover_url: track.cover_url.clone(),
                         duration: track.duration as f64,
-                        playlist_name: self
-                            .playback_source
-                            .as_ref()
-                            .map(|s| s.display_name.clone()),
+                        playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
                     });
                     self.play_history.record(&track);
                     self.persist_play_history();
                     tracing::info!("Video handed to pop-out window: {}", track);
-                    return Task::batch([
-                        self.update_mpris_state(),
-                        self.refresh_now_playing_lyrics(&track),
-                    ]);
+                    return Task::batch([self.update_mpris_state(), self.refresh_now_playing_lyrics(&track)]);
                 }
 
-                match crate::playback::MediaPlayer::new_video(
-                    &url,
-                    self.visualizer_state.analyzer(),
-                    self.config.video_preamp_db,
-                ) {
+                match crate::playback::MediaPlayer::new_video(&url, self.visualizer_state.analyzer(), self.config.video_preamp_db)
+                {
                     Ok(video) => {
                         video.set_volume(self.volume_level as f64);
                         self.video_player = Some(video);
@@ -479,19 +436,13 @@ impl AppModel {
                             album: track.album_name.clone(),
                             cover_url: track.cover_url.clone(),
                             duration: track.duration as f64,
-                            playlist_name: self
-                                .playback_source
-                                .as_ref()
-                                .map(|s| s.display_name.clone()),
+                            playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
                         });
                         self.playback_position = 0.0;
                         self.play_history.record(&track);
                         self.persist_play_history();
                         tracing::info!("Video playback started: {}", track);
-                        return Task::batch([
-                            self.update_mpris_state(),
-                            self.refresh_now_playing_lyrics(&track),
-                        ]);
+                        return Task::batch([self.update_mpris_state(), self.refresh_now_playing_lyrics(&track)]);
                     }
                     Err(e) => {
                         tracing::error!("Failed to start video pipeline: {}", e);
@@ -517,12 +468,7 @@ impl AppModel {
             && np.duration > 0.0
         {
             let target_pos = (percent / 100.0) * np.duration;
-            tracing::info!(
-                "SeekTo: {}% -> {:.2}s (duration: {:.2}s)",
-                percent,
-                target_pos,
-                np.duration
-            );
+            tracing::info!("SeekTo: {}% -> {:.2}s (duration: {:.2}s)", percent, target_pos, np.duration);
             // Update UI position immediately for responsiveness
             self.playback_position = target_pos;
             // Store pending seek and increment version for debouncing
@@ -603,8 +549,7 @@ impl AppModel {
             self.playback_state = new_state;
             // Mirror the audio path: settle the visualizer when paused (no PCM
             // flows while the pipeline is stopped), re-arm it when resuming.
-            self.visualizer_state
-                .set_active(new_state == PlaybackState::Playing);
+            self.visualizer_state.set_active(new_state == PlaybackState::Playing);
             return self.update_mpris_state();
         }
 
@@ -622,8 +567,7 @@ impl AppModel {
                 other => other,
             };
             self.playback_state = new_state;
-            self.visualizer_state
-                .set_active(new_state == PlaybackState::Playing);
+            self.visualizer_state.set_active(new_state == PlaybackState::Playing);
             return self.update_mpris_state();
         }
 
@@ -696,13 +640,7 @@ impl AppModel {
         // popped out, so the parent must not also decode (echo + drift).
         self.stop_video();
 
-        match crate::playback::VideoWindowChild::spawn(
-            &url,
-            pos,
-            vol,
-            preamp,
-            self.video_window_tx.clone(),
-        ) {
+        match crate::playback::VideoWindowChild::spawn(&url, pos, vol, preamp, self.video_window_tx.clone()) {
             Some(child) => {
                 self.video_window = Some(child);
                 tracing::info!("Video popped out into child window at {:.1}s", pos);
@@ -719,17 +657,9 @@ impl AppModel {
     /// Rebuild the inline video [`MediaPlayer`] for `url`, seeking to `pos`.
     /// Used when popping a video back in (button, window-closed, or failed
     /// spawn).
-    pub(crate) fn resume_inline_video(
-        &mut self,
-        url: &str,
-        pos: f64,
-    ) -> Task<cosmic::Action<Message>> {
-        match crate::playback::MediaPlayer::new_video_at(
-            url,
-            self.visualizer_state.analyzer(),
-            self.config.video_preamp_db,
-            pos,
-        ) {
+    pub(crate) fn resume_inline_video(&mut self, url: &str, pos: f64) -> Task<cosmic::Action<Message>> {
+        match crate::playback::MediaPlayer::new_video_at(url, self.visualizer_state.analyzer(), self.config.video_preamp_db, pos)
+        {
             Ok(video) => {
                 tracing::info!("Resuming video inline at {:.1}s", pos);
                 video.set_volume(self.volume_level as f64);
@@ -774,14 +704,9 @@ impl AppModel {
                     }
                     // Drive the karaoke-style highlight in the lyrics view.
                     if matches!(self.view_state, crate::state::ViewState::Lyrics)
-                        && let (Some(track), Some(lyrics)) = (
-                            self.playback_queue.get(self.playback_queue_index),
-                            self.selected_track_lyrics.as_ref(),
-                        )
-                        && self
-                            .selected_lyrics_track
-                            .as_ref()
-                            .is_some_and(|t| t.id == track.id)
+                        && let (Some(track), Some(lyrics)) =
+                            (self.playback_queue.get(self.playback_queue_index), self.selected_track_lyrics.as_ref())
+                        && self.selected_lyrics_track.as_ref().is_some_and(|t| t.id == track.id)
                     {
                         let next = lyrics.line_index_at(pos);
                         if next != self.current_lyric_index {
@@ -798,11 +723,7 @@ impl AppModel {
                 let pos = self.playback_position;
                 self.video_window = None;
                 tracing::info!("Video window closed by user; resuming inline");
-                if let Some(url) = self.current_video_url.clone() {
-                    self.resume_inline_video(&url, pos)
-                } else {
-                    Task::none()
-                }
+                if let Some(url) = self.current_video_url.clone() { self.resume_inline_video(&url, pos) } else { Task::none() }
             }
             _ => Task::none(),
         }
@@ -865,9 +786,7 @@ impl AppModel {
                 // the deferred seek lands (the pipeline reports ~0 until then),
                 // with a timeout fallback so a failed seek can't freeze it.
                 match self.video_resume_target {
-                    Some((target, since))
-                        if pos + 1.0 < target && since.elapsed() < Duration::from_secs(6) =>
-                    {
+                    Some((target, since)) if pos + 1.0 < target && since.elapsed() < Duration::from_secs(6) => {
                         self.playback_position = target;
                     }
                     Some(_) => {
@@ -879,10 +798,7 @@ impl AppModel {
                     }
                 }
             }
-            let ended = self
-                .video_player
-                .as_ref()
-                .is_some_and(|v| v.is_eos() || v.poll());
+            let ended = self.video_player.as_ref().is_some_and(|v| v.is_eos() || v.poll());
             if ended {
                 self.stop_video();
                 match self.loop_status {
@@ -945,14 +861,9 @@ impl AppModel {
                 }
                 // Drive the karaoke-style highlight in the lyrics view.
                 if matches!(self.view_state, crate::state::ViewState::Lyrics)
-                    && let (Some(track), Some(lyrics)) = (
-                        self.playback_queue.get(self.playback_queue_index),
-                        self.selected_track_lyrics.as_ref(),
-                    )
-                    && self
-                        .selected_lyrics_track
-                        .as_ref()
-                        .is_some_and(|t| t.id == track.id)
+                    && let (Some(track), Some(lyrics)) =
+                        (self.playback_queue.get(self.playback_queue_index), self.selected_track_lyrics.as_ref())
+                    && self.selected_lyrics_track.as_ref().is_some_and(|t| t.id == track.id)
                 {
                     let next = lyrics.line_index_at(pos);
                     if next != self.current_lyric_index {
@@ -962,10 +873,7 @@ impl AppModel {
             }
 
             if ended {
-                tracing::info!(
-                    "GStreamer audio ended (errored={errored}, eos={eos}, state={:?})",
-                    self.playback_state
-                );
+                tracing::info!("GStreamer audio ended (errored={errored}, eos={eos}, state={:?})", self.playback_state);
                 self.media_player = None;
                 match self.loop_status {
                     LoopStatus::Track => {
@@ -1030,8 +938,7 @@ impl AppModel {
 
         // Persist volume to config
         self.config.volume_level = new_volume;
-        if let Ok(config_context) =
-            cosmic::cosmic_config::Config::new(Self::APP_ID, crate::config::Config::VERSION)
+        if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, crate::config::Config::VERSION)
             && let Err(e) = self.config.write_entry(&config_context)
         {
             tracing::error!("Failed to save volume config: {}", e);
@@ -1041,12 +948,7 @@ impl AppModel {
         self.show_volume_bar = true;
         self.volume_bar_shown_at = Some(Instant::now());
 
-        tracing::info!(
-            "Volume adjusted to {:.0}% (delta: {:.2}, show_bar: {})",
-            new_volume * 100.0,
-            delta,
-            self.show_volume_bar
-        );
+        tracing::info!("Volume adjusted to {:.0}% (delta: {:.2}, show_bar: {})", new_volume * 100.0, delta, self.show_volume_bar);
         Task::none()
     }
 
@@ -1081,11 +983,7 @@ impl AppModel {
             }
             LoopStatus::None => {
                 let next = self.playback_queue_index + 1;
-                if next < self.playback_queue.len() {
-                    Some(next)
-                } else {
-                    None
-                }
+                if next < self.playback_queue.len() { Some(next) } else { None }
             }
         };
 
@@ -1124,10 +1022,7 @@ impl AppModel {
 
     /// Handle a preload URL response — stage it into the pipeline for gapless
     /// playback (consumed by about-to-finish).
-    pub fn handle_preload_url_received(
-        &mut self,
-        result: Result<(Track, PlaybackUrl), String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_preload_url_received(&mut self, result: Result<(Track, PlaybackUrl), String>) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, playback_url)) => {
                 if let Some(mp) = &self.media_player {
@@ -1139,10 +1034,7 @@ impl AppModel {
                 }
             }
             Err(e) => {
-                tracing::warn!(
-                    "Failed to get preload URL (gapless won't work for next transition): {}",
-                    e
-                );
+                tracing::warn!("Failed to get preload URL (gapless won't work for next transition): {}", e);
             }
         }
         Task::none()
@@ -1247,11 +1139,8 @@ impl AppModel {
             );
             return;
         };
-        let end_ts_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-        self.play_reporter
-            .record(in_progress.finalize(end_ts_ms, token));
+        let end_ts_ms =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+        self.play_reporter.record(in_progress.finalize(end_ts_ms, token));
     }
 }

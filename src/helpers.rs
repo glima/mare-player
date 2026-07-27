@@ -13,33 +13,19 @@ pub async fn generate_songlink(tidal_url: &str) -> Result<String, String> {
     let client = reqwest::Client::new();
 
     // Build the URL with query parameters
-    let url = format!(
-        "https://api.song.link/v1-alpha.1/links?url={}&userCountry=US",
-        urlencoding::encode(tidal_url)
-    );
+    let url = format!("https://api.song.link/v1-alpha.1/links?url={}&userCountry=US", urlencoding::encode(tidal_url));
 
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {}", e))?;
+    let response = client.get(&url).send().await.map_err(|e| format!("Request failed: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!("API returned status: {}", response.status()));
     }
 
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
 
-    let json: serde_json::Value =
-        serde_json::from_slice(&bytes).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    let json: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    json.get("pageUrl")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
-        .ok_or_else(|| "No pageUrl in response".to_string())
+    json.get("pageUrl").and_then(|v| v.as_str()).map(|s| s.to_string()).ok_or_else(|| "No pageUrl in response".to_string())
 }
 
 /// Copy text to clipboard using system tools
@@ -61,10 +47,7 @@ pub async fn copy_to_clipboard(text: &str) -> Result<(), String> {
     }
 
     // Fall back to xclip (X11)
-    let xclip_result = Command::new("xclip")
-        .args(["-selection", "clipboard"])
-        .stdin(std::process::Stdio::piped())
-        .spawn();
+    let xclip_result = Command::new("xclip").args(["-selection", "clipboard"]).stdin(std::process::Stdio::piped()).spawn();
 
     if let Ok(mut child) = xclip_result
         && let Some(stdin) = child.stdin.as_mut()
@@ -79,10 +62,7 @@ pub async fn copy_to_clipboard(text: &str) -> Result<(), String> {
     }
 
     // Fall back to xsel
-    let xsel_result = Command::new("xsel")
-        .args(["--clipboard", "--input"])
-        .stdin(std::process::Stdio::piped())
-        .spawn();
+    let xsel_result = Command::new("xsel").args(["--clipboard", "--input"]).stdin(std::process::Stdio::piped()).spawn();
 
     if let Ok(mut child) = xsel_result
         && let Some(stdin) = child.stdin.as_mut()
@@ -136,9 +116,7 @@ async fn open_uri_via_portal(url: &str) -> Result<(), String> {
     use zbus::Connection;
     use zbus::zvariant::Value;
 
-    let connection = Connection::session()
-        .await
-        .map_err(|e| format!("D-Bus session connection failed: {}", e))?;
+    let connection = Connection::session().await.map_err(|e| format!("D-Bus session connection failed: {}", e))?;
 
     // OpenURI(parent_window: s, uri: s, options: a{sv}) → o
     let _response: zbus::zvariant::OwnedObjectPath = connection
@@ -170,11 +148,7 @@ pub fn max_description_chars(window_width: f32) -> usize {
     const BASE_CHARS: f32 = 300.0;
     const MIN_CHARS: usize = 150;
 
-    let effective_width = if window_width > 0.0 {
-        window_width
-    } else {
-        BASE_WIDTH
-    };
+    let effective_width = if window_width > 0.0 { window_width } else { BASE_WIDTH };
 
     let scaled = (effective_width / BASE_WIDTH * BASE_CHARS).round() as usize;
     scaled.max(MIN_CHARS)
@@ -190,11 +164,7 @@ pub fn format_seconds(seconds: f64) -> String {
     let h = total / 3600;
     let m = (total % 3600) / 60;
     let s = total % 60;
-    if h > 0 {
-        format!("{}:{:02}:{:02}", h, m, s)
-    } else {
-        format!("{}:{:02}", m, s)
-    }
+    if h > 0 { format!("{}:{:02}:{:02}", h, m, s) } else { format!("{}:{:02}", m, s) }
 }
 
 #[cfg(test)]

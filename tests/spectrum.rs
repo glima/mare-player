@@ -193,12 +193,7 @@ mod dc_offset {
         let high_sum: f32 = spectrum.bands.iter().skip(24).sum();
         // Low bands should have more energy than high bands
         // (DC is at 0 Hz, which maps to the lowest frequency bands)
-        assert!(
-            low_sum >= high_sum,
-            "DC should concentrate in low bands: low={}, high={}",
-            low_sum,
-            high_sum
-        );
+        assert!(low_sum >= high_sum, "DC should concentrate in low bands: low={}, high={}", low_sum, high_sum);
     }
 }
 
@@ -228,20 +223,10 @@ mod sine_detection {
         analyzer.push_stereo_samples(&samples);
         let spectrum = analyzer.compute();
 
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // With 12 log-spaced bands, 1 kHz falls in band 5 (≈560–1090 Hz)
-        assert!(
-            max_band > 3 && max_band < 8,
-            "1 kHz peak at band {} (expected roughly 4-7)",
-            max_band
-        );
+        assert!(max_band > 3 && max_band < 8, "1 kHz peak at band {} (expected roughly 4-7)", max_band);
     }
 
     #[test]
@@ -251,20 +236,10 @@ mod sine_detection {
         analyzer.push_stereo_samples(&samples);
         let spectrum = analyzer.compute();
 
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // With 12 log-spaced bands, 440 Hz falls in band 4 (≈288–561 Hz)
-        assert!(
-            max_band > 2 && max_band < 7,
-            "440 Hz peak at band {} (expected roughly 3-6)",
-            max_band
-        );
+        assert!(max_band > 2 && max_band < 7, "440 Hz peak at band {} (expected roughly 3-6)", max_band);
     }
 
     #[test]
@@ -274,20 +249,10 @@ mod sine_detection {
         analyzer.push_stereo_samples(&samples);
         let spectrum = analyzer.compute();
 
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // With 12 log-spaced bands, 5 kHz falls in band 8 (≈4128–8030 Hz)
-        assert!(
-            max_band > 6 && max_band < 11,
-            "5 kHz peak at band {} (expected roughly 7-10)",
-            max_band
-        );
+        assert!(max_band > 6 && max_band < 11, "5 kHz peak at band {} (expected roughly 7-10)", max_band);
     }
 
     #[test]
@@ -304,28 +269,11 @@ mod sine_detection {
         let spec_low = analyzer_low.compute();
         let spec_high = analyzer_high.compute();
 
-        let peak_low = spec_low
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let peak_low = spec_low.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        let peak_high = spec_high
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let peak_high = spec_high.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        assert!(
-            peak_low < peak_high,
-            "200 Hz peak ({}) should be at a lower band than 8 kHz peak ({})",
-            peak_low,
-            peak_high
-        );
+        assert!(peak_low < peak_high, "200 Hz peak ({}) should be at a lower band than 8 kHz peak ({})", peak_low, peak_high);
     }
 
     #[test]
@@ -336,19 +284,9 @@ mod sine_detection {
         let spectrum = analyzer.compute();
 
         // With 12 log-spaced bands, 1 kHz ≈ band 5 regardless of sample rate
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        assert!(
-            max_band > 3 && max_band < 8,
-            "1 kHz at 48 kHz sample rate: peak at band {}",
-            max_band
-        );
+        assert!(max_band > 3 && max_band < 8, "1 kHz at 48 kHz sample rate: peak at band {}", max_band);
     }
 
     #[test]
@@ -358,19 +296,9 @@ mod sine_detection {
         analyzer.push_stereo_samples(&samples);
         let spectrum = analyzer.compute();
 
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        assert!(
-            max_band > 3 && max_band < 8,
-            "1 kHz at 96 kHz sample rate: peak at band {}",
-            max_band
-        );
+        assert!(max_band > 3 && max_band < 8, "1 kHz at 96 kHz sample rate: peak at band {}", max_band);
     }
 }
 
@@ -402,21 +330,11 @@ mod stereo {
         analyzer.push_stereo_samples(&samples);
         let spectrum = analyzer.compute();
 
-        let left_peak = spectrum
-            .left_bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let left_peak =
+            spectrum.left_bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        let right_peak = spectrum
-            .right_bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let right_peak =
+            spectrum.right_bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         assert!(
             left_peak < right_peak,
@@ -473,16 +391,8 @@ mod stereo {
         let left_max: f32 = spectrum.left_bands.iter().copied().fold(0.0, f32::max);
         let right_max: f32 = spectrum.right_bands.iter().copied().fold(0.0, f32::max);
 
-        assert!(
-            left_max > 0.1,
-            "left channel should have energy, max={}",
-            left_max
-        );
-        assert!(
-            right_max < 0.05,
-            "right channel should be near silence, max={}",
-            right_max
-        );
+        assert!(left_max > 0.1, "left channel should have energy, max={}", left_max);
+        assert!(right_max < 0.05, "right channel should be near silence, max={}", right_max);
     }
 
     #[test]
@@ -504,16 +414,8 @@ mod stereo {
         let left_max: f32 = spectrum.left_bands.iter().copied().fold(0.0, f32::max);
         let right_max: f32 = spectrum.right_bands.iter().copied().fold(0.0, f32::max);
 
-        assert!(
-            left_max < 0.05,
-            "left channel should be near silence, max={}",
-            left_max
-        );
-        assert!(
-            right_max > 0.1,
-            "right channel should have energy, max={}",
-            right_max
-        );
+        assert!(left_max < 0.05, "left channel should be near silence, max={}", left_max);
+        assert!(right_max > 0.1, "right channel should have energy, max={}", right_max);
     }
 
     #[test]
@@ -616,11 +518,7 @@ mod reset {
         // Compute again — should be near-zero
         let after_reset = analyzer.compute();
         for &v in &after_reset.bands {
-            assert!(
-                v < 0.05,
-                "after reset, band value {} should be near zero",
-                v
-            );
+            assert!(v < 0.05, "after reset, band value {} should be near zero", v);
         }
     }
 
@@ -639,13 +537,7 @@ mod reset {
         analyzer.push_stereo_samples(&samples_440);
         let spec_440 = analyzer.compute();
 
-        let peak_440 = spec_440
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let peak_440 = spec_440.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // Reset and feed 5 kHz
         analyzer.reset();
@@ -666,21 +558,10 @@ mod reset {
         }
         let spec_5k = analyzer.compute();
 
-        let peak_5k = spec_5k
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let peak_5k = spec_5k.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // 5 kHz should peak at a higher band than 440 Hz
-        assert!(
-            peak_5k > peak_440,
-            "After reset, 5 kHz peak ({}) should be > 440 Hz peak ({})",
-            peak_5k,
-            peak_440
-        );
+        assert!(peak_5k > peak_440, "After reset, 5 kHz peak ({}) should be > 440 Hz peak ({})", peak_5k, peak_440);
     }
 }
 
@@ -718,13 +599,8 @@ mod smoothing {
         let spec_second = analyzer.compute();
 
         // Find peak band
-        let peak_band = spec_second
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let peak_band =
+            spec_second.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // Due to smoothing, the second compute should have a higher or equal
         // value at the peak band than the first (ramping up)
@@ -733,12 +609,7 @@ mod smoothing {
         let silent_val = spec_silent.bands[peak_band];
 
         // The silent value should be lowest
-        assert!(
-            silent_val <= first_val,
-            "silent {} should be <= first {}",
-            silent_val,
-            first_val
-        );
+        assert!(silent_val <= first_val, "silent {} should be <= first {}", silent_val, first_val);
     }
 }
 
@@ -787,11 +658,7 @@ mod shared_analyzer {
         // Compute via clone — should see the data
         let spectrum = cloned.compute();
         let max_val: f32 = spectrum.bands.iter().copied().fold(0.0, f32::max);
-        assert!(
-            max_val > 0.05,
-            "cloned analyzer should see data from original, max={}",
-            max_val
-        );
+        assert!(max_val > 0.05, "cloned analyzer should see data from original, max={}", max_val);
     }
 
     #[test]
@@ -816,11 +683,7 @@ mod shared_analyzer {
         // Compute via original — should be near zero
         let spectrum = shared.compute();
         for &v in &spectrum.bands {
-            assert!(
-                v < 0.05,
-                "after reset via clone, band value {} should be near zero",
-                v
-            );
+            assert!(v < 0.05, "after reset via clone, band value {} should be near zero", v);
         }
     }
 
@@ -873,14 +736,7 @@ mod stress {
             if iteration > 10 {
                 // After several iterations, the max should stabilize
                 let diff = (max_val - last_max).abs();
-                assert!(
-                    diff < 0.05,
-                    "iteration {}: max changed by {} (was {}, now {})",
-                    iteration,
-                    diff,
-                    last_max,
-                    max_val
-                );
+                assert!(diff < 0.05, "iteration {}: max changed by {} (was {}, now {})", iteration, diff, last_max, max_val);
             }
             last_max = max_val;
         }
@@ -928,28 +784,13 @@ mod value_ranges {
         let spectrum = analyzer.compute();
 
         for (i, &v) in spectrum.bands.iter().enumerate() {
-            assert!(
-                v >= 0.0 && v <= 1.0,
-                "band {} value {} outside [0, 1]",
-                i,
-                v
-            );
+            assert!(v >= 0.0 && v <= 1.0, "band {} value {} outside [0, 1]", i, v);
         }
         for (i, &v) in spectrum.left_bands.iter().enumerate() {
-            assert!(
-                v >= 0.0 && v <= 1.0,
-                "left band {} value {} outside [0, 1]",
-                i,
-                v
-            );
+            assert!(v >= 0.0 && v <= 1.0, "left band {} value {} outside [0, 1]", i, v);
         }
         for (i, &v) in spectrum.right_bands.iter().enumerate() {
-            assert!(
-                v >= 0.0 && v <= 1.0,
-                "right band {} value {} outside [0, 1]",
-                i,
-                v
-            );
+            assert!(v >= 0.0 && v <= 1.0, "right band {} value {} outside [0, 1]", i, v);
         }
     }
 
@@ -982,12 +823,7 @@ mod value_ranges {
         let spectrum = analyzer.compute();
 
         for (i, &v) in spectrum.bands.iter().enumerate() {
-            assert!(
-                v >= 0.0 && v <= 1.0,
-                "noise band {} value {} outside [0, 1]",
-                i,
-                v
-            );
+            assert!(v >= 0.0 && v <= 1.0, "noise band {} value {} outside [0, 1]", i, v);
         }
     }
 }

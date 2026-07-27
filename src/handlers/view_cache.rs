@@ -46,14 +46,10 @@ pub(crate) async fn cache_put<T: Serialize>(db: Option<Db>, key: &str, payload: 
         return;
     };
     if bytes.len() as i64 > MAX_VIEW_ENTRY_BYTES {
-        tracing::debug!(
-            "view cache: skipping oversized payload for {key} ({} bytes)",
-            bytes.len()
-        );
+        tracing::debug!("view cache: skipping oversized payload for {key} ({} bytes)", bytes.len());
         return;
     }
-    db.put_view(key, &bytes, None, VIEW_CACHE_BUDGET_BYTES)
-        .await;
+    db.put_view(key, &bytes, None, VIEW_CACHE_BUDGET_BYTES).await;
 }
 
 impl AppModel {
@@ -64,11 +60,7 @@ impl AppModel {
     /// On a cache miss — or when the database hasn't finished opening yet — it
     /// resolves to [`Message::Noop`], leaving the view in its loading state
     /// until the network responds.
-    pub(crate) fn read_view_cache<T, F>(
-        &self,
-        key: impl Into<String>,
-        on_hit: F,
-    ) -> Task<cosmic::Action<Message>>
+    pub(crate) fn read_view_cache<T, F>(&self, key: impl Into<String>, on_hit: F) -> Task<cosmic::Action<Message>>
     where
         T: DeserializeOwned + Send + 'static,
         F: Fn(T) -> Message + Send + 'static,
@@ -78,11 +70,7 @@ impl AppModel {
         };
         let key = key.into();
         Task::perform(
-            async move {
-                db.get_view(&key)
-                    .await
-                    .and_then(|bytes| serde_json::from_slice::<T>(&bytes).ok())
-            },
+            async move { db.get_view(&key).await.and_then(|bytes| serde_json::from_slice::<T>(&bytes).ok()) },
             move |opt| {
                 cosmic::Action::App(match opt {
                     Some(data) => on_hit(data),
@@ -100,9 +88,7 @@ mod tests {
 
     #[tokio::test]
     async fn cache_put_round_trips_via_db() {
-        let db = crate::cache::Db::open(Path::new(":memory:"))
-            .await
-            .expect("open db");
+        let db = crate::cache::Db::open(Path::new(":memory:")).await.expect("open db");
         let payload = vec!["alpha".to_string(), "beta".to_string()];
         cache_put(Some(db.clone()), "library:playlists", &payload).await;
 
@@ -119,9 +105,7 @@ mod tests {
 
     #[tokio::test]
     async fn cache_put_skips_oversized_payload() {
-        let db = crate::cache::Db::open(Path::new(":memory:"))
-            .await
-            .expect("open db");
+        let db = crate::cache::Db::open(Path::new(":memory:")).await.expect("open db");
         // One byte over the per-entry cap serializes larger than the cap and is
         // skipped, so the read misses.
         let huge = vec![0u8; (MAX_VIEW_ENTRY_BYTES as usize) + 1];

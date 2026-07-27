@@ -27,22 +27,14 @@ mod display_name {
     /// Branch 1: "First Last" when both first_name and last_name are non-empty.
     #[test]
     fn first_and_last_name() {
-        let p = UserProfile {
-            first_name: Some("John".to_string()),
-            last_name: Some("Doe".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("John".to_string()), last_name: Some("Doe".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "John Doe");
     }
 
     /// Branch 1 (negative): first_name present but last_name empty string.
     #[test]
     fn first_name_with_empty_last_name_skips_to_next() {
-        let p = UserProfile {
-            first_name: Some("John".to_string()),
-            last_name: Some(String::new()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("John".to_string()), last_name: Some(String::new()), ..Default::default() };
         // Should NOT produce "John " — falls through to next branch
         assert_ne!(p.display_name(), "John ");
     }
@@ -50,22 +42,14 @@ mod display_name {
     /// Branch 1 (negative): last_name present but first_name empty string.
     #[test]
     fn empty_first_name_with_last_name_skips_to_next() {
-        let p = UserProfile {
-            first_name: Some(String::new()),
-            last_name: Some("Doe".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some(String::new()), last_name: Some("Doe".to_string()), ..Default::default() };
         assert_ne!(p.display_name(), " Doe");
     }
 
     /// Branch 1 (negative): first_name is None, last_name is Some.
     #[test]
     fn none_first_name_with_last_name() {
-        let p = UserProfile {
-            first_name: None,
-            last_name: Some("Doe".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: None, last_name: Some("Doe".to_string()), ..Default::default() };
         // Falls through — should not panic
         let name = p.display_name();
         assert!(!name.is_empty());
@@ -74,73 +58,49 @@ mod display_name {
     /// Branch 2: full_name (TIDAL's fullName field) when first+last unavailable.
     #[test]
     fn full_name_fallback() {
-        let p = UserProfile {
-            full_name: Some("Jane Smith".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { full_name: Some("Jane Smith".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "Jane Smith");
     }
 
     /// Branch 2 (negative): full_name is empty string — skip to next.
     #[test]
     fn empty_full_name_skips_to_next() {
-        let p = UserProfile {
-            full_name: Some(String::new()),
-            nickname: Some("jsmith".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { full_name: Some(String::new()), nickname: Some("jsmith".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "jsmith");
     }
 
     /// Branch 3: nickname.
     #[test]
     fn nickname_fallback() {
-        let p = UserProfile {
-            nickname: Some("cooluser42".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { nickname: Some("cooluser42".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "cooluser42");
     }
 
     /// Branch 3 (negative): nickname is empty string — skip to next.
     #[test]
     fn empty_nickname_skips_to_next() {
-        let p = UserProfile {
-            nickname: Some(String::new()),
-            first_name: Some("Alice".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { nickname: Some(String::new()), first_name: Some("Alice".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "Alice");
     }
 
     /// Branch 4: first_name alone (when last_name is absent or empty).
     #[test]
     fn first_name_alone() {
-        let p = UserProfile {
-            first_name: Some("Alice".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("Alice".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "Alice");
     }
 
     /// Branch 4 (negative): first_name is empty string — skip to next.
     #[test]
     fn empty_first_name_alone_skips_to_next() {
-        let p = UserProfile {
-            first_name: Some(String::new()),
-            username: Some("alice99".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some(String::new()), username: Some("alice99".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "alice99");
     }
 
     /// Branch 5: username (when it doesn't look like an email).
     #[test]
     fn username_fallback() {
-        let p = UserProfile {
-            username: Some("bob_music".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { username: Some("bob_music".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "bob_music");
     }
 
@@ -159,31 +119,21 @@ mod display_name {
     /// Branch 5 (negative): empty username — skip to next.
     #[test]
     fn empty_username_skips_to_next() {
-        let p = UserProfile {
-            username: Some(String::new()),
-            email: Some("user@mail.com".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { username: Some(String::new()), email: Some("user@mail.com".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "user@mail.com");
     }
 
     /// Branch 6: email as last resort before fallback.
     #[test]
     fn email_fallback() {
-        let p = UserProfile {
-            email: Some("user@example.org".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { email: Some("user@example.org".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "user@example.org");
     }
 
     /// Branch 6 (negative): empty email — skip to final fallback.
     #[test]
     fn empty_email_skips_to_signed_in() {
-        let p = UserProfile {
-            email: Some(String::new()),
-            ..Default::default()
-        };
+        let p = UserProfile { email: Some(String::new()), ..Default::default() };
         assert_eq!(p.display_name(), "Signed in");
     }
 
@@ -253,42 +203,30 @@ mod display_name {
     /// Unicode names.
     #[test]
     fn unicode_names() {
-        let p = UserProfile {
-            first_name: Some("José".to_string()),
-            last_name: Some("García".to_string()),
-            ..Default::default()
-        };
+        let p =
+            UserProfile { first_name: Some("José".to_string()), last_name: Some("García".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "José García");
     }
 
     /// CJK names.
     #[test]
     fn cjk_names() {
-        let p = UserProfile {
-            first_name: Some("太郎".to_string()),
-            last_name: Some("山田".to_string()),
-            ..Default::default()
-        };
+        let p =
+            UserProfile { first_name: Some("太郎".to_string()), last_name: Some("山田".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "太郎 山田");
     }
 
     /// Emoji in nickname.
     #[test]
     fn emoji_nickname() {
-        let p = UserProfile {
-            nickname: Some("🎵musiclover🎵".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { nickname: Some("🎵musiclover🎵".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "🎵musiclover🎵");
     }
 
     /// Username with @ is treated as email-like.
     #[test]
     fn username_with_at_sign_is_email_like() {
-        let p = UserProfile {
-            username: Some("user@domain".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { username: Some("user@domain".to_string()), ..Default::default() };
         // Contains '@' so username branch is skipped, falls through to email (None) then "Signed in"
         assert_eq!(p.display_name(), "Signed in");
     }
@@ -297,11 +235,7 @@ mod display_name {
     /// (the code checks `!name.is_empty()`, not trimming).
     #[test]
     fn whitespace_only_first_name_is_non_empty() {
-        let p = UserProfile {
-            first_name: Some("  ".to_string()),
-            last_name: Some("  ".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("  ".to_string()), last_name: Some("  ".to_string()), ..Default::default() };
         // "  " is not empty, so "First Last" branch fires: "  " + " " + "  " = "     "
         assert_eq!(p.display_name(), "     ");
     }
@@ -316,29 +250,19 @@ mod initials {
 
     #[test]
     fn initials_from_first_last() {
-        let p = UserProfile {
-            first_name: Some("John".to_string()),
-            last_name: Some("Doe".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("John".to_string()), last_name: Some("Doe".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "J");
     }
 
     #[test]
     fn initials_from_nickname() {
-        let p = UserProfile {
-            nickname: Some("cooluser".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { nickname: Some("cooluser".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "C");
     }
 
     #[test]
     fn initials_from_email() {
-        let p = UserProfile {
-            email: Some("alice@example.com".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { email: Some("alice@example.com".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "A");
     }
 
@@ -350,49 +274,33 @@ mod initials {
 
     #[test]
     fn initials_lowercase_gets_uppercased() {
-        let p = UserProfile {
-            first_name: Some("alice".to_string()),
-            last_name: Some("bob".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("alice".to_string()), last_name: Some("bob".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "A");
     }
 
     #[test]
     fn initials_unicode() {
-        let p = UserProfile {
-            first_name: Some("José".to_string()),
-            last_name: Some("García".to_string()),
-            ..Default::default()
-        };
+        let p =
+            UserProfile { first_name: Some("José".to_string()), last_name: Some("García".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "J");
     }
 
     #[test]
     fn initials_cjk() {
-        let p = UserProfile {
-            first_name: Some("太郎".to_string()),
-            last_name: Some("山田".to_string()),
-            ..Default::default()
-        };
+        let p =
+            UserProfile { first_name: Some("太郎".to_string()), last_name: Some("山田".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "太");
     }
 
     #[test]
     fn initials_emoji() {
-        let p = UserProfile {
-            nickname: Some("🎵music".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { nickname: Some("🎵music".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "🎵");
     }
 
     #[test]
     fn initials_number() {
-        let p = UserProfile {
-            username: Some("42user".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { username: Some("42user".to_string()), ..Default::default() };
         assert_eq!(p.initials(), "4");
     }
 }
@@ -419,37 +327,22 @@ mod user_profile_traits {
 
     #[test]
     fn partial_eq_identical() {
-        let p1 = UserProfile {
-            first_name: Some("Alice".to_string()),
-            ..Default::default()
-        };
-        let p2 = UserProfile {
-            first_name: Some("Alice".to_string()),
-            ..Default::default()
-        };
+        let p1 = UserProfile { first_name: Some("Alice".to_string()), ..Default::default() };
+        let p2 = UserProfile { first_name: Some("Alice".to_string()), ..Default::default() };
         assert_eq!(p1, p2);
     }
 
     #[test]
     fn partial_eq_different() {
-        let p1 = UserProfile {
-            first_name: Some("Alice".to_string()),
-            ..Default::default()
-        };
-        let p2 = UserProfile {
-            first_name: Some("Bob".to_string()),
-            ..Default::default()
-        };
+        let p1 = UserProfile { first_name: Some("Alice".to_string()), ..Default::default() };
+        let p2 = UserProfile { first_name: Some("Bob".to_string()), ..Default::default() };
         assert_ne!(p1, p2);
     }
 
     #[test]
     fn partial_eq_none_vs_some() {
         let p1 = UserProfile::default();
-        let p2 = UserProfile {
-            email: Some("a@b.com".to_string()),
-            ..Default::default()
-        };
+        let p2 = UserProfile { email: Some("a@b.com".to_string()), ..Default::default() };
         assert_ne!(p1, p2);
     }
 
@@ -471,20 +364,14 @@ mod user_profile_traits {
 
     #[test]
     fn debug_format() {
-        let p = UserProfile {
-            username: Some("dbguser".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { username: Some("dbguser".to_string()), ..Default::default() };
         let debug = format!("{:?}", p);
         assert!(debug.contains("dbguser"));
     }
 
     #[test]
     fn eq_is_reflexive() {
-        let p = UserProfile {
-            first_name: Some("Test".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("Test".to_string()), ..Default::default() };
         assert_eq!(p, p);
     }
 }
@@ -498,20 +385,14 @@ mod user_profile_extra_fields {
 
     #[test]
     fn picture_url_does_not_affect_display_name() {
-        let p = UserProfile {
-            picture_url: Some("https://example.com/avatar.jpg".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { picture_url: Some("https://example.com/avatar.jpg".to_string()), ..Default::default() };
         // picture_url is not used in display_name
         assert_eq!(p.display_name(), "Signed in");
     }
 
     #[test]
     fn subscription_plan_does_not_affect_display_name() {
-        let p = UserProfile {
-            subscription_plan: Some("HiFi Plus".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { subscription_plan: Some("HiFi Plus".to_string()), ..Default::default() };
         assert_eq!(p.display_name(), "Signed in");
     }
 
@@ -560,10 +441,7 @@ mod auth_manager {
             user_code: "ABCDE".to_string(),
         });
         match m.state() {
-            AuthState::AwaitingUserAuth {
-                verification_uri,
-                user_code,
-            } => {
+            AuthState::AwaitingUserAuth { verification_uri, user_code } => {
                 assert_eq!(verification_uri, "https://link.tidal.com/ABCDE");
                 assert_eq!(user_code, "ABCDE");
             }
@@ -580,9 +458,7 @@ mod auth_manager {
             last_name: Some("User".to_string()),
             ..Default::default()
         };
-        m.set_state(AuthState::Authenticated {
-            profile: profile.clone(),
-        });
+        m.set_state(AuthState::Authenticated { profile: profile.clone() });
         match m.state() {
             AuthState::Authenticated { profile: p } => {
                 assert_eq!(p.display_name(), "Test User");
@@ -619,10 +495,7 @@ mod auth_manager {
 
         // OAuth completes
         m.set_state(AuthState::Authenticated {
-            profile: UserProfile {
-                username: Some("user".to_string()),
-                ..Default::default()
-            },
+            profile: UserProfile { username: Some("user".to_string()), ..Default::default() },
         });
         assert!(matches!(m.state(), AuthState::Authenticated { .. }));
 
@@ -657,9 +530,7 @@ mod auth_manager {
         assert!(matches!(m.state(), AuthState::AwaitingUserAuth { .. }));
 
         // This time it succeeds
-        m.set_state(AuthState::Authenticated {
-            profile: UserProfile::default(),
-        });
+        m.set_state(AuthState::Authenticated { profile: UserProfile::default() });
         assert!(matches!(m.state(), AuthState::Authenticated { .. }));
     }
 
@@ -668,18 +539,12 @@ mod auth_manager {
         let mut m = AuthManager::new();
 
         m.set_state(AuthState::Authenticated {
-            profile: UserProfile {
-                first_name: Some("First".to_string()),
-                ..Default::default()
-            },
+            profile: UserProfile { first_name: Some("First".to_string()), ..Default::default() },
         });
 
         // Re-authenticate as a different user
         m.set_state(AuthState::Authenticated {
-            profile: UserProfile {
-                first_name: Some("Second".to_string()),
-                ..Default::default()
-            },
+            profile: UserProfile { first_name: Some("Second".to_string()), ..Default::default() },
         });
 
         match m.state() {
@@ -705,57 +570,34 @@ mod auth_state_traits {
 
     #[test]
     fn awaiting_user_auth_eq() {
-        let a = AuthState::AwaitingUserAuth {
-            verification_uri: "https://example.com".to_string(),
-            user_code: "CODE".to_string(),
-        };
-        let b = AuthState::AwaitingUserAuth {
-            verification_uri: "https://example.com".to_string(),
-            user_code: "CODE".to_string(),
-        };
+        let a =
+            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() };
+        let b =
+            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() };
         assert_eq!(a, b);
     }
 
     #[test]
     fn awaiting_user_auth_ne_different_code() {
-        let a = AuthState::AwaitingUserAuth {
-            verification_uri: "https://example.com".to_string(),
-            user_code: "CODE1".to_string(),
-        };
-        let b = AuthState::AwaitingUserAuth {
-            verification_uri: "https://example.com".to_string(),
-            user_code: "CODE2".to_string(),
-        };
+        let a =
+            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE1".to_string() };
+        let b =
+            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE2".to_string() };
         assert_ne!(a, b);
     }
 
     #[test]
     fn authenticated_eq() {
-        let profile = UserProfile {
-            username: Some("user".to_string()),
-            ..Default::default()
-        };
-        let a = AuthState::Authenticated {
-            profile: profile.clone(),
-        };
+        let profile = UserProfile { username: Some("user".to_string()), ..Default::default() };
+        let a = AuthState::Authenticated { profile: profile.clone() };
         let b = AuthState::Authenticated { profile };
         assert_eq!(a, b);
     }
 
     #[test]
     fn authenticated_ne_different_profile() {
-        let a = AuthState::Authenticated {
-            profile: UserProfile {
-                username: Some("user1".to_string()),
-                ..Default::default()
-            },
-        };
-        let b = AuthState::Authenticated {
-            profile: UserProfile {
-                username: Some("user2".to_string()),
-                ..Default::default()
-            },
-        };
+        let a = AuthState::Authenticated { profile: UserProfile { username: Some("user1".to_string()), ..Default::default() } };
+        let b = AuthState::Authenticated { profile: UserProfile { username: Some("user2".to_string()), ..Default::default() } };
         assert_ne!(a, b);
     }
 
@@ -777,13 +619,8 @@ mod auth_state_traits {
     fn different_variants_ne() {
         let states: Vec<AuthState> = vec![
             AuthState::NotAuthenticated,
-            AuthState::AwaitingUserAuth {
-                verification_uri: "https://example.com".to_string(),
-                user_code: "CODE".to_string(),
-            },
-            AuthState::Authenticated {
-                profile: UserProfile::default(),
-            },
+            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() },
+            AuthState::Authenticated { profile: UserProfile::default() },
             AuthState::Failed("err".to_string()),
         ];
 
@@ -835,11 +672,7 @@ mod edge_cases {
     #[test]
     fn very_long_names() {
         let long_name = "A".repeat(10_000);
-        let p = UserProfile {
-            first_name: Some(long_name.clone()),
-            last_name: Some(long_name.clone()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some(long_name.clone()), last_name: Some(long_name.clone()), ..Default::default() };
         let display = p.display_name();
         assert_eq!(display.len(), 20_001); // "AAA...AAA AAA...AAA"
         assert_eq!(p.initials(), "A");
@@ -881,10 +714,7 @@ mod edge_cases {
                 });
             } else {
                 m.set_state(AuthState::Authenticated {
-                    profile: UserProfile {
-                        username: Some(format!("user{}", i)),
-                        ..Default::default()
-                    },
+                    profile: UserProfile { username: Some(format!("user{}", i)), ..Default::default() },
                 });
             }
         }
@@ -895,11 +725,8 @@ mod edge_cases {
     /// display_name is deterministic across multiple calls.
     #[test]
     fn display_name_is_deterministic() {
-        let p = UserProfile {
-            first_name: Some("Consistent".to_string()),
-            last_name: Some("Name".to_string()),
-            ..Default::default()
-        };
+        let p =
+            UserProfile { first_name: Some("Consistent".to_string()), last_name: Some("Name".to_string()), ..Default::default() };
         let name1 = p.display_name();
         let name2 = p.display_name();
         let name3 = p.display_name();
@@ -910,10 +737,7 @@ mod edge_cases {
     /// initials is deterministic across multiple calls.
     #[test]
     fn initials_is_deterministic() {
-        let p = UserProfile {
-            first_name: Some("Stable".to_string()),
-            ..Default::default()
-        };
+        let p = UserProfile { first_name: Some("Stable".to_string()), ..Default::default() };
         let i1 = p.initials();
         let i2 = p.initials();
         assert_eq!(i1, i2);

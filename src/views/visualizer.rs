@@ -110,11 +110,7 @@ impl Default for VisualizerState {
 impl VisualizerState {
     /// Create a new (inactive, no analyzer) state.
     pub fn new() -> Self {
-        Self {
-            analyzer: None,
-            active: Arc::new(AtomicBool::new(false)),
-            settled: Arc::new(AtomicBool::new(true)),
-        }
+        Self { analyzer: None, active: Arc::new(AtomicBool::new(false)), settled: Arc::new(AtomicBool::new(true)) }
     }
 
     /// Attach the spectrum analyzer from the audio engine / player.
@@ -163,12 +159,8 @@ impl VisualizerState {
     /// `Message` is emitted, so `update()` / `view()` are never called
     /// by the visualizer's animation loop.
     pub fn view<Msg: 'static>(&self) -> Element<'_, Msg> {
-        VisualizerWidget {
-            analyzer: self.analyzer.clone(),
-            active: Arc::clone(&self.active),
-            settled: Arc::clone(&self.settled),
-        }
-        .into()
+        VisualizerWidget { analyzer: self.analyzer.clone(), active: Arc::clone(&self.active), settled: Arc::clone(&self.settled) }
+            .into()
     }
 }
 
@@ -276,9 +268,7 @@ pub struct VisualizerWidget {
     settled: Arc<AtomicBool>,
 }
 
-impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer>
-    for VisualizerWidget
-{
+impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Renderer> for VisualizerWidget {
     // -- tree state -----------------------------------------------------------
 
     fn tag(&self) -> tree::Tag {
@@ -292,10 +282,7 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
     // -- layout (fixed, never changes) ----------------------------------------
 
     fn size(&self) -> Size<Length> {
-        Size::new(
-            Length::Fixed(VISUALIZER_WIDTH + HORIZONTAL_PAD),
-            Length::Fixed(VISUALIZER_HEIGHT + VERTICAL_PAD * 2.0),
-        )
+        Size::new(Length::Fixed(VISUALIZER_WIDTH + HORIZONTAL_PAD), Length::Fixed(VISUALIZER_HEIGHT + VERTICAL_PAD * 2.0))
     }
 
     fn layout(
@@ -417,16 +404,8 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
 
                 renderer.fill_quad(
                     cosmic::iced::core::renderer::Quad {
-                        bounds: Rectangle {
-                            x,
-                            y,
-                            width: BAR_WIDTH,
-                            height: bar_h,
-                        },
-                        border: cosmic::iced::core::Border {
-                            radius: (BAR_WIDTH / 2.0).into(),
-                            ..Default::default()
-                        },
+                        bounds: Rectangle { x, y, width: BAR_WIDTH, height: bar_h },
+                        border: cosmic::iced::core::Border { radius: (BAR_WIDTH / 2.0).into(), ..Default::default() },
                         shadow: cosmic::iced::core::Shadow::default(),
                         snap: false,
                     },
@@ -445,16 +424,8 @@ impl<Msg: 'static> cosmic::iced::core::Widget<Msg, cosmic::Theme, cosmic::Render
 
                 renderer.fill_quad(
                     cosmic::iced::core::renderer::Quad {
-                        bounds: Rectangle {
-                            x,
-                            y,
-                            width: BAR_WIDTH,
-                            height: bar_h,
-                        },
-                        border: cosmic::iced::core::Border {
-                            radius: (BAR_WIDTH / 2.0).into(),
-                            ..Default::default()
-                        },
+                        bounds: Rectangle { x, y, width: BAR_WIDTH, height: bar_h },
+                        border: cosmic::iced::core::Border { radius: (BAR_WIDTH / 2.0).into(), ..Default::default() },
                         shadow: cosmic::iced::core::Shadow::default(),
                         snap: false,
                     },
@@ -495,11 +466,7 @@ fn compute_target_height(bar_index: usize, bands: &[f32]) -> f32 {
         }
     }
 
-    if count > 0 {
-        (sum / count as f32).clamp(0.05, 1.0)
-    } else {
-        0.05
-    }
+    if count > 0 { (sum / count as f32).clamp(0.05, 1.0) } else { 0.05 }
 }
 
 /// Apply asymmetric smoothing: near-instant attack, moderate decay.
@@ -528,18 +495,10 @@ fn generate_gradient_colors(count: usize) -> Vec<Color> {
             (local_t * 0.5, 1.0, 0.5 - local_t * 0.3)
         } else {
             let local_t = ((t - 0.66) * 3.0).clamp(0.0, 1.0);
-            (
-                0.5 + local_t * 0.5,
-                1.0 - local_t * 0.3,
-                0.2 + local_t * 0.8,
-            )
+            (0.5 + local_t * 0.5, 1.0 - local_t * 0.3, 0.2 + local_t * 0.8)
         };
 
-        colors.push(Color::from_rgb(
-            r.clamp(0.0, 1.0),
-            g.clamp(0.0, 1.0),
-            b.clamp(0.0, 1.0),
-        ));
+        colors.push(Color::from_rgb(r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)));
     }
 
     colors
@@ -609,11 +568,7 @@ mod tests {
     fn test_update_from_spectrum() {
         let mut anim = AnimState::new();
 
-        let spectrum = SpectrumData {
-            left_bands: vec![0.8; 12],
-            right_bands: vec![0.3; 12],
-            bands: vec![0.55; 12],
-        };
+        let spectrum = SpectrumData { left_bands: vec![0.8; 12], right_bands: vec![0.3; 12], bands: vec![0.55; 12] };
 
         anim.update_from_spectrum(&spectrum);
 
@@ -621,12 +576,7 @@ mod tests {
         let left_avg: f32 = anim.left_heights.iter().sum::<f32>() / NUM_BARS as f32;
         let right_avg: f32 = anim.right_heights.iter().sum::<f32>() / NUM_BARS as f32;
 
-        assert!(
-            left_avg > right_avg,
-            "Left avg {} should be > right avg {}",
-            left_avg,
-            right_avg
-        );
+        assert!(left_avg > right_avg, "Left avg {} should be > right avg {}", left_avg, right_avg);
     }
 
     #[test]

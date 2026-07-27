@@ -22,9 +22,7 @@ use cosmic::widget::{self, button, text};
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_track_row;
-use crate::views::components::{
-    TrackRowOptions, back_button, scrollable_element, virtual_list_row,
-};
+use crate::views::components::{TrackRowOptions, back_button, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the favorite tracks list view.
@@ -53,9 +51,7 @@ impl AppModel {
                     } else {
                         Some(Message::ShufflePlay(
                             Arc::clone(&self.track_list_arc),
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                                "context-favorites"
-                            ))),
+                            Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
                         ))
                     })
                     .padding(4),
@@ -64,20 +60,14 @@ impl AppModel {
             .align_y(Alignment::Center);
 
         // --- optional filter bar ---
-        let mut col = widget::Column::new()
-            .spacing(12)
-            .padding(12)
-            .width(Length::Fill);
+        let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
         col = col.push(header);
 
         if self.favorite_tracks_filter_visible {
-            let filter_bar = text_input(
-                &fl!("favorite-tracks-filter-placeholder"),
-                &self.favorite_tracks_filter_query,
-            )
-            .id("favorite-tracks-filter-input")
-            .on_input(Message::FavoriteTracksFilterChanged)
-            .width(Length::Fill);
+            let filter_bar = text_input(&fl!("favorite-tracks-filter-placeholder"), &self.favorite_tracks_filter_query)
+                .id("favorite-tracks-filter-input")
+                .on_input(Message::FavoriteTracksFilterChanged)
+                .width(Length::Fill);
             col = col.push(filter_bar);
         }
 
@@ -85,9 +75,7 @@ impl AppModel {
         let content: Element<'_, Message> = if self.track_list_content.is_empty() {
             if self.is_loading {
                 text(fl!("loading-tracks")).size(14).into()
-            } else if !self.favorite_tracks_filter_query.is_empty()
-                && self.favorite_tracks_filter_visible
-            {
+            } else if !self.favorite_tracks_filter_query.is_empty() && self.favorite_tracks_filter_visible {
                 // Tracks exist but filter matched nothing.
                 text(fl!("no-results")).size(14).into()
             } else {
@@ -101,19 +89,14 @@ impl AppModel {
             let loaded_images = &self.loaded_images;
             let opts = TrackRowOptions {
                 tracks: Arc::clone(&self.track_list_arc),
-                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                    "context-favorites"
-                ))),
+                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-favorites"))),
                 fallback_icon: "emblem-favorite-symbolic",
                 ..Default::default()
             };
 
-            let track_list = cosmic::iced::widget::list::List::new(
-                &self.track_list_content,
-                move |index, track| {
-                    virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
-                },
-            );
+            let track_list = cosmic::iced::widget::list::List::new(&self.track_list_content, move |index, track| {
+                virtual_list_row(build_track_row(loaded_images, track, index, &opts), 2)
+            });
 
             scrollable_element(track_list)
         };

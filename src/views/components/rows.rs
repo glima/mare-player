@@ -45,14 +45,9 @@ pub(crate) fn build_thumbnail<'a>(
     if let Some(url) = url
         && let Some(handle) = loaded_images.get_or_request(url)
     {
-        return cosmic::widget::image(handle.clone())
-            .width(THUMBNAIL_SIZE)
-            .height(THUMBNAIL_SIZE)
-            .into();
+        return cosmic::widget::image(handle.clone()).width(THUMBNAIL_SIZE).height(THUMBNAIL_SIZE).into();
     }
-    widget::icon::from_name(fallback_icon)
-        .size(THUMBNAIL_SIZE)
-        .into()
+    widget::icon::from_name(fallback_icon).size(THUMBNAIL_SIZE).into()
 }
 
 /// Standalone track row builder for virtual `List` closures.
@@ -65,28 +60,17 @@ pub(crate) fn build_track_row<'a>(
     index: usize,
     opts: &TrackRowOptions,
 ) -> Element<'a, Message> {
-    let base_thumbnail = build_thumbnail(
-        loaded_images,
-        track.cover_url.as_deref(),
-        opts.fallback_icon,
-    );
+    let base_thumbnail = build_thumbnail(loaded_images, track.cover_url.as_deref(), opts.fallback_icon);
     // Video entries get a small video emblem in the thumbnail's corner.
     let thumbnail: Element<'a, Message> = if track.is_video {
-        let badge = container(widget::icon::from_name("emblem-videos-symbolic").size(12))
-            .padding(2)
-            .class(cosmic::theme::Container::custom(|_theme| {
-                cosmic::widget::container::Style {
-                    background: Some(cosmic::iced::Background::Color(
-                        cosmic::iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6),
-                    )),
-                    text_color: Some(cosmic::iced::Color::WHITE),
-                    border: cosmic::iced::Border {
-                        radius: [7.0; 4].into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            }));
+        let badge = container(widget::icon::from_name("emblem-videos-symbolic").size(12)).padding(2).class(
+            cosmic::theme::Container::custom(|_theme| cosmic::widget::container::Style {
+                background: Some(cosmic::iced::Background::Color(cosmic::iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+                text_color: Some(cosmic::iced::Color::WHITE),
+                border: cosmic::iced::Border { radius: [7.0; 4].into(), ..Default::default() },
+                ..Default::default()
+            }),
+        );
         cosmic::iced::widget::Stack::new()
             .push(base_thumbnail)
             .push(
@@ -102,23 +86,13 @@ pub(crate) fn build_track_row<'a>(
     };
 
     let track_info = fading_text_column(vec![
-        text(track.title.clone())
-            .size(13)
-            .wrapping(Wrapping::None)
-            .into(),
-        text(track.artist_name.clone())
-            .size(11)
-            .wrapping(Wrapping::None)
-            .into(),
+        text(track.title.clone()).size(13).wrapping(Wrapping::None).into(),
+        text(track.artist_name.clone()).size(11).wrapping(Wrapping::None).into(),
     ]);
 
-    let duration = container(
-        text(track.duration_display())
-            .size(11)
-            .wrapping(Wrapping::None),
-    )
-    .width(Length::Fixed(opts.duration_column_width()))
-    .align_x(Alignment::End);
+    let duration = container(text(track.duration_display()).size(11).wrapping(Wrapping::None))
+        .width(Length::Fixed(opts.duration_column_width()))
+        .align_x(Alignment::End);
 
     // "Go to track radio" button — shows similar tracks for this track.
     // Hidden inside the track radio view (to prevent recursive radios) and for
@@ -133,17 +107,9 @@ pub(crate) fn build_track_row<'a>(
             .on_press(Message::ShowTrackRadio(track.clone()))
             .padding(2);
 
-        widget::Row::new()
-            .push(radio_btn)
-            .push(duration)
-            .spacing(4)
-            .align_y(Alignment::Center)
-            .width(Length::Shrink)
+        widget::Row::new().push(radio_btn).push(duration).spacing(4).align_y(Alignment::Center).width(Length::Shrink)
     } else {
-        widget::Row::new()
-            .push(duration)
-            .align_y(Alignment::Center)
-            .width(Length::Shrink)
+        widget::Row::new().push(duration).align_y(Alignment::Center).width(Length::Shrink)
     };
 
     let row = widget::Row::new()
@@ -158,36 +124,19 @@ pub(crate) fn build_track_row<'a>(
     let tracks_arc = Arc::clone(&opts.tracks);
     let source_clone = opts.source.clone();
 
-    list_item(
-        row,
-        Message::PlayTrackList(tracks_arc, index, source_clone),
-        0,
-    )
+    list_item(row, Message::PlayTrackList(tracks_arc, index, source_clone), 0)
 }
 
 /// Standalone album row builder for virtual `List` closures. The
 /// [`AppModel::album_row`] method delegates here.
-pub(crate) fn build_album_row<'a>(
-    loaded_images: &HandleCache,
-    album: &Album,
-) -> Element<'a, Message> {
+pub(crate) fn build_album_row<'a>(loaded_images: &HandleCache, album: &Album) -> Element<'a, Message> {
     let info = fading_text_column(vec![
-        text(album.title.clone())
-            .size(13)
-            .wrapping(Wrapping::None)
-            .into(),
-        text(album.artist_name.clone())
-            .size(11)
-            .wrapping(Wrapping::None)
-            .into(),
+        text(album.title.clone()).size(13).wrapping(Wrapping::None).into(),
+        text(album.artist_name.clone()).size(11).wrapping(Wrapping::None).into(),
     ]);
 
     let row = widget::Row::new()
-        .push(build_thumbnail(
-            loaded_images,
-            album.cover_url.as_deref(),
-            "media-optical-symbolic",
-        ))
+        .push(build_thumbnail(loaded_images, album.cover_url.as_deref(), "media-optical-symbolic"))
         .push(info)
         .spacing(8)
         .align_y(Alignment::Center)
@@ -203,11 +152,7 @@ pub(crate) fn build_album_row<'a>(
 impl AppModel {
     /// Get a thumbnail element - image if cached, otherwise fallback icon.
     /// Images are already circular from make_circular() processing.
-    pub fn thumbnail<'a>(
-        &self,
-        url: Option<&str>,
-        fallback_icon: &'static str,
-    ) -> Element<'a, Message> {
+    pub fn thumbnail<'a>(&self, url: Option<&str>, fallback_icon: &'static str) -> Element<'a, Message> {
         build_thumbnail(&self.loaded_images, url, fallback_icon)
     }
 
@@ -218,12 +163,7 @@ impl AppModel {
     ///
     /// Returns a row with: thumbnail, track info (title + artist), duration,
     /// and optionally a favorite toggle button — all wrapped in [`list_item`].
-    pub fn track_row<'a>(
-        &self,
-        track: &Track,
-        index: usize,
-        opts: &TrackRowOptions,
-    ) -> Element<'a, Message> {
+    pub fn track_row<'a>(&self, track: &Track, index: usize, opts: &TrackRowOptions) -> Element<'a, Message> {
         build_track_row(&self.loaded_images, track, index, opts)
     }
 
@@ -240,58 +180,33 @@ impl AppModel {
     /// Used in the playlists list and search results. Wraps content via
     /// [`list_item`].
     pub fn playlist_row<'a>(&self, playlist: &Playlist) -> Element<'a, Message> {
-        let mut info_children: Vec<Element<'_, Message>> = vec![
-            text(playlist.title.clone())
-                .size(13)
-                .wrapping(Wrapping::None)
-                .into(),
-        ];
+        let mut info_children: Vec<Element<'_, Message>> =
+            vec![text(playlist.title.clone()).size(13).wrapping(Wrapping::None).into()];
 
         if playlist.num_tracks > 0 {
-            info_children.push(
-                text(fl!("track-count", count = playlist.num_tracks))
-                    .size(11)
-                    .into(),
-            );
+            info_children.push(text(fl!("track-count", count = playlist.num_tracks)).size(11).into());
         }
 
         let info = fading_text_column(info_children);
 
         // Prefer the 2×2 album-art grid thumbnail, fall back to the
         // playlist's own cover image, then to a generic icon.
-        let thumb: Element<'_, Message> =
-            if let Some(handle) = self.playlist_thumbnails.get(&playlist.uuid) {
-                cosmic::widget::image(handle.clone())
-                    .width(THUMBNAIL_SIZE)
-                    .height(THUMBNAIL_SIZE)
-                    .into()
-            } else {
-                self.thumbnail(playlist.image_url.as_deref(), "folder-music-symbolic")
-            };
+        let thumb: Element<'_, Message> = if let Some(handle) = self.playlist_thumbnails.get(&playlist.uuid) {
+            cosmic::widget::image(handle.clone()).width(THUMBNAIL_SIZE).height(THUMBNAIL_SIZE).into()
+        } else {
+            self.thumbnail(playlist.image_url.as_deref(), "folder-music-symbolic")
+        };
 
-        let row = widget::Row::new()
-            .push(thumb)
-            .push(info)
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
+        let row = widget::Row::new().push(thumb).push(info).spacing(8).align_y(Alignment::Center).width(Length::Fill);
 
-        list_item(
-            row,
-            Message::ShowPlaylistDetail(playlist.uuid.clone(), playlist.title.clone()),
-            6,
-        )
+        list_item(row, Message::ShowPlaylistDetail(playlist.uuid.clone(), playlist.title.clone()), 6)
     }
 
     /// Create a main-menu navigation row (icon + label + chevron).
     ///
     /// Used on the main collection screen for Playlists / Albums / Tracks.
     /// Wraps content via [`list_item`].
-    pub fn menu_row<'a>(
-        icon: &'static str,
-        label: String,
-        on_press: Message,
-    ) -> Element<'a, Message> {
+    pub fn menu_row<'a>(icon: &'static str, label: String, on_press: Message) -> Element<'a, Message> {
         let row = widget::Row::new()
             .push(widget::icon::from_name(icon).size(24))
             .push(text(label).size(14))

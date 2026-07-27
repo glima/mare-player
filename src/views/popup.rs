@@ -73,15 +73,8 @@ fn buffering_slider_class(progress: f32) -> cosmic::theme::style::iced::Slider {
 
         slider::Style {
             rail: slider::Rail {
-                backgrounds: (
-                    Background::Color(active_track.into()),
-                    Background::Color(inactive_track.into()),
-                ),
-                border: Border {
-                    radius: cosmic.corner_radii.radius_xs.into(),
-                    color: Color::TRANSPARENT,
-                    width: 0.0,
-                },
+                backgrounds: (Background::Color(active_track.into()), Background::Color(inactive_track.into())),
+                border: Border { radius: cosmic.corner_radii.radius_xs.into(), color: Color::TRANSPARENT, width: 0.0 },
                 width: 4.0,
             },
             handle: slider::Handle {
@@ -94,17 +87,11 @@ fn buffering_slider_class(progress: f32) -> cosmic::theme::style::iced::Slider {
                 border_width: 0.0,
                 background: handle_bg,
             },
-            breakpoint: slider::Breakpoint {
-                color: cosmic.on_bg_color().into(),
-            },
+            breakpoint: slider::Breakpoint { color: cosmic.on_bg_color().into() },
         }
     });
 
-    cosmic::theme::style::iced::Slider::Custom {
-        active: style_fn.clone(),
-        hovered: style_fn.clone(),
-        dragging: style_fn,
-    }
+    cosmic::theme::style::iced::Slider::Custom { active: style_fn.clone(), hovered: style_fn.clone(), dragging: style_fn }
 }
 
 /// Shorten an error string for display in the banner.
@@ -121,11 +108,7 @@ fn concise_error(error: &str) -> String {
     // Error strings often append a raw payload we never want in the banner: an
     // HTTP error's JSON body (starts with `{`), or a serde parse dump on a
     // following line. Cut at whichever comes first.
-    let cut = [error.find('\n'), error.find('{')]
-        .into_iter()
-        .flatten()
-        .min()
-        .unwrap_or(error.len());
+    let cut = [error.find('\n'), error.find('{')].into_iter().flatten().min().unwrap_or(error.len());
 
     let head = error[..cut].trim().trim_end_matches([':', '-', ' ']).trim();
 
@@ -168,14 +151,9 @@ impl AppModel {
             ViewState::History => self.view_history(),
             ViewState::Profiles => self.view_profiles(),
             ViewState::Settings => self.view_settings(),
-            ViewState::SharePrompt(track_id, track_title, album_id, album_title, is_video) => self
-                .view_share_prompt(
-                    track_id.clone(),
-                    track_title.clone(),
-                    album_id.clone(),
-                    album_title.clone(),
-                    *is_video,
-                ),
+            ViewState::SharePrompt(track_id, track_title, album_id, album_title, is_video) => {
+                self.view_share_prompt(track_id.clone(), track_title.clone(), album_id.clone(), album_title.clone(), *is_video)
+            }
         }
     }
 
@@ -183,11 +161,7 @@ impl AppModel {
     fn view_error_banner<'a>(&'a self, error: &'a str) -> Element<'a, Message> {
         let error_row = widget::Row::new()
             .push(text(concise_error(error)).size(12))
-            .push(
-                button::icon(widget::icon::from_name("window-close-symbolic"))
-                    .on_press(Message::ClearError)
-                    .padding(2),
-            )
+            .push(button::icon(widget::icon::from_name("window-close-symbolic")).on_press(Message::ClearError).padding(2))
             .spacing(8)
             .align_y(Alignment::Center)
             .width(Length::Fill);
@@ -195,18 +169,11 @@ impl AppModel {
         container(error_row)
             .padding(8)
             .width(Length::Fill)
-            .class(cosmic::theme::Container::custom(|_theme| {
-                cosmic::widget::container::Style {
-                    background: Some(cosmic::iced::Background::Color(
-                        cosmic::iced::Color::from_rgb(0.8, 0.2, 0.2),
-                    )),
-                    text_color: Some(cosmic::iced::Color::WHITE),
-                    border: cosmic::iced::Border {
-                        radius: 4.0.into(),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
+            .class(cosmic::theme::Container::custom(|_theme| cosmic::widget::container::Style {
+                background: Some(cosmic::iced::Background::Color(cosmic::iced::Color::from_rgb(0.8, 0.2, 0.2))),
+                text_color: Some(cosmic::iced::Color::WHITE),
+                border: cosmic::iced::Border { radius: 4.0.into(), ..Default::default() },
+                ..Default::default()
             }))
             .into()
     }
@@ -224,21 +191,14 @@ impl AppModel {
         let content: Element<'_, Message> = if let Some(np) = &self.now_playing {
             let now_playing_bar = self.view_now_playing_bar(np);
 
-            widget::Column::new()
-                .push(main_content)
-                .push(now_playing_bar)
-                .into()
+            widget::Column::new().push(main_content).push(now_playing_bar).into()
         } else {
             main_content
         };
 
         // Wrap with error display if needed
         if let Some(error) = &self.error_message {
-            widget::Column::new()
-                .push(self.view_error_banner(error))
-                .push(content)
-                .spacing(8)
-                .into()
+            widget::Column::new().push(self.view_error_banner(error)).push(content).spacing(8).into()
         } else {
             content
         }
@@ -291,19 +251,10 @@ impl AppModel {
     /// The frame fills the available width and the height follows its aspect
     /// ratio (`ContentFit::Contain` with a `Shrink` height), so the embedded
     /// area hugs the picture rather than padding it with black bars.
-    fn video_frame_element<'a>(
-        &self,
-        video: &crate::playback::MediaPlayer,
-        radius: [f32; 4],
-    ) -> Element<'a, Message> {
-        let frame = video
-            .frame_buffer()
-            .lock()
-            .ok()
-            .and_then(|g| g.as_ref().cloned());
+    fn video_frame_element<'a>(&self, video: &crate::playback::MediaPlayer, radius: [f32; 4]) -> Element<'a, Message> {
+        let frame = video.frame_buffer().lock().ok().and_then(|g| g.as_ref().cloned());
         if let Some(f) = frame {
-            let handle =
-                cosmic::widget::image::Handle::from_rgba(f.width, f.height, (*f.rgba).clone());
+            let handle = cosmic::widget::image::Handle::from_rgba(f.width, f.height, (*f.rgba).clone());
             cosmic::widget::image(handle)
                 .width(Length::Fill)
                 .height(Length::Shrink)
@@ -322,8 +273,7 @@ impl AppModel {
 
     /// Whether the video-mode overlay controls are currently shown.
     fn video_controls_visible(&self) -> bool {
-        self.video_controls_shown_at
-            .is_some_and(|t| t.elapsed() < VIDEO_CONTROLS_TIMEOUT)
+        self.video_controls_shown_at.is_some_and(|t| t.elapsed() < VIDEO_CONTROLS_TIMEOUT)
     }
 
     /// Build the video "theater": the live frame filling the content area, with
@@ -349,45 +299,25 @@ impl AppModel {
         // shown only while recently interacted with.  Its bottom corners are
         // rounded too, so it doesn't square off the video's rounded bottom.
         let overlay: Element<'_, Message> = if self.video_controls_visible() {
-            let strip = container(
-                widget::Column::new()
-                    .push(info)
-                    .push(controls)
-                    .spacing(6)
-                    .width(Length::Fill),
-            )
-            .padding(8)
-            .width(Length::Fill)
-            .class(cosmic::theme::Container::custom(move |theme| {
-                // Use the card colour so the clickable buttons' base backdrop
-                // and the track-info fade blend in (as they do on the audio
-                // bar); hover still highlights. Bottom corners match the video.
-                cosmic::widget::container::Style {
-                    background: Some(cosmic::iced::Background::Color(
-                        theme.cosmic().background(false).component.base.into(),
-                    )),
-                    border: cosmic::iced::Border {
-                        radius: [0.0, 0.0, corner, corner].into(),
+            let strip = container(widget::Column::new().push(info).push(controls).spacing(6).width(Length::Fill))
+                .padding(8)
+                .width(Length::Fill)
+                .class(cosmic::theme::Container::custom(move |theme| {
+                    // Use the card colour so the clickable buttons' base backdrop
+                    // and the track-info fade blend in (as they do on the audio
+                    // bar); hover still highlights. Bottom corners match the video.
+                    cosmic::widget::container::Style {
+                        background: Some(cosmic::iced::Background::Color(theme.cosmic().background(false).component.base.into())),
+                        border: cosmic::iced::Border { radius: [0.0, 0.0, corner, corner].into(), ..Default::default() },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                }
-            }));
-            container(strip)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_y(Alignment::End)
-                .into()
+                    }
+                }));
+            container(strip).width(Length::Fill).height(Length::Fill).align_y(Alignment::End).into()
         } else {
-            container(widget::Column::new())
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .into()
+            container(widget::Column::new()).width(Length::Fill).height(Length::Fill).into()
         };
 
-        let stack = cosmic::iced::widget::Stack::new()
-            .push(surface)
-            .push(overlay);
+        let stack = cosmic::iced::widget::Stack::new().push(surface).push(overlay);
 
         // Any pointer movement over the theater (video or controls) keeps the
         // controls visible. Only `on_move` is wired — not `on_press` — so clicks
@@ -396,10 +326,7 @@ impl AppModel {
 
         // Sized to the video's aspect ratio (the track list stays above); the
         // backdrop stays transparent so the rounded corners reveal the popup.
-        container(interactive)
-            .width(Length::Fill)
-            .height(Length::Shrink)
-            .into()
+        container(interactive).width(Length::Fill).height(Length::Shrink).into()
     }
 
     /// The now-playing-bar video pop-out toggle button — shown only while a
@@ -424,11 +351,7 @@ impl AppModel {
             pi.symbolic = true;
             Some(
                 button::icon(pi)
-                    .tooltip(if popped {
-                        fl!("tooltip-video-inline")
-                    } else {
-                        fl!("tooltip-video-popout")
-                    })
+                    .tooltip(if popped { fl!("tooltip-video-inline") } else { fl!("tooltip-video-popout") })
                     .padding(4)
                     .on_press(Message::ToggleVideoWindow)
                     .into(),
@@ -464,13 +387,7 @@ impl AppModel {
         }
         let mut li = icon::from_svg_bytes(LYRICS_SVG);
         li.symbolic = true;
-        Some(
-            button::icon(li)
-                .tooltip(fl!("tooltip-show-lyrics"))
-                .padding(4)
-                .on_press(Message::ShowLyrics(track.clone()))
-                .into(),
-        )
+        Some(button::icon(li).tooltip(fl!("tooltip-show-lyrics")).padding(4).on_press(Message::ShowLyrics(track.clone())).into())
     }
 
     /// Render the now-playing bar shown at the bottom of the popup.
@@ -481,11 +398,7 @@ impl AppModel {
             "media-playback-start-symbolic"
         };
 
-        let progress = if np.duration > 0.0 {
-            (self.playback_position / np.duration * 100.0) as u8
-        } else {
-            0
-        };
+        let progress = if np.duration > 0.0 { (self.playback_position / np.duration * 100.0) as u8 } else { 0 };
 
         // Check if current track is favorited
         let is_favorite = self.favorite_track_ids.contains(&np.track_id);
@@ -513,37 +426,26 @@ impl AppModel {
         // Album art for now playing bar
         let now_playing_art: Element<'_, Message> = if let Some(url) = &np.cover_url {
             if let Some(handle) = self.loaded_images.get(url) {
-                cosmic::widget::image(handle.clone())
-                    .width(NOW_PLAYING_ART_SIZE)
-                    .height(NOW_PLAYING_ART_SIZE)
-                    .into()
+                cosmic::widget::image(handle.clone()).width(NOW_PLAYING_ART_SIZE).height(NOW_PLAYING_ART_SIZE).into()
             } else {
-                widget::icon::from_name("media-optical-symbolic")
-                    .size(NOW_PLAYING_ART_SIZE)
-                    .into()
+                widget::icon::from_name("media-optical-symbolic").size(NOW_PLAYING_ART_SIZE).into()
             }
         } else {
-            widget::icon::from_name("media-optical-symbolic")
-                .size(NOW_PLAYING_ART_SIZE)
-                .into()
+            widget::icon::from_name("media-optical-symbolic").size(NOW_PLAYING_ART_SIZE).into()
         };
 
         // Artist name — clickable if we have an artist_id from the current track
         let artist_name = np.artist.clone();
         let artist_element: Element<'_, Message> =
             if let Some(artist_id) = current_track.as_ref().and_then(|t| t.artist_id.clone()) {
-                button::custom(crate::views::components::fading_text(
-                    text(artist_name).size(14).wrapping(Wrapping::None),
-                ))
-                .on_press(Message::ShowArtistDetail(artist_id))
-                .width(Length::Shrink)
-                .padding(0)
-                .class(cosmic::theme::Button::MenuItem)
-                .into()
+                button::custom(crate::views::components::fading_text(text(artist_name).size(14).wrapping(Wrapping::None)))
+                    .on_press(Message::ShowArtistDetail(artist_id))
+                    .width(Length::Shrink)
+                    .padding(0)
+                    .class(cosmic::theme::Button::MenuItem)
+                    .into()
             } else {
-                crate::views::components::fading_text(
-                    text(artist_name).size(14).wrapping(Wrapping::None),
-                )
+                crate::views::components::fading_text(text(artist_name).size(14).wrapping(Wrapping::None))
             };
 
         // Context line (album • playlist) — album part is clickable if we have album_id
@@ -562,26 +464,20 @@ impl AppModel {
                 .into(),
             )
         } else {
-            Some(crate::views::components::fading_text(
-                text(context_line).size(12).wrapping(Wrapping::None),
-            ))
+            Some(crate::views::components::fading_text(text(context_line).size(12).wrapping(Wrapping::None)))
         };
 
         // Track title — clickable to navigate to the track detail (recommendations) view
         let track_for_detail = self.playback_queue.get(self.playback_queue_index).cloned();
         let title_element: Element<'_, Message> = if let Some(track) = track_for_detail {
-            button::custom(crate::views::components::fading_text(
-                text(np.title.clone()).size(16).wrapping(Wrapping::None),
-            ))
-            .on_press(Message::ShowTrackDetail(track))
-            .width(Length::Shrink)
-            .padding(0)
-            .class(cosmic::theme::Button::MenuItem)
-            .into()
+            button::custom(crate::views::components::fading_text(text(np.title.clone()).size(16).wrapping(Wrapping::None)))
+                .on_press(Message::ShowTrackDetail(track))
+                .width(Length::Shrink)
+                .padding(0)
+                .class(cosmic::theme::Button::MenuItem)
+                .into()
         } else {
-            crate::views::components::fading_text(
-                text(np.title.clone()).size(16).wrapping(Wrapping::None),
-            )
+            crate::views::components::fading_text(text(np.title.clone()).size(16).wrapping(Wrapping::None))
         };
 
         // Track info text — each clickable line fades *inside* its button (so the
@@ -629,14 +525,8 @@ impl AppModel {
                 // 404s on a video id), so omit the heart for them.
                 let is_video = current_track.as_ref().is_some_and(|t| t.is_video);
                 (!is_video).then(|| {
-                    let tip = if is_favorite {
-                        fl!("tooltip-remove-from-favorites")
-                    } else {
-                        fl!("tooltip-add-to-favorites")
-                    };
-                    let btn = button::icon(favorite_icon_handle(is_favorite))
-                        .tooltip(tip)
-                        .padding(4);
+                    let tip = if is_favorite { fl!("tooltip-remove-from-favorites") } else { fl!("tooltip-add-to-favorites") };
+                    let btn = button::icon(favorite_icon_handle(is_favorite)).tooltip(tip).padding(4);
                     let btn: Element<'_, Message> = match current_track.clone() {
                         Some(track) => btn.on_press(Message::ToggleFavorite(track)).into(),
                         None => btn.into(),
@@ -668,30 +558,21 @@ impl AppModel {
             )
             .push({
                 let (mode_icon, tip) = if self.shuffle_enabled {
-                    (
-                        "media-playlist-shuffle-symbolic",
-                        fl!("tooltip-mode-shuffle"),
-                    )
+                    ("media-playlist-shuffle-symbolic", fl!("tooltip-mode-shuffle"))
                 } else {
                     match self.loop_status {
-                        crate::tidal::mpris::LoopStatus::None => (
-                            "media-playlist-consecutive-symbolic",
-                            fl!("tooltip-mode-normal"),
-                        ),
-                        crate::tidal::mpris::LoopStatus::Playlist => (
-                            "media-playlist-repeat-symbolic",
-                            fl!("tooltip-mode-repeat-all"),
-                        ),
-                        crate::tidal::mpris::LoopStatus::Track => (
-                            "media-playlist-repeat-song-symbolic",
-                            fl!("tooltip-mode-repeat-track"),
-                        ),
+                        crate::tidal::mpris::LoopStatus::None => {
+                            ("media-playlist-consecutive-symbolic", fl!("tooltip-mode-normal"))
+                        }
+                        crate::tidal::mpris::LoopStatus::Playlist => {
+                            ("media-playlist-repeat-symbolic", fl!("tooltip-mode-repeat-all"))
+                        }
+                        crate::tidal::mpris::LoopStatus::Track => {
+                            ("media-playlist-repeat-song-symbolic", fl!("tooltip-mode-repeat-track"))
+                        }
                     }
                 };
-                button::icon(widget::icon::from_name(mode_icon))
-                    .tooltip(tip)
-                    .on_press(Message::CyclePlaybackMode)
-                    .padding(4)
+                button::icon(widget::icon::from_name(mode_icon)).tooltip(tip).on_press(Message::CyclePlaybackMode).padding(4)
             })
             .push(
                 button::icon(widget::icon::from_name("media-playback-stop-symbolic"))
@@ -702,14 +583,9 @@ impl AppModel {
             .push_maybe(self.now_playing_radio_button())
             .push_maybe(self.now_playing_lyrics_button())
             .push({
-                let btn = button::icon(widget::icon::from_name("emblem-shared-symbolic"))
-                    .tooltip(fl!("tooltip-share"))
-                    .padding(4);
-                if let Some(track) = track_for_share_prompt {
-                    btn.on_press(Message::ShowSharePrompt(track))
-                } else {
-                    btn
-                }
+                let btn =
+                    button::icon(widget::icon::from_name("emblem-shared-symbolic")).tooltip(fl!("tooltip-share")).padding(4);
+                if let Some(track) = track_for_share_prompt { btn.on_press(Message::ShowSharePrompt(track)) } else { btn }
             })
             .push_maybe(self.pop_out_video_button());
 
@@ -728,10 +604,7 @@ impl AppModel {
             };
 
             let vol_btn = button::icon(widget::icon::from_name(volume_icon_name))
-                .tooltip(fl!(
-                    "tooltip-volume",
-                    percent = format!("{}", (self.volume_level * 100.0).round() as u8)
-                ))
+                .tooltip(fl!("tooltip-volume", percent = format!("{}", (self.volume_level * 100.0).round() as u8)))
                 .on_press(Message::ToggleVolumePopup)
                 .padding(4);
 
@@ -739,8 +612,7 @@ impl AppModel {
                 // Build a true vertical slider inside a styled card container.
                 // `vertical_slider` renders bottom-to-top (min at bottom, max
                 // at top) which is the natural orientation for a volume knob.
-                let vol_pct_label =
-                    text(format!("{}%", (self.volume_level * 100.0).round() as u8)).size(11);
+                let vol_pct_label = text(format!("{}%", (self.volume_level * 100.0).round() as u8)).size(11);
 
                 let vol_slider = vertical_slider(0.0..=1.0, self.volume_level, Message::SetVolume)
                     .step(0.01)
@@ -769,9 +641,8 @@ impl AppModel {
 
             // Wrap the volume icon in a mouse_area so the user can scroll
             // to adjust volume without needing to open the popover first.
-            let vol_element: Element<'_, Message> = widget::mouse_area(vol_element)
-                .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)))
-                .into();
+            let vol_element: Element<'_, Message> =
+                widget::mouse_area(vol_element).on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta))).into();
 
             buttons_row.push(vol_element)
         };
@@ -796,11 +667,8 @@ impl AppModel {
         // user can see that something is happening, while the slider keeps its
         // exact native size and rail styling.
         let seek_slider = {
-            let mut s = widget::slider(0.0..=100.0, progress as f32, |val| {
-                Message::SeekTo(val as f64)
-            })
-            .height(4)
-            .width(Length::Fill);
+            let mut s =
+                widget::slider(0.0..=100.0, progress as f32, |val| Message::SeekTo(val as f64)).height(4).width(Length::Fill);
 
             if is_buffering {
                 s = s.class(buffering_slider_class(self.loading_progress));
@@ -823,26 +691,14 @@ impl AppModel {
         if let Some(video) = &self.video_player
             && self.video_window.is_none()
         {
-            let controls = widget::Column::new()
-                .push(centered_buttons)
-                .push(progress_row)
-                .spacing(6)
-                .width(Length::Fill)
-                .into();
+            let controls = widget::Column::new().push(centered_buttons).push(progress_row).spacing(6).width(Length::Fill).into();
             return self.video_theater(video, info_row, controls);
         }
 
-        let bar_col = widget::Column::new()
-            .push(info_row)
-            .push(centered_buttons)
-            .push(progress_row)
-            .spacing(6)
-            .width(Length::Fill);
+        let bar_col =
+            widget::Column::new().push(info_row).push(centered_buttons).push(progress_row).spacing(6).width(Length::Fill);
 
-        container(bar_col)
-            .padding(8)
-            .class(cosmic::theme::Container::Card)
-            .into()
+        container(bar_col).padding(8).class(cosmic::theme::Container::Card).into()
     }
 }
 
@@ -870,10 +726,7 @@ mod tests {
         let out = concise_error(err);
         assert!(!out.contains('{'));
         assert!(!out.contains("status"));
-        assert_eq!(
-            out,
-            "Failed to get playback URL: Request failed: HTTP 500 Internal Server Error"
-        );
+        assert_eq!(out, "Failed to get playback URL: Request failed: HTTP 500 Internal Server Error");
     }
 
     #[test]

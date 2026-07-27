@@ -40,11 +40,7 @@ pub struct SpectrumData {
 
 impl Default for SpectrumData {
     fn default() -> Self {
-        Self {
-            left_bands: vec![0.0; NUM_BANDS],
-            right_bands: vec![0.0; NUM_BANDS],
-            bands: vec![0.0; NUM_BANDS],
-        }
+        Self { left_bands: vec![0.0; NUM_BANDS], right_bands: vec![0.0; NUM_BANDS], bands: vec![0.0; NUM_BANDS] }
     }
 }
 
@@ -164,11 +160,7 @@ impl SpectrumAnalyzer {
 
         // Apply smoothing to left channel
         let mut smoothed_left = Vec::with_capacity(self.num_bands);
-        for (&band_val, prev_val) in left_bands
-            .iter()
-            .zip(self.prev_left_spectrum.iter_mut())
-            .take(self.num_bands)
-        {
+        for (&band_val, prev_val) in left_bands.iter().zip(self.prev_left_spectrum.iter_mut()).take(self.num_bands) {
             let smoothed = SMOOTHING_FACTOR * *prev_val + (1.0 - SMOOTHING_FACTOR) * band_val;
             smoothed_left.push(smoothed);
             *prev_val = smoothed;
@@ -176,28 +168,16 @@ impl SpectrumAnalyzer {
 
         // Apply smoothing to right channel
         let mut smoothed_right = Vec::with_capacity(self.num_bands);
-        for (&band_val, prev_val) in right_bands
-            .iter()
-            .zip(self.prev_right_spectrum.iter_mut())
-            .take(self.num_bands)
-        {
+        for (&band_val, prev_val) in right_bands.iter().zip(self.prev_right_spectrum.iter_mut()).take(self.num_bands) {
             let smoothed = SMOOTHING_FACTOR * *prev_val + (1.0 - SMOOTHING_FACTOR) * band_val;
             smoothed_right.push(smoothed);
             *prev_val = smoothed;
         }
 
         // Compute combined/mono bands for backwards compatibility
-        let combined_bands: Vec<f32> = smoothed_left
-            .iter()
-            .zip(smoothed_right.iter())
-            .map(|(&l, &r)| (l + r) * 0.5)
-            .collect();
+        let combined_bands: Vec<f32> = smoothed_left.iter().zip(smoothed_right.iter()).map(|(&l, &r)| (l + r) * 0.5).collect();
 
-        SpectrumData {
-            left_bands: smoothed_left,
-            right_bands: smoothed_right,
-            bands: combined_bands,
-        }
+        SpectrumData { left_bands: smoothed_left, right_bands: smoothed_right, bands: combined_bands }
     }
 
     /// Map linear FFT bins to logarithmic frequency bands
@@ -210,8 +190,7 @@ impl SpectrumAnalyzer {
         let max_freq = (self.sample_rate as f32 / 2.0).min(20000.0);
 
         // Calculate frequency for each FFT bin
-        let bin_freq =
-            |bin: usize| -> f32 { bin as f32 * self.sample_rate as f32 / FFT_SIZE as f32 };
+        let bin_freq = |bin: usize| -> f32 { bin as f32 * self.sample_rate as f32 / FFT_SIZE as f32 };
 
         // Calculate band edges using logarithmic spacing
         let log_min = min_freq.ln();
@@ -270,8 +249,7 @@ impl SpectrumAnalyzer {
 /// Thread-safe spectrum analyzer wrapper
 impl std::fmt::Debug for SharedSpectrumAnalyzer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SharedSpectrumAnalyzer")
-            .finish_non_exhaustive()
+        f.debug_struct("SharedSpectrumAnalyzer").finish_non_exhaustive()
     }
 }
 
@@ -282,12 +260,7 @@ pub struct SharedSpectrumAnalyzer {
 impl SharedSpectrumAnalyzer {
     /// Create with custom number of bands
     pub fn with_bands(sample_rate: u32, num_bands: usize) -> Self {
-        Self {
-            inner: Arc::new(Mutex::new(SpectrumAnalyzer::with_bands(
-                sample_rate,
-                num_bands,
-            ))),
-        }
+        Self { inner: Arc::new(Mutex::new(SpectrumAnalyzer::with_bands(sample_rate, num_bands))) }
     }
 
     /// Push stereo samples
@@ -308,9 +281,7 @@ impl SharedSpectrumAnalyzer {
 
 impl Clone for SharedSpectrumAnalyzer {
     fn clone(&self) -> Self {
-        Self {
-            inner: Arc::clone(&self.inner),
-        }
+        Self { inner: Arc::clone(&self.inner) }
     }
 }
 
@@ -366,21 +337,11 @@ mod tests {
         let spectrum = analyzer.compute();
 
         // Find peak bands for each channel
-        let left_peak = spectrum
-            .left_bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let left_peak =
+            spectrum.left_bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
-        let right_peak = spectrum
-            .right_bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let right_peak =
+            spectrum.right_bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // The peaks should be at different bands (lower freq = lower band index)
         assert!(
@@ -413,13 +374,7 @@ mod tests {
         // The 1kHz band should have significant energy.
         // With 12 bands logarithmically spaced from 20 Hz to 20 kHz,
         // 1 kHz falls in band 5 (≈560–1090 Hz).
-        let max_band = spectrum
-            .bands
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
+        let max_band = spectrum.bands.iter().enumerate().max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).map(|(i, _)| i).unwrap();
 
         // 1 kHz should be detected in the mid bands
         assert!(max_band > 3 && max_band < 8, "Max band was {}", max_band);

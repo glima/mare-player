@@ -41,15 +41,14 @@ pub mod rows;
 // ---- Re-exports (preserves the original flat public API) --------------------
 
 pub use constants::{
-    ALBUM_COVER_SIZE, ARTIST_PICTURE_SIZE, MAX_POPUP_HEIGHT, NOW_PLAYING_ART_SIZE, PANEL_ART_SIZE,
-    THUMBNAIL_SIZE, VOLUME_BAR_WIDTH, VOLUME_STEP, scroll_to_volume_delta,
+    ALBUM_COVER_SIZE, ARTIST_PICTURE_SIZE, MAX_POPUP_HEIGHT, NOW_PLAYING_ART_SIZE, PANEL_ART_SIZE, THUMBNAIL_SIZE,
+    VOLUME_BAR_WIDTH, VOLUME_STEP, scroll_to_volume_delta,
 };
 
 pub use icons::{CREDITS_SVG, LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favorite_icon_handle};
 
 pub use list_helpers::{
-    TrackRowOptions, app_icon_element, back_button, branded_text, branded_title,
-    fading_header_title, fading_panel_text, fading_standard_text, fading_suggested_text,
-    fading_text, fading_text_column, list_item, scrollable_element, scrollable_list,
+    TrackRowOptions, app_icon_element, back_button, branded_text, branded_title, fading_header_title, fading_panel_text,
+    fading_standard_text, fading_suggested_text, fading_text, fading_text_column, list_item, scrollable_element, scrollable_list,
     virtual_list_row,
 };

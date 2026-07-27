@@ -34,11 +34,7 @@ impl AppModel {
                     .on_submit(Message::PerformSearch)
                     .width(Length::Fill),
             )
-            .push(
-                button::icon(widget::icon::from_name("system-search-symbolic"))
-                    .on_press(Message::PerformSearch)
-                    .padding(4),
-            )
+            .push(button::icon(widget::icon::from_name("system-search-symbolic")).on_press(Message::PerformSearch).padding(4))
             .spacing(8)
             .align_y(Alignment::Center);
 
@@ -53,22 +49,14 @@ impl AppModel {
                 // Tracks section
                 if !results.tracks.is_empty() {
                     items_col = items_col.push(text(fl!("tracks")).size(12));
-                    let search_tracks: Arc<[_]> = results
-                        .tracks
-                        .iter()
-                        .take(5)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .into();
+                    let search_tracks: Arc<[_]> = results.tracks.iter().take(5).cloned().collect::<Vec<_>>().into();
                     for (index, track) in search_tracks.iter().enumerate() {
                         items_col = items_col.push(self.track_row(
                             track,
                             index,
                             &TrackRowOptions {
                                 tracks: Arc::clone(&search_tracks),
-                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                                    "context-search"
-                                ))),
+                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-search"))),
                                 ..Default::default()
                             },
                         ));
@@ -79,22 +67,14 @@ impl AppModel {
                 if !results.videos.is_empty() {
                     items_col = items_col.push(widget::space::vertical().height(8));
                     items_col = items_col.push(text(fl!("videos")).size(12));
-                    let search_videos: Arc<[_]> = results
-                        .videos
-                        .iter()
-                        .take(5)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .into();
+                    let search_videos: Arc<[_]> = results.videos.iter().take(5).cloned().collect::<Vec<_>>().into();
                     for (index, video) in search_videos.iter().enumerate() {
                         items_col = items_col.push(self.track_row(
                             video,
                             index,
                             &TrackRowOptions {
                                 tracks: Arc::clone(&search_videos),
-                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!(
-                                    "context-search"
-                                ))),
+                                source: Some(crate::tidal::models::PlaybackSource::ad_hoc(fl!("context-search"))),
                                 ..Default::default()
                             },
                         ));

@@ -42,46 +42,31 @@ mod track {
 
     #[test]
     fn duration_display_zero() {
-        let t = Track {
-            duration: 0,
-            ..Default::default()
-        };
+        let t = Track { duration: 0, ..Default::default() };
         assert_eq!(t.duration_display(), "0:00");
     }
 
     #[test]
     fn duration_display_seconds_only() {
-        let t = Track {
-            duration: 5,
-            ..Default::default()
-        };
+        let t = Track { duration: 5, ..Default::default() };
         assert_eq!(t.duration_display(), "0:05");
     }
 
     #[test]
     fn duration_display_one_minute() {
-        let t = Track {
-            duration: 60,
-            ..Default::default()
-        };
+        let t = Track { duration: 60, ..Default::default() };
         assert_eq!(t.duration_display(), "1:00");
     }
 
     #[test]
     fn duration_display_typical() {
-        let t = Track {
-            duration: 185,
-            ..Default::default()
-        };
+        let t = Track { duration: 185, ..Default::default() };
         assert_eq!(t.duration_display(), "3:05");
     }
 
     #[test]
     fn duration_display_long_track() {
-        let t = Track {
-            duration: 600,
-            ..Default::default()
-        };
+        let t = Track { duration: 600, ..Default::default() };
         assert_eq!(t.duration_display(), "10:00");
     }
 
@@ -89,39 +74,25 @@ mod track {
     fn duration_display_very_long() {
         // 1 hour 23 minutes 45 seconds = 5025 seconds
         // Note: Track::duration_display only does M:SS, not H:MM:SS
-        let t = Track {
-            duration: 5025,
-            ..Default::default()
-        };
+        let t = Track { duration: 5025, ..Default::default() };
         assert_eq!(t.duration_display(), "83:45");
     }
 
     #[test]
     fn duration_display_single_digit_seconds_padded() {
-        let t = Track {
-            duration: 61,
-            ..Default::default()
-        };
+        let t = Track { duration: 61, ..Default::default() };
         assert_eq!(t.duration_display(), "1:01");
     }
 
     #[test]
     fn duration_display_59_seconds() {
-        let t = Track {
-            duration: 59,
-            ..Default::default()
-        };
+        let t = Track { duration: 59, ..Default::default() };
         assert_eq!(t.duration_display(), "0:59");
     }
 
     #[test]
     fn clone_is_independent() {
-        let t1 = Track {
-            id: "123".to_string(),
-            title: "Song".to_string(),
-            duration: 200,
-            ..Default::default()
-        };
+        let t1 = Track { id: "123".to_string(), title: "Song".to_string(), duration: 200, ..Default::default() };
         let t2 = t1.clone();
         assert_eq!(t1.id, t2.id);
         assert_eq!(t1.title, t2.title);
@@ -130,11 +101,7 @@ mod track {
 
     #[test]
     fn debug_format() {
-        let t = Track {
-            id: "42".to_string(),
-            title: "Test".to_string(),
-            ..Default::default()
-        };
+        let t = Track { id: "42".to_string(), title: "Test".to_string(), ..Default::default() };
         let debug = format!("{:?}", t);
         assert!(debug.contains("42"));
         assert!(debug.contains("Test"));
@@ -166,10 +133,7 @@ mod track {
         assert_eq!(t2.artist_id, Some("10".to_string()));
         assert_eq!(t2.album_name, Some("Album".to_string()));
         assert_eq!(t2.album_id, Some("20".to_string()));
-        assert_eq!(
-            t2.cover_url,
-            Some("https://example.com/cover.jpg".to_string())
-        );
+        assert_eq!(t2.cover_url, Some("https://example.com/cover.jpg".to_string()));
         assert!(t2.explicit);
         assert_eq!(t2.audio_quality, Some("HI_RES".to_string()));
     }
@@ -198,12 +162,7 @@ mod track {
     #[test]
     fn many_tracks_in_vec() {
         let tracks: Vec<Track> = (0..100)
-            .map(|i| Track {
-                id: i.to_string(),
-                title: format!("Track {}", i),
-                duration: i * 30,
-                ..Default::default()
-            })
+            .map(|i| Track { id: i.to_string(), title: format!("Track {}", i), duration: i * 30, ..Default::default() })
             .collect();
         assert_eq!(tracks.len(), 100);
         assert_eq!(tracks[0].duration_display(), "0:00");
@@ -287,11 +246,7 @@ mod album {
 
     #[test]
     fn debug_format_contains_fields() {
-        let a = Album {
-            id: "100".to_string(),
-            title: "Debug Album".to_string(),
-            ..Default::default()
-        };
+        let a = Album { id: "100".to_string(), title: "Debug Album".to_string(), ..Default::default() };
         let debug = format!("{:?}", a);
         assert!(debug.contains("100"));
         assert!(debug.contains("Debug Album"));
@@ -359,10 +314,7 @@ mod artist {
 
     #[test]
     fn roles_can_be_empty() {
-        let a = Artist {
-            roles: vec![],
-            ..Default::default()
-        };
+        let a = Artist { roles: vec![], ..Default::default() };
         let json = serde_json::to_string(&a).unwrap();
         let a2: Artist = serde_json::from_str(&json).unwrap();
         assert!(a2.roles.is_empty());
@@ -370,11 +322,7 @@ mod artist {
 
     #[test]
     fn debug_format() {
-        let a = Artist {
-            id: "1".to_string(),
-            name: "Debug Artist".to_string(),
-            ..Default::default()
-        };
+        let a = Artist { id: "1".to_string(), name: "Debug Artist".to_string(), ..Default::default() };
         let debug = format!("{:?}", a);
         assert!(debug.contains("Debug Artist"));
     }
@@ -403,66 +351,45 @@ mod playlist {
 
     #[test]
     fn duration_display_short() {
-        let p = Playlist {
-            duration: 125,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 125, ..Default::default() };
         assert_eq!(p.duration_display(), "2:05");
     }
 
     #[test]
     fn duration_display_with_hours() {
-        let p = Playlist {
-            duration: 3665,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 3665, ..Default::default() };
         assert_eq!(p.duration_display(), "1:01:05");
     }
 
     #[test]
     fn duration_display_zero() {
-        let p = Playlist {
-            duration: 0,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 0, ..Default::default() };
         assert_eq!(p.duration_display(), "0:00");
     }
 
     #[test]
     fn duration_display_exactly_one_hour() {
-        let p = Playlist {
-            duration: 3600,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 3600, ..Default::default() };
         assert_eq!(p.duration_display(), "1:00:00");
     }
 
     #[test]
     fn duration_display_many_hours() {
         // 10 hours, 30 minutes, 15 seconds = 37815 seconds
-        let p = Playlist {
-            duration: 37815,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 37815, ..Default::default() };
         assert_eq!(p.duration_display(), "10:30:15");
     }
 
     #[test]
     fn duration_display_59_minutes_59_seconds() {
         // Just under one hour
-        let p = Playlist {
-            duration: 3599,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 3599, ..Default::default() };
         assert_eq!(p.duration_display(), "59:59");
     }
 
     #[test]
     fn duration_display_one_second() {
-        let p = Playlist {
-            duration: 1,
-            ..Default::default()
-        };
+        let p = Playlist { duration: 1, ..Default::default() };
         assert_eq!(p.duration_display(), "0:01");
     }
 
@@ -565,11 +492,7 @@ mod mix {
 
     #[test]
     fn debug_format() {
-        let m = Mix {
-            id: "dbg".to_string(),
-            title: "Debug Mix".to_string(),
-            ..Default::default()
-        };
+        let m = Mix { id: "dbg".to_string(), title: "Debug Mix".to_string(), ..Default::default() };
         let debug = format!("{:?}", m);
         assert!(debug.contains("Debug Mix"));
         assert!(debug.contains("dbg"));
@@ -578,10 +501,7 @@ mod mix {
     #[test]
     fn various_mix_types() {
         for mix_type in ["DAILY_MIX", "ARTIST_MIX", "TRACK_MIX", "DISCOVERY_MIX"] {
-            let m = Mix {
-                mix_type: mix_type.to_string(),
-                ..Default::default()
-            };
+            let m = Mix { mix_type: mix_type.to_string(), ..Default::default() };
             assert_eq!(m.mix_type, mix_type);
         }
     }
@@ -603,51 +523,30 @@ mod search_results {
 
     #[test]
     fn is_empty_when_all_categories_empty() {
-        let sr = SearchResults {
-            tracks: vec![],
-            albums: vec![],
-            artists: vec![],
-            playlists: vec![],
-            videos: vec![],
-        };
+        let sr = SearchResults { tracks: vec![], albums: vec![], artists: vec![], playlists: vec![], videos: vec![] };
         assert!(sr.is_empty());
     }
 
     #[test]
     fn not_empty_with_tracks() {
-        let sr = SearchResults {
-            tracks: vec![Track::default()],
-            albums: vec![],
-            artists: vec![],
-            playlists: vec![],
-            videos: vec![],
-        };
+        let sr =
+            SearchResults { tracks: vec![Track::default()], albums: vec![], artists: vec![], playlists: vec![], videos: vec![] };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
 
     #[test]
     fn not_empty_with_albums() {
-        let sr = SearchResults {
-            tracks: vec![],
-            albums: vec![Album::default()],
-            artists: vec![],
-            playlists: vec![],
-            videos: vec![],
-        };
+        let sr =
+            SearchResults { tracks: vec![], albums: vec![Album::default()], artists: vec![], playlists: vec![], videos: vec![] };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
 
     #[test]
     fn not_empty_with_artists() {
-        let sr = SearchResults {
-            tracks: vec![],
-            albums: vec![],
-            artists: vec![Artist::default()],
-            playlists: vec![],
-            videos: vec![],
-        };
+        let sr =
+            SearchResults { tracks: vec![], albums: vec![], artists: vec![Artist::default()], playlists: vec![], videos: vec![] };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
@@ -688,10 +587,7 @@ mod search_results {
     #[test]
     fn clone_is_independent() {
         let sr = SearchResults {
-            tracks: vec![Track {
-                id: "1".to_string(),
-                ..Default::default()
-            }],
+            tracks: vec![Track { id: "1".to_string(), ..Default::default() }],
             albums: vec![],
             artists: vec![],
             playlists: vec![],
@@ -704,25 +600,9 @@ mod search_results {
 
     #[test]
     fn large_result_set() {
-        let tracks: Vec<Track> = (0..200)
-            .map(|i| Track {
-                id: i.to_string(),
-                ..Default::default()
-            })
-            .collect();
-        let albums: Vec<Album> = (0..50)
-            .map(|i| Album {
-                id: i.to_string(),
-                ..Default::default()
-            })
-            .collect();
-        let sr = SearchResults {
-            tracks,
-            albums,
-            artists: vec![],
-            playlists: vec![],
-            videos: vec![],
-        };
+        let tracks: Vec<Track> = (0..200).map(|i| Track { id: i.to_string(), ..Default::default() }).collect();
+        let albums: Vec<Album> = (0..50).map(|i| Album { id: i.to_string(), ..Default::default() }).collect();
+        let sr = SearchResults { tracks, albums, artists: vec![], playlists: vec![], videos: vec![] };
         assert_eq!(sr.total_count(), 250);
         assert!(!sr.is_empty());
     }
@@ -816,16 +696,8 @@ mod scenarios {
         use std::collections::HashMap;
 
         let tracks = vec![
-            Track {
-                id: "a".to_string(),
-                title: "Track A".to_string(),
-                ..Default::default()
-            },
-            Track {
-                id: "b".to_string(),
-                title: "Track B".to_string(),
-                ..Default::default()
-            },
+            Track { id: "a".to_string(), title: "Track A".to_string(), ..Default::default() },
+            Track { id: "b".to_string(), title: "Track B".to_string(), ..Default::default() },
         ];
 
         let map: HashMap<String, &Track> = tracks.iter().map(|t| (t.id.clone(), t)).collect();
@@ -897,12 +769,7 @@ mod scenarios {
         assert_eq!(queue[0].id, "q-1");
 
         // Simulate "add to queue"
-        queue.push(Track {
-            id: "bonus".to_string(),
-            title: "Bonus Track".to_string(),
-            duration: 240,
-            ..Default::default()
-        });
+        queue.push(Track { id: "bonus".to_string(), title: "Bonus Track".to_string(), duration: 240, ..Default::default() });
         assert_eq!(queue.len(), 10);
         assert_eq!(queue.last().unwrap().id, "bonus");
     }
@@ -911,26 +778,10 @@ mod scenarios {
     #[test]
     fn filter_explicit_tracks() {
         let tracks = vec![
-            Track {
-                id: "1".to_string(),
-                explicit: false,
-                ..Default::default()
-            },
-            Track {
-                id: "2".to_string(),
-                explicit: true,
-                ..Default::default()
-            },
-            Track {
-                id: "3".to_string(),
-                explicit: false,
-                ..Default::default()
-            },
-            Track {
-                id: "4".to_string(),
-                explicit: true,
-                ..Default::default()
-            },
+            Track { id: "1".to_string(), explicit: false, ..Default::default() },
+            Track { id: "2".to_string(), explicit: true, ..Default::default() },
+            Track { id: "3".to_string(), explicit: false, ..Default::default() },
+            Track { id: "4".to_string(), explicit: true, ..Default::default() },
         ];
 
         let clean: Vec<&Track> = tracks.iter().filter(|t| !t.explicit).collect();
@@ -944,34 +795,12 @@ mod scenarios {
     fn serde_roundtrip_full_search_results() {
         let sr = SearchResults {
             tracks: vec![
-                Track {
-                    id: "t1".to_string(),
-                    title: "Search Track 1".to_string(),
-                    duration: 180,
-                    ..Default::default()
-                },
-                Track {
-                    id: "t2".to_string(),
-                    title: "Search Track 2".to_string(),
-                    duration: 240,
-                    ..Default::default()
-                },
+                Track { id: "t1".to_string(), title: "Search Track 1".to_string(), duration: 180, ..Default::default() },
+                Track { id: "t2".to_string(), title: "Search Track 2".to_string(), duration: 240, ..Default::default() },
             ],
-            albums: vec![Album {
-                id: "a1".to_string(),
-                title: "Search Album".to_string(),
-                ..Default::default()
-            }],
-            artists: vec![Artist {
-                id: "ar1".to_string(),
-                name: "Search Artist".to_string(),
-                ..Default::default()
-            }],
-            playlists: vec![Playlist {
-                uuid: "pl1".to_string(),
-                title: "Search Playlist".to_string(),
-                ..Default::default()
-            }],
+            albums: vec![Album { id: "a1".to_string(), title: "Search Album".to_string(), ..Default::default() }],
+            artists: vec![Artist { id: "ar1".to_string(), name: "Search Artist".to_string(), ..Default::default() }],
+            playlists: vec![Playlist { uuid: "pl1".to_string(), title: "Search Playlist".to_string(), ..Default::default() }],
             videos: vec![],
         };
 
@@ -1013,13 +842,7 @@ mod scenarios {
     #[test]
     fn cover_url_pattern() {
         let cover_id = "abcd-efgh-ijkl";
-        let url = format!(
-            "https://resources.tidal.com/images/{}/320x320.jpg",
-            cover_id.replace('-', "/")
-        );
-        assert_eq!(
-            url,
-            "https://resources.tidal.com/images/abcd/efgh/ijkl/320x320.jpg"
-        );
+        let url = format!("https://resources.tidal.com/images/{}/320x320.jpg", cover_id.replace('-', "/"));
+        assert_eq!(url, "https://resources.tidal.com/images/abcd/efgh/ijkl/320x320.jpg");
     }
 }

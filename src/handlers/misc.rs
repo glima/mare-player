@@ -13,8 +13,7 @@ use crate::image_cache::{IMAGE_RENDER_MAX_PX, make_circular};
 use crate::messages::{Message, MprisStartResult};
 use crate::state::{AppModel, ViewState};
 use crate::tidal::mpris::{
-    LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState, MprisTrackEntry,
-    track_object_path,
+    LoopStatus, MprisCommand, MprisMetadata, MprisPlaybackStatus, MprisState, MprisTrackEntry, track_object_path,
 };
 use crate::tidal::player::PlaybackState;
 use cosmic::Application;
@@ -24,15 +23,9 @@ use cosmic::prelude::*;
 
 /// Load play history from the cache database's `play_history` table,
 /// most-recent first. Run when the database finishes opening.
-pub(crate) async fn load_play_history(
-    db: &crate::cache::Db,
-) -> Vec<crate::tidal::play_history::HistoryEntry> {
+pub(crate) async fn load_play_history(db: &crate::cache::Db) -> Vec<crate::tidal::play_history::HistoryEntry> {
     use crate::tidal::play_history::HistoryEntry;
-    db.get_play_history()
-        .await
-        .iter()
-        .filter_map(|b| serde_json::from_slice::<HistoryEntry>(b).ok())
-        .collect()
+    db.get_play_history().await.iter().filter_map(|b| serde_json::from_slice::<HistoryEntry>(b).ok()).collect()
 }
 
 impl AppModel {
@@ -114,8 +107,7 @@ impl AppModel {
         tracing::info!("Setting console log level to {}", level.as_filter_str());
         self.config.log_level = level;
 
-        if let Ok(config_context) =
-            cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+        if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
             && let Err(e) = self.config.write_entry(&config_context)
         {
             tracing::error!("Failed to save log level config: {}", e);
@@ -170,16 +162,12 @@ impl AppModel {
     }
 
     /// Handle set audio quality
-    pub fn handle_set_audio_quality(
-        &mut self,
-        quality: AudioQuality,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_set_audio_quality(&mut self, quality: AudioQuality) -> Task<cosmic::Action<Message>> {
         // Update local config
         self.config.audio_quality = quality;
 
         // Persist config to disk
-        if let Ok(config_context) =
-            cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
+        if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
             && let Err(e) = self.config.write_entry(&config_context)
         {
             tracing::error!("Failed to save audio quality config: {}", e);
@@ -203,17 +191,11 @@ impl AppModel {
         let track_title = track.title.clone();
         let album_id = track.album_id.clone();
         let album_title = track.album_name.clone();
-        self.view_state =
-            ViewState::SharePrompt(track_id, track_title, album_id, album_title, track.is_video);
+        self.view_state = ViewState::SharePrompt(track_id, track_title, album_id, album_title, track.is_video);
     }
 
     /// Handle share track
-    pub fn handle_share_track(
-        &mut self,
-        track_id: String,
-        track_title: String,
-        is_video: bool,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_share_track(&mut self, track_id: String, track_title: String, is_video: bool) -> Task<cosmic::Action<Message>> {
         // Return to previous view
         self.view_state = ViewState::Main;
 
@@ -228,26 +210,20 @@ impl AppModel {
 
         let tidal_url = format!("https://tidal.com/browse/track/{}", track_id);
         tracing::info!("Generating song.link for track: {}", track_title);
-        Task::perform(
-            async move { crate::helpers::generate_songlink(&tidal_url).await },
-            |result| cosmic::Action::App(Message::ShareLinkGenerated(result)),
-        )
+        Task::perform(async move { crate::helpers::generate_songlink(&tidal_url).await }, |result| {
+            cosmic::Action::App(Message::ShareLinkGenerated(result))
+        })
     }
 
     /// Handle share album
-    pub fn handle_share_album(
-        &mut self,
-        album_id: String,
-        album_title: String,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_share_album(&mut self, album_id: String, album_title: String) -> Task<cosmic::Action<Message>> {
         let tidal_url = format!("https://tidal.com/browse/album/{}", album_id);
         tracing::info!("Generating song.link for album: {}", album_title);
         // Return to previous view
         self.view_state = ViewState::Main;
-        Task::perform(
-            async move { crate::helpers::generate_songlink(&tidal_url).await },
-            |result| cosmic::Action::App(Message::ShareLinkGenerated(result)),
-        )
+        Task::perform(async move { crate::helpers::generate_songlink(&tidal_url).await }, |result| {
+            cosmic::Action::App(Message::ShareLinkGenerated(result))
+        })
     }
 
     /// Handle cancel share
@@ -281,10 +257,7 @@ impl AppModel {
     }
 
     /// Handle share link generated
-    pub fn handle_share_link_generated(
-        &mut self,
-        result: Result<String, String>,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_share_link_generated(&mut self, result: Result<String, String>) -> Task<cosmic::Action<Message>> {
         match result {
             Ok(url) => {
                 tracing::info!("Song.link generated: {}", url);
@@ -299,10 +272,7 @@ impl AppModel {
     }
 
     /// Handle MPRIS service started
-    pub fn handle_mpris_service_started(
-        &mut self,
-        result: MprisStartResult,
-    ) -> Task<cosmic::Action<Message>> {
+    pub fn handle_mpris_service_started(&mut self, result: MprisStartResult) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((handle, rx)) => {
                 tracing::info!("MPRIS D-Bus service started successfully");
@@ -405,11 +375,7 @@ impl AppModel {
                     && let Ok(index) = idx_str.parse::<usize>()
                     && index < self.playback_queue.len()
                 {
-                    tracing::info!(
-                        "MPRIS GoTo: jumping to queue index {} (path: {})",
-                        index,
-                        track_path
-                    );
+                    tracing::info!("MPRIS GoTo: jumping to queue index {} (path: {})", index, track_path);
                     self.playback_queue_index = index;
                     return self.play_track_at_index(index);
                 }
@@ -474,9 +440,7 @@ impl AppModel {
                         Ok(track) => cosmic::Action::App(Message::PlayTrackList(
                             Arc::from(vec![track]),
                             0,
-                            Some(crate::tidal::models::PlaybackSource::ad_hoc(
-                                "MPRIS OpenUri".to_string(),
-                            )),
+                            Some(crate::tidal::models::PlaybackSource::ad_hoc("MPRIS OpenUri".to_string())),
                         )),
                         Err(e) => {
                             tracing::error!("MPRIS OpenUri: failed to fetch track: {}", e);
@@ -489,26 +453,16 @@ impl AppModel {
                 return Task::done(cosmic::Action::App(Message::ShowAlbumDetailById(id)));
             }
             "playlist" => {
-                return Task::done(cosmic::Action::App(Message::ShowPlaylistDetail(
-                    id,
-                    "MPRIS OpenUri".to_string(),
-                )));
+                return Task::done(cosmic::Action::App(Message::ShowPlaylistDetail(id, "MPRIS OpenUri".to_string())));
             }
             "artist" => {
                 return Task::done(cosmic::Action::App(Message::ShowArtistDetail(id)));
             }
             "mix" => {
-                return Task::done(cosmic::Action::App(Message::ShowMixDetail(
-                    id,
-                    "MPRIS OpenUri".to_string(),
-                )));
+                return Task::done(cosmic::Action::App(Message::ShowMixDetail(id, "MPRIS OpenUri".to_string())));
             }
             _ => {
-                tracing::warn!(
-                    "MPRIS OpenUri: unsupported resource type '{}' in: {}",
-                    resource_type,
-                    uri
-                );
+                tracing::warn!("MPRIS OpenUri: unsupported resource type '{}' in: {}", resource_type, uri);
             }
         }
 
@@ -523,17 +477,11 @@ impl AppModel {
     pub(crate) fn load_images_for_urls(&self, urls: Vec<String>) -> Task<cosmic::Action<Message>> {
         let tasks: Vec<_> = urls
             .into_iter()
-            .filter(|url| {
-                !self.loaded_images.contains_key(url) && !self.pending_image_loads.contains(url)
-            })
+            .filter(|url| !self.loaded_images.contains_key(url) && !self.pending_image_loads.contains(url))
             .map(|url| Task::done(cosmic::Action::App(Message::LoadImage(url))))
             .collect();
 
-        if tasks.is_empty() {
-            Task::none()
-        } else {
-            Task::batch(tasks)
-        }
+        if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }
     }
 
     /// Update MPRIS D-Bus state with current playback info
@@ -589,11 +537,7 @@ impl AppModel {
 
             let current_track_path = if !self.playback_queue.is_empty() {
                 let idx = self.playback_queue_index;
-                if let Some(track) = self.playback_queue.get(idx) {
-                    track_object_path(&track.id, idx)
-                } else {
-                    String::new()
-                }
+                if let Some(track) = self.playback_queue.get(idx) { track_object_path(&track.id, idx) } else { String::new() }
             } else {
                 String::new()
             };
@@ -649,24 +593,17 @@ impl AppModel {
 
         tracing::info!("Capturing screenshot of window {:?}", id);
 
-        cosmic::iced::runtime::window::screenshot(id)
-            .map(|s| cosmic::Action::App(Message::ScreenshotCaptured(s)))
+        cosmic::iced::runtime::window::screenshot(id).map(|s| cosmic::Action::App(Message::ScreenshotCaptured(s)))
     }
 
     /// Encode a captured screenshot as PNG (preserving alpha) and save it
     /// to `~/Pictures/` with a timestamped filename.
-    pub fn handle_screenshot_captured(
-        &mut self,
-        screenshot: cosmic::iced::core::window::Screenshot,
-    ) {
+    pub fn handle_screenshot_captured(&mut self, screenshot: cosmic::iced::core::window::Screenshot) {
         // Spawn the (potentially slow) PNG encoding on a background thread
         // so we never block the UI.
-        if let Err(e) = std::thread::Builder::new()
-            .name("screenshot-save".into())
-            .spawn(move || {
-                Self::save_screenshot_png(&screenshot);
-            })
-        {
+        if let Err(e) = std::thread::Builder::new().name("screenshot-save".into()).spawn(move || {
+            Self::save_screenshot_png(&screenshot);
+        }) {
             tracing::error!("Failed to spawn screenshot-save thread: {e}");
         }
     }
@@ -682,9 +619,7 @@ impl AppModel {
         let width = screenshot.size.width;
         let height = screenshot.size.height;
 
-        let Some(buf) =
-            ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, screenshot.rgba.to_vec())
-        else {
+        let Some(buf) = ImageBuffer::<Rgba<u8>, _>::from_raw(width, height, screenshot.rgba.to_vec()) else {
             tracing::error!(
                 "Screenshot RGBA buffer size mismatch: expected {}×{}×4 = {}, got {}",
                 width,
@@ -696,17 +631,11 @@ impl AppModel {
         };
 
         // Build output path: ~/Pictures/mare-player-<timestamp>.png
-        let pictures_dir = dirs::picture_dir().unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-                .join("Pictures")
-        });
+        let pictures_dir = dirs::picture_dir()
+            .unwrap_or_else(|| dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/tmp")).join("Pictures"));
 
         if let Err(e) = std::fs::create_dir_all(&pictures_dir) {
-            tracing::error!(
-                "Cannot create Pictures directory {}: {e}",
-                pictures_dir.display()
-            );
+            tracing::error!("Cannot create Pictures directory {}: {e}", pictures_dir.display());
             return;
         }
 

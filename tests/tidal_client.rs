@@ -37,10 +37,7 @@ mod playback_url_as_url {
     fn dash_manifest_returns_data_uri() {
         // The inline manifest is base64-wrapped into a data: URI for GStreamer.
         let url = PlaybackUrl::DashManifest("<MPD>hi</MPD>".to_string(), None);
-        assert!(
-            url.as_url()
-                .starts_with("data:application/dash+xml;base64,")
-        );
+        assert!(url.as_url().starts_with("data:application/dash+xml;base64,"));
     }
 
     #[test]
@@ -104,10 +101,8 @@ mod playback_url_traits {
 
     #[test]
     fn debug_output_is_nonempty_for_all_variants() {
-        let variants: Vec<PlaybackUrl> = vec![
-            PlaybackUrl::Direct("url".to_string(), None),
-            PlaybackUrl::DashManifest("<MPD/>".to_string(), None),
-        ];
+        let variants: Vec<PlaybackUrl> =
+            vec![PlaybackUrl::Direct("url".to_string(), None), PlaybackUrl::DashManifest("<MPD/>".to_string(), None)];
         for v in &variants {
             let dbg = format!("{:?}", v);
             assert!(!dbg.is_empty());
@@ -126,10 +121,7 @@ mod playback_url_traits {
     fn debug_dash_contains_variant_name() {
         let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
         let dbg = format!("{:?}", url);
-        assert!(
-            dbg.contains("DashManifest"),
-            "Debug should contain variant name"
-        );
+        assert!(dbg.contains("DashManifest"), "Debug should contain variant name");
     }
 }
 
@@ -164,10 +156,7 @@ mod tidal_error_display {
     fn not_authenticated_display() {
         let e = TidalError::NotAuthenticated;
         let msg = format!("{}", e);
-        assert!(
-            msg.contains("Not authenticated"),
-            "expected 'Not authenticated' in '{msg}'"
-        );
+        assert!(msg.contains("Not authenticated"), "expected 'Not authenticated' in '{msg}'");
     }
 
     #[test]
@@ -393,19 +382,13 @@ mod uuid_to_cdn_url {
     #[test]
     fn standard_uuid_converts_correctly() {
         let url = tidal_cover_url("7e58f111-5b1a-492a-aaf1-88fb55ce8a44");
-        assert_eq!(
-            url,
-            "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
-        );
+        assert_eq!(url, "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg");
     }
 
     #[test]
     fn uuid_with_no_dashes_unchanged() {
         let url = tidal_cover_url("abcdef1234567890");
-        assert_eq!(
-            url,
-            "https://resources.tidal.com/images/abcdef1234567890/320x320.jpg"
-        );
+        assert_eq!(url, "https://resources.tidal.com/images/abcdef1234567890/320x320.jpg");
     }
 
     #[test]
@@ -482,8 +465,7 @@ mod derive_plan_label {
 
     #[test]
     fn sub_type_premium_with_hi_res_lossless() {
-        let result =
-            TidalAppClient::derive_plan_label(None, Some("PREMIUM"), Some("HI_RES_LOSSLESS"));
+        let result = TidalAppClient::derive_plan_label(None, Some("PREMIUM"), Some("HI_RES_LOSSLESS"));
         assert_eq!(result, Some("HiFi Plus".to_string()));
     }
 
@@ -574,8 +556,7 @@ mod derive_plan_label {
 
     #[test]
     fn premium_access_overrides_sub_type() {
-        let result =
-            TidalAppClient::derive_plan_label(Some("HIFI_PLUS"), Some("FREE"), Some("LOW"));
+        let result = TidalAppClient::derive_plan_label(Some("HIFI_PLUS"), Some("FREE"), Some("LOW"));
         assert_eq!(result, Some("HiFi Plus".to_string()));
     }
 }
@@ -589,16 +570,14 @@ mod derive_plan_label_from_type_and_quality {
 
     #[test]
     fn hifi_with_hi_res() {
-        let result =
-            TidalAppClient::derive_plan_label_from_type_and_quality("HIFI", "HI_RES_LOSSLESS");
+        let result = TidalAppClient::derive_plan_label_from_type_and_quality("HIFI", "HI_RES_LOSSLESS");
         // sub_type "HIFI" takes priority
         assert_eq!(result, Some("HiFi".to_string()));
     }
 
     #[test]
     fn premium_with_hi_res_lossless_upgrades() {
-        let result =
-            TidalAppClient::derive_plan_label_from_type_and_quality("PREMIUM", "HI_RES_LOSSLESS");
+        let result = TidalAppClient::derive_plan_label_from_type_and_quality("PREMIUM", "HI_RES_LOSSLESS");
         assert_eq!(result, Some("HiFi Plus".to_string()));
     }
 
@@ -654,10 +633,7 @@ mod extract_picture_url {
         let result = TidalAppClient::extract_picture_url_from_json(&json);
         assert_eq!(
             result,
-            Some(
-                "https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg"
-                    .to_string()
-            )
+            Some("https://resources.tidal.com/images/7e58f111/5b1a/492a/aaf1/88fb55ce8a44/320x320.jpg".to_string())
         );
     }
 
@@ -682,10 +658,7 @@ mod extract_picture_url {
         let result = TidalAppClient::extract_picture_url_from_json(&json);
         assert_eq!(
             result,
-            Some(
-                "https://resources.tidal.com/images/aaaaaaaa/bbbb/cccc/dddd/eeeeeeeeeeee/320x320.jpg"
-                    .to_string()
-            )
+            Some("https://resources.tidal.com/images/aaaaaaaa/bbbb/cccc/dddd/eeeeeeeeeeee/320x320.jpg".to_string())
         );
     }
 
@@ -730,10 +703,7 @@ mod extract_picture_url {
             }
         });
         let result = TidalAppClient::extract_picture_url_from_json(&json);
-        assert_eq!(
-            result,
-            Some("https://cdn.example.com/medium.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://cdn.example.com/medium.jpg".to_string()));
     }
 
     #[test]
@@ -809,10 +779,7 @@ mod extract_picture_url {
             "profilePictureUrl": "https://example.com/profile-pic.jpg"
         });
         let result = TidalAppClient::extract_picture_url_from_json(&json);
-        assert_eq!(
-            result,
-            Some("https://example.com/profile-pic.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://example.com/profile-pic.jpg".to_string()));
     }
 
     #[test]
@@ -824,10 +791,7 @@ mod extract_picture_url {
             }
         });
         let result = TidalAppClient::extract_picture_url_from_json(&json);
-        assert_eq!(
-            result,
-            Some("https://cdn.example.com/fallback.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://cdn.example.com/fallback.jpg".to_string()));
     }
 
     #[test]
@@ -838,10 +802,7 @@ mod extract_picture_url {
             }
         });
         let result = TidalAppClient::extract_picture_url_from_json(&json);
-        assert_eq!(
-            result,
-            Some("https://resources.tidal.com/images/a/b/c/d/320x320.jpg".to_string())
-        );
+        assert_eq!(result, Some("https://resources.tidal.com/images/a/b/c/d/320x320.jpg".to_string()));
     }
 }
 
@@ -871,10 +832,7 @@ mod parse_mix_from_json {
         assert_eq!(mix.title, "My Daily Discovery");
         assert_eq!(mix.subtitle, "Updated daily");
         // Should pick the largest image (640)
-        assert_eq!(
-            mix.image_url,
-            Some("https://example.com/large.jpg".to_string())
-        );
+        assert_eq!(mix.image_url, Some("https://example.com/large.jpg".to_string()));
     }
 
     #[test]
@@ -965,10 +923,7 @@ mod parse_mix_from_json {
             ]
         });
         let mix = TidalAppClient::parse_mix_from_json(&json).unwrap();
-        assert_eq!(
-            mix.image_url,
-            Some("https://example.com/1080.jpg".to_string())
-        );
+        assert_eq!(mix.image_url, Some("https://example.com/1080.jpg".to_string()));
     }
 
     #[test]
@@ -980,10 +935,7 @@ mod parse_mix_from_json {
             ]
         });
         let mix = TidalAppClient::parse_mix_from_json(&json).unwrap();
-        assert_eq!(
-            mix.image_url,
-            Some("https://example.com/only.jpg".to_string())
-        );
+        assert_eq!(mix.image_url, Some("https://example.com/only.jpg".to_string()));
     }
 
     #[test]
@@ -997,10 +949,7 @@ mod parse_mix_from_json {
         });
         let mix = TidalAppClient::parse_mix_from_json(&json).unwrap();
         // width 100 > 0, so the second image should be picked
-        assert_eq!(
-            mix.image_url,
-            Some("https://example.com/100.jpg".to_string())
-        );
+        assert_eq!(mix.image_url, Some("https://example.com/100.jpg".to_string()));
     }
 
     #[test]
@@ -1013,10 +962,7 @@ mod parse_mix_from_json {
             ]
         });
         let mix = TidalAppClient::parse_mix_from_json(&json).unwrap();
-        assert_eq!(
-            mix.image_url,
-            Some("https://example.com/100.jpg".to_string())
-        );
+        assert_eq!(mix.image_url, Some("https://example.com/100.jpg".to_string()));
     }
 
     #[test]

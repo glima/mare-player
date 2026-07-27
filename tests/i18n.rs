@@ -37,10 +37,7 @@ mod language_loader {
         let loader = &*i18n::LANGUAGE_LOADER;
         let current = loader.current_language();
         // The fallback language should be set (typically "en")
-        assert!(
-            !current.to_string().is_empty(),
-            "current language should not be empty after fallback loading"
-        );
+        assert!(!current.to_string().is_empty(), "current language should not be empty after fallback loading");
     }
 
     #[test]
@@ -48,22 +45,14 @@ mod language_loader {
         let loader = &*i18n::LANGUAGE_LOADER;
         let lang = loader.current_language();
         // The fallback in the i18n/en/ directory should make "en" the default
-        assert_eq!(
-            lang.language.as_str(),
-            "en",
-            "fallback language should be English, got {:?}",
-            lang
-        );
+        assert_eq!(lang.language.as_str(), "en", "fallback language should be English, got {:?}", lang);
     }
 
     #[test]
     fn language_loader_domain_is_nonempty() {
         let loader = &*i18n::LANGUAGE_LOADER;
         let domain = loader.domain();
-        assert!(
-            !domain.is_empty(),
-            "language loader domain should not be empty"
-        );
+        assert!(!domain.is_empty(), "language loader domain should not be empty");
     }
 }
 
@@ -93,17 +82,10 @@ mod localizer_fn {
         let localizer = i18n::localizer();
         let available = localizer.available_languages().unwrap_or_default();
         // Should have at least one language (en)
-        assert!(
-            !available.is_empty(),
-            "available_languages should include at least the fallback"
-        );
+        assert!(!available.is_empty(), "available_languages should include at least the fallback");
 
         let has_english = available.iter().any(|l| l.language.as_str() == "en");
-        assert!(
-            has_english,
-            "available languages should include English, got: {:?}",
-            available
-        );
+        assert!(has_english, "available languages should include English, got: {:?}", available);
     }
 }
 
@@ -158,11 +140,7 @@ mod init_fn {
         i18n::init(&langs);
         let loader = &*i18n::LANGUAGE_LOADER;
         let current = loader.current_language();
-        assert_eq!(
-            current.language.as_str(),
-            "en",
-            "after init with English, current language should be English"
-        );
+        assert_eq!(current.language.as_str(), "en", "after init with English, current language should be English");
     }
 }
 

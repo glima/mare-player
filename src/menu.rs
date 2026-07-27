@@ -32,8 +32,7 @@ use crate::state::AppModel;
 
 /// Stable widget ID for the responsive menu bar (used by libcosmic to track
 /// the menu bar's measured size for the collapse/expand logic).
-static MENU_ID: LazyLock<cosmic::widget::Id> =
-    LazyLock::new(|| cosmic::widget::Id::new("tidal-responsive-menu"));
+static MENU_ID: LazyLock<cosmic::widget::Id> = LazyLock::new(|| cosmic::widget::Id::new("tidal-responsive-menu"));
 
 // ---------------------------------------------------------------------------
 // Menu action enum
@@ -106,11 +105,7 @@ fn menu_button_optional(
     action: TidalMenuAction,
     enabled: bool,
 ) -> menu::Item<TidalMenuAction, &'static str> {
-    if enabled {
-        menu::Item::Button(label, None, action)
-    } else {
-        menu::Item::ButtonDisabled(label, None, action)
-    }
+    if enabled { menu::Item::Button(label, None, action) } else { menu::Item::ButtonDisabled(label, None, action) }
 }
 
 // ---------------------------------------------------------------------------
@@ -121,11 +116,7 @@ fn menu_button_optional(
 ///
 /// The returned [`Element`] is meant to be placed inside
 /// `Application::header_start()` so it renders in the CSD header bar.
-pub fn menu_bar<'a>(
-    core: &'a Core,
-    app: &'a AppModel,
-    key_binds: &'a HashMap<KeyBind, TidalMenuAction>,
-) -> Element<'a, Message> {
+pub fn menu_bar<'a>(core: &'a Core, app: &'a AppModel, key_binds: &'a HashMap<KeyBind, TidalMenuAction>) -> Element<'a, Message> {
     let is_playing = app.now_playing.is_some();
     let mode_label = if app.shuffle_enabled {
         "Mode: Shuffle"
@@ -165,17 +156,9 @@ pub fn menu_bar<'a>(
                 (
                     "Playback",
                     vec![
-                        menu_button_optional(
-                            "Play / Pause",
-                            TidalMenuAction::TogglePlayPause,
-                            is_playing,
-                        ),
+                        menu_button_optional("Play / Pause", TidalMenuAction::TogglePlayPause, is_playing),
                         menu_button_optional("Next Track", TidalMenuAction::NextTrack, is_playing),
-                        menu_button_optional(
-                            "Previous Track",
-                            TidalMenuAction::PreviousTrack,
-                            is_playing,
-                        ),
+                        menu_button_optional("Previous Track", TidalMenuAction::PreviousTrack, is_playing),
                         menu::Item::Divider,
                         menu::Item::Button(mode_label, None, TidalMenuAction::CyclePlaybackMode),
                         menu::Item::Divider,

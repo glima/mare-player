@@ -107,9 +107,7 @@ fn resume_at(playbin: &gst::Element, secs: f64) {
                 break;
             }
             if std::time::Instant::now() >= deadline {
-                eprintln!(
-                    "mare-video-window: not seekable after {waited_ms}ms; seeking anyway to {secs:.1}s"
-                );
+                eprintln!("mare-video-window: not seekable after {waited_ms}ms; seeking anyway to {secs:.1}s");
                 break;
             }
             thread::sleep(Duration::from_millis(150));
@@ -120,10 +118,7 @@ fn resume_at(playbin: &gst::Element, secs: f64) {
         // Let the flush-seek's preroll settle before we start rolling.
         let _ = pb.state(Some(gst::ClockTime::from_seconds(5)));
         let _ = pb.set_state(gst::State::Playing);
-        eprintln!(
-            "mare-video-window: resumed playing at {secs:.1}s (seek_ok={})",
-            ok.is_ok()
-        );
+        eprintln!("mare-video-window: resumed playing at {secs:.1}s (seek_ok={})", ok.is_ok());
     });
 }
 
@@ -133,10 +128,7 @@ fn main() {
     let url = args.next().unwrap_or_default();
     let position: f64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(0.0);
     let volume: f64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1.0);
-    let preamp_db: f64 = args
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_PREAMP_DB);
+    let preamp_db: f64 = args.next().and_then(|s| s.parse().ok()).unwrap_or(DEFAULT_PREAMP_DB);
 
     if url.is_empty() {
         eprintln!("mare-video-window: no URL given");
@@ -200,14 +192,8 @@ fn main() {
     // `connection-speed` down to the demuxer, so we don't re-set it here.)
     playbin.connect("element-setup", false, |values| {
         let elem = values.get(1)?.get::<gst::Element>().ok()?;
-        let fname = elem
-            .factory()
-            .map(|f| f.name().to_string())
-            .unwrap_or_default();
-        if fname.contains("hlsdemux")
-            || fname.contains("dashdemux")
-            || fname.contains("adaptivedemux")
-        {
+        let fname = elem.factory().map(|f| f.name().to_string()).unwrap_or_default();
+        if fname.contains("hlsdemux") || fname.contains("dashdemux") || fname.contains("adaptivedemux") {
             set_uint_property(&elem, "start-bitrate", 100_000_000);
             eprintln!("mare-video-window: biased {fname} initial variant high");
         }
@@ -225,11 +211,7 @@ fn main() {
     // start and stutter. `resume_at` waits, seeks, then plays. A fresh launch at
     // 0 just plays immediately.
     let start_paused = position > 0.5;
-    let initial_state = if start_paused {
-        gst::State::Paused
-    } else {
-        gst::State::Playing
-    };
+    let initial_state = if start_paused { gst::State::Paused } else { gst::State::Playing };
     if playbin.set_state(initial_state).is_err() {
         eprintln!("mare-video-window: failed to start playback");
         std::process::exit(1);
@@ -252,11 +234,7 @@ fn main() {
                     main_loop.quit();
                 }
                 MessageView::Error(err) => {
-                    eprintln!(
-                        "mare-video-window: pipeline error: {} ({:?})",
-                        err.error(),
-                        err.debug()
-                    );
+                    eprintln!("mare-video-window: pipeline error: {} ({:?})", err.error(), err.debug());
                     // Most commonly this is the user closing the sink's window.
                     emit("closed");
                     main_loop.quit();
@@ -305,8 +283,7 @@ fn main() {
                     "seek" => {
                         if let Ok(s) = rest.parse::<f64>() {
                             let pos = gst::ClockTime::from_mseconds((s.max(0.0) * 1000.0) as u64);
-                            let _ = pb
-                                .seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, pos);
+                            let _ = pb.seek_simple(gst::SeekFlags::FLUSH | gst::SeekFlags::KEY_UNIT, pos);
                         }
                     }
                     "pause" => {
