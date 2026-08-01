@@ -1623,89 +1623,58 @@ impl TidalAppClient {
     /// Fetch the credits (per-role contributors) for a track, plus the catalog
     /// extras TIDAL's own credits panel shows alongside them.
     ///
-    /// tidlers only exposes *album* credits (`/albums/{id}/credits`), so this
-    /// hits the v1 track endpoint directly — the same pattern as
-    /// [`Self::get_track_lyrics`], using the access token we already hold:
+    /// Two legs, issued concurrently:
     ///
-    /// * `GET /v1/tracks/{id}/credits?includeContributors=true` — an array of
-    ///   `{ type, contributors: [{ name, id }] }` role groups.  TIDAL answers
-    ///   `200` with `[]` for unknown or uncredited tracks, so "no credits" is
-    ///   never an error.
-    /// * `GET /v1/tracks/{id}` — copyright/label, stream start date, ISRC and
-    ///   BPM, which don't appear in the credits payload.  This leg is
-    ///   best-effort: if it fails we still return the roles.
+    /// * **Roles** — tidlers' `get_track_credits`
+    ///   (`GET /v1/tracks/{id}/credits`, `includeContributors=true`), which
+    ///   yields `{ type, contributors: [{ name, id }] }` groups. A track TIDAL
+    ///   doesn't know surfaces as [`tidlers::error::TidalError::NotFound`],
+    ///   which is "no credits" rather than a failure — the same contract as
+    ///   the lyrics endpoint.
+    /// * **Catalog extras** — a raw `GET /v1/tracks/{id}` for copyright/label,
+    ///   stream start date, ISRC and BPM. None of those appear in the credits
+    ///   payload, and tidlers' typed `Track` doesn't carry them either, so this
+    ///   leg stays hand-rolled. Best-effort: if it fails we still return the
+    ///   roles.
     ///
-    /// Both requests run concurrently; the result is cached by the caller
-    /// under `credits:{track_id}` so re-opening the view paints instantly.
+    /// The result is cached by the caller under `credits:{track_id}`, so
+    /// re-opening the view paints instantly.
     pub async fn get_track_credits(&self, track_id: &str) -> TidalResult<TrackCredits> {
+        self.ensure_valid_token().await?;
         let ctx = self.auth_context().await?;
 
         debug!("Fetching credits for track {}", track_id);
 
-        let http_client = reqwest::Client::new();
-        let bearer = format!("Bearer {}", ctx.access_token);
-
-        let credits_url = format!(
-            "https://api.tidal.com/v1/tracks/{}/credits?countryCode={}&includeContributors=true",
-            track_id, ctx.country_code
-        );
         let meta_url = format!("https://api.tidal.com/v1/tracks/{}?countryCode={}", track_id, ctx.country_code);
+        let http_client = reqwest::Client::new();
+        let meta_req = http_client.get(&meta_url).header(AUTHORIZATION, format!("Bearer {}", ctx.access_token)).send();
 
-        let credits_req = http_client.get(&credits_url).header(AUTHORIZATION, bearer.clone()).send();
-        let meta_req = http_client.get(&meta_url).header(AUTHORIZATION, bearer).send();
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        let credits_req = client.get_track_credits(track_id.to_string(), true);
 
         let (credits_res, meta_res) = tokio::join!(credits_req, meta_req);
 
         // ── Roles (required leg) ──────────────────────────────────────────
-        #[derive(Deserialize)]
-        struct RawContributor {
-            #[serde(default)]
-            name: String,
-            #[serde(default)]
-            id: Option<serde_json::Value>,
-        }
-
-        #[derive(Deserialize)]
-        struct RawCredit {
-            #[serde(rename = "type", default)]
-            credit_type: String,
-            #[serde(default)]
-            contributors: Vec<RawContributor>,
-        }
-
-        let response = credits_res.map_err(|e| TidalError::NetworkError(format!("{:?}", e)))?;
-
-        // A track TIDAL doesn't know is "no credits", not a failure — same
-        // contract as the lyrics endpoint's 404.
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            debug!("No credits found for track {}", track_id);
-            return Ok(TrackCredits::default());
-        }
-        if !response.status().is_success() {
-            return Err(TidalError::RequestFailed(format!("HTTP {} fetching credits for track {}", response.status(), track_id)));
-        }
-
-        let raw: Vec<RawCredit> = response.json().await.map_err(|e| TidalError::ParseError(format!("{:?}", e)))?;
+        let raw = match credits_res {
+            Ok(raw) => raw,
+            Err(tidlers::error::TidalError::NotFound) => {
+                debug!("No credits found for track {}", track_id);
+                return Ok(TrackCredits::default());
+            }
+            Err(e) => return Err(TidalError::RequestFailed(format!("track credits: {e:?}"))),
+        };
 
         let roles: Vec<CreditRole> = raw
             .into_iter()
-            .filter(|c| !c.credit_type.trim().is_empty() && !c.contributors.is_empty())
+            .filter(|c| !c.credit_type.trim().is_empty())
             .map(|c| CreditRole {
                 role: c.credit_type,
                 contributors: c
                     .contributors
                     .into_iter()
                     .filter(|p| !p.name.trim().is_empty())
-                    .map(|p| CreditContributor {
-                        // TIDAL sends numeric ids here; accept strings too in
-                        // case that ever changes.
-                        id: p.id.and_then(|v| match v {
-                            serde_json::Value::Number(n) => Some(n.to_string()),
-                            serde_json::Value::String(s) if !s.is_empty() => Some(s),
-                            _ => None,
-                        }),
-                        name: p.name,
-                    })
+                    .map(|p| CreditContributor { id: p.id.map(|id| id.to_string()), name: p.name })
                     .collect(),
             })
             .filter(|r| !r.contributors.is_empty())
