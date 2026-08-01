@@ -23,8 +23,8 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, Track, TrackDetailRow};
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    ARTIST_PICTURE_SIZE, CREDITS_SVG, back_button, fading_header_title, fading_text_column, list_item, scrollable_element,
-    virtual_list_row,
+    ARTIST_PICTURE_SIZE, CREDITS_SVG, back_button, fading_header_title, fading_text, fading_text_column, list_item,
+    scrollable_element, virtual_list_row,
 };
 
 impl AppModel {
@@ -90,35 +90,44 @@ fn build_track_detail_header_row<'a>(loaded_images: &HandleCache, track: &Track)
         widget::icon::from_name("media-optical-symbolic").size(ARTIST_PICTURE_SIZE).into()
     };
 
-    let mut details = widget::Column::new().spacing(4);
+    // Fill width so every child has the pane's right edge to fade against —
+    // a Shrink column would size to its longest label and let it overflow the
+    // popup with nothing to clip it.
+    let mut details = widget::Column::new().spacing(4).width(Length::Fill);
 
+    // The title is the one item that wraps (WordOrGlyph breaks even a single
+    // unbroken word), so it can't overflow horizontally and needs no fade.
     details = details.push(text(track.title.clone()).size(16).wrapping(Wrapping::WordOrGlyph));
 
-    // Clickable artist name
+    // Clickable artist name. The fade goes *inside* the button: a button sets
+    // its own text_color, which would override an outer FadingClip's alpha
+    // ramp and leave a hard clip. Shrink width keeps the hover highlight
+    // hugging short names.
     if let Some(artist_id) = &track.artist_id {
         details = details.push(
-            button::custom(text(track.artist_name.clone()).size(13).wrapping(Wrapping::None))
+            button::custom(fading_text(text(track.artist_name.clone()).size(13).wrapping(Wrapping::None)))
                 .on_press(Message::ShowArtistDetail(artist_id.clone()))
                 .width(Length::Shrink)
                 .padding(0)
                 .class(cosmic::theme::Button::MenuItem),
         );
     } else {
-        details = details.push(text(track.artist_name.clone()).size(13));
+        details =
+            details.push(fading_text_column(vec![text(track.artist_name.clone()).size(13).wrapping(Wrapping::None).into()]));
     }
 
     // Clickable album name
     if let Some(album_name) = &track.album_name {
         if let Some(album_id) = &track.album_id {
             details = details.push(
-                button::custom(text(album_name.clone()).size(12).wrapping(Wrapping::None))
+                button::custom(fading_text(text(album_name.clone()).size(12).wrapping(Wrapping::None)))
                     .on_press(Message::ShowAlbumDetailById(album_id.clone()))
                     .width(Length::Shrink)
                     .padding(0)
                     .class(cosmic::theme::Button::MenuItem),
             );
         } else {
-            details = details.push(text(album_name.clone()).size(12));
+            details = details.push(fading_text_column(vec![text(album_name.clone()).size(12).wrapping(Wrapping::None).into()]));
         }
     }
 
@@ -127,7 +136,7 @@ fn build_track_detail_header_row<'a>(loaded_images: &HandleCache, track: &Track)
     if let Some(ref quality) = track.audio_quality {
         meta_parts.push(quality.clone());
     }
-    details = details.push(text(meta_parts.join(" • ")).size(11));
+    details = details.push(fading_text_column(vec![text(meta_parts.join(" • ")).size(11).wrapping(Wrapping::None).into()]));
 
     widget::Row::new().push(cover).push(details).spacing(12).align_y(Alignment::Center).into()
 }
