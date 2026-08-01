@@ -65,19 +65,35 @@ impl VideoWindowChild {
             for line in reader.lines() {
                 let Ok(line) = line else { break };
                 if events.send(line).is_err() {
-                    break;
+                    // The app is gone; nobody left to report to.
+                    return;
                 }
             }
+            // EOF — the child exited. It is *supposed* to print `closed` on its
+            // way out, but that only happens when GStreamer posts an error
+            // message, which not every sink does when its window is closed. A
+            // silent exit would otherwise leave the app holding a dead handle
+            // and routing every later video into a broken pipe. Process death
+            // is the ground truth, so synthesize the event here.
+            //
+            // A duplicate `closed` is harmless: the app clears `video_window`
+            // on the first one and ignores events once it is `None` — which is
+            // also why the deliberate teardown path (`take()` before `kill()`)
+            // doesn't bounce back as a spurious pop-in.
+            let _ = events.send("closed".to_string());
         });
 
         Some(Self { child, stdin })
     }
 
     /// Send one command line to the child (newline-terminated, flushed).
-    /// Errors (e.g. the child already exited) are ignored.
-    pub fn send(&mut self, line: &str) {
-        let _ = writeln!(self.stdin, "{line}");
-        let _ = self.stdin.flush();
+    ///
+    /// Returns `false` when the pipe is broken — i.e. the child has exited and
+    /// the app hasn't processed its `closed` event yet. Callers that are
+    /// steering playback should treat that as "the pop-out window is gone" and
+    /// fall back to inline, rather than dropping the command on the floor.
+    pub fn send(&mut self, line: &str) -> bool {
+        writeln!(self.stdin, "{line}").and_then(|()| self.stdin.flush()).is_ok()
     }
 
     /// Terminate the child (best-effort) and reap it so it never lingers.

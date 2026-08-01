@@ -395,26 +395,31 @@ impl AppModel {
                 self.current_video_url = Some(url.clone());
 
                 // If the video is popped out, hand the new stream to the child
-                // window instead of building an inline pipeline.
+                // window instead of building an inline pipeline. A failed write
+                // means the child died without us having processed its `closed`
+                // event yet, so drop the stale handle and fall through to
+                // inline playback rather than pretending the track is playing.
                 if self.video_window.is_some() {
-                    if let Some(child) = self.video_window.as_mut() {
-                        child.send(&format!("play 0 {url}"));
+                    let delivered = self.video_window.as_mut().is_some_and(|child| child.send(&format!("play 0 {url}")));
+                    if delivered {
+                        self.playback_state = PlaybackState::Playing;
+                        self.playback_position = 0.0;
+                        self.now_playing = Some(NowPlaying {
+                            track_id: track.id.clone(),
+                            title: track.title.clone(),
+                            artist: track.artist_name.clone(),
+                            album: track.album_name.clone(),
+                            cover_url: track.cover_url.clone(),
+                            duration: track.duration as f64,
+                            playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
+                        });
+                        self.play_history.record(&track);
+                        self.persist_play_history();
+                        tracing::info!("Video handed to pop-out window: {}", track);
+                        return Task::batch([self.update_mpris_state(), self.refresh_now_playing_lyrics(&track)]);
                     }
-                    self.playback_state = PlaybackState::Playing;
-                    self.playback_position = 0.0;
-                    self.now_playing = Some(NowPlaying {
-                        track_id: track.id.clone(),
-                        title: track.title.clone(),
-                        artist: track.artist_name.clone(),
-                        album: track.album_name.clone(),
-                        cover_url: track.cover_url.clone(),
-                        duration: track.duration as f64,
-                        playlist_name: self.playback_source.as_ref().map(|s| s.display_name.clone()),
-                    });
-                    self.play_history.record(&track);
-                    self.persist_play_history();
-                    tracing::info!("Video handed to pop-out window: {}", track);
-                    return Task::batch([self.update_mpris_state(), self.refresh_now_playing_lyrics(&track)]);
+                    tracing::warn!("Pop-out window is gone (broken pipe); playing {} inline instead", track);
+                    self.video_window = None;
                 }
 
                 match crate::playback::MediaPlayer::new_video(&url, self.visualizer_state.analyzer(), self.config.video_preamp_db)
@@ -497,7 +502,9 @@ impl AppModel {
             // Popped-out video: forward the seek to the child window.
             if self.video_window.is_some() {
                 if let Some(child) = self.video_window.as_mut() {
-                    child.send(&format!("seek {target_pos:.3}"));
+                    // A dead pipe is handled by the `closed` event; nothing
+                    // useful to do with a failed seek here.
+                    let _ = child.send(&format!("seek {target_pos:.3}"));
                 }
                 return self.update_mpris_state();
             }
@@ -524,8 +531,12 @@ impl AppModel {
             };
             if let Some(child) = self.video_window.as_mut() {
                 match new_state {
-                    PlaybackState::Paused => child.send("pause"),
-                    PlaybackState::Playing => child.send("resume"),
+                    PlaybackState::Paused => {
+                        let _ = child.send("pause");
+                    }
+                    PlaybackState::Playing => {
+                        let _ = child.send("resume");
+                    }
                     _ => {}
                 }
             }
@@ -761,7 +772,8 @@ impl AppModel {
     /// Used when video playback ends, switches to audio, or stops.
     pub(crate) fn close_video_window_if_open(&mut self) {
         if let Some(mut child) = self.video_window.take() {
-            child.send("quit");
+            // Best-effort graceful quit; `kill` is the guarantee.
+            let _ = child.send("quit");
             child.kill();
             tracing::info!("Video child window closed");
         }
@@ -929,7 +941,7 @@ impl AppModel {
         }
         // Apply to the popped-out video child, if one is running.
         if let Some(child) = self.video_window.as_mut() {
-            child.send(&format!("volume {new_volume}"));
+            let _ = child.send(&format!("volume {new_volume}"));
         }
         // Apply to the audio pipeline too, if one is active.
         if let Some(mp) = &self.media_player {
