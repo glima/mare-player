@@ -12,8 +12,9 @@
 //! playbin3
 //! ├── audio-sink = bin:  audioconvert ! audioresample ! volume(name=rg)
 //! │                      ! tee
-//! │                        ├─ queue ! autoaudiosink          (audible)
-//! │                        └─ queue ! appsink(F32LE/stereo)  (PCM → analyzer)
+//! │                        ├─ queue ! autoaudiosink                        (audible)
+//! │                        └─ queue ! audioconvert ! audioresample
+//! │                                 ! capsfilter(F32LE/44.1k/2ch) ! appsink  (PCM → analyzer)
 //! └── video-sink = bin:  videoconvert ! videoscale ! appsink(RGBA, fixed-w)  [video only]
 //! ```
 //!
@@ -28,6 +29,9 @@
 //!   is **clock-synced** (`sync(true)`) so the bars track what's leaving the
 //!   speakers rather than what the decoder has buffered; [`log_tap_drift`]
 //!   measures that alignment at TRACE level.
+//! - The analyzer's fixed 44.1 kHz / F32LE contract is enforced **inside the
+//!   tap branch**, keeping the audible branch at the stream's native rate and
+//!   format all the way to the sink.
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -238,17 +242,23 @@ fn build_audio_sink_bin(
         .build()
         .map_err(|e| format!("failed to create rg volume: {e}"))?;
 
-    // Force a known PCM layout so the analyzer and the appsink agree on it.
+    // The analyzer's fixed PCM contract: interleaved F32LE stereo at 44.1 kHz,
+    // which is what `SharedSpectrumAnalyzer::push_stereo_samples` expects and
+    // what its FFT was planned for.
+    //
+    // Applied **inside the tap branch only** (below the `tee`), never on the
+    // shared path: constraining the whole chain would drag the audible branch
+    // through the same resampler, downsampling a 96 kHz HiRes stream to 44.1
+    // kHz just to give the visualizer a convenient buffer layout. A `tee` is a
+    // pure fan-out that hands identical buffers to every branch, so the tap
+    // carries its own converters to reach these caps while the play branch
+    // negotiates natively with the sink.
     let caps = gst::Caps::builder("audio/x-raw")
         .field("format", "F32LE")
         .field("layout", "interleaved")
         .field("channels", TAP_CHANNELS)
         .field("rate", TAP_RATE)
         .build();
-    let capsfilter = gst::ElementFactory::make("capsfilter")
-        .property("caps", &caps)
-        .build()
-        .map_err(|e| format!("failed to create capsfilter: {e}"))?;
     let tee = gst::ElementFactory::make("tee").build().map_err(|e| format!("failed to create tee: {e}"))?;
 
     // Branch 1 — actually play the audio through the default sink.
@@ -269,6 +279,17 @@ fn build_audio_sink_bin(
     // forever waiting for this drop-mode tap to preroll, leaving the real
     // audio sink silent.
     let tap_queue = gst::ElementFactory::make("queue").build().map_err(|e| format!("failed to create tap queue: {e}"))?;
+    // Tap-local conversion to the analyzer's layout, so whatever the play
+    // branch negotiated (any rate, any sample format) still lands as F32LE
+    // stereo at `TAP_RATE` in the callback.
+    let tap_convert =
+        gst::ElementFactory::make("audioconvert").build().map_err(|e| format!("failed to create tap audioconvert: {e}"))?;
+    let tap_resample =
+        gst::ElementFactory::make("audioresample").build().map_err(|e| format!("failed to create tap audioresample: {e}"))?;
+    let tap_caps = gst::ElementFactory::make("capsfilter")
+        .property("caps", &caps)
+        .build()
+        .map_err(|e| format!("failed to create tap capsfilter: {e}"))?;
     let tap_sink = gst_app::AppSink::builder().caps(&caps).max_buffers(8).drop(true).sync(true).build();
     tap_sink.set_property("async", false);
     // Drift probe: a weak ref to the audible sink plus a coarse throttle, so
@@ -302,13 +323,25 @@ fn build_audio_sink_bin(
 
     let bin = gst::Bin::new();
     let tap_sink_el = tap_sink.upcast_ref::<gst::Element>();
-    bin.add_many([&convert, &resample, &rg_volume, &capsfilter, &tee, &play_queue, &audiosink, &tap_queue, tap_sink_el])
-        .map_err(|e| format!("failed to assemble audio sink bin: {e}"))?;
+    bin.add_many([
+        &convert,
+        &resample,
+        &rg_volume,
+        &tee,
+        &play_queue,
+        &audiosink,
+        &tap_queue,
+        &tap_convert,
+        &tap_resample,
+        &tap_caps,
+        tap_sink_el,
+    ])
+    .map_err(|e| format!("failed to assemble audio sink bin: {e}"))?;
 
-    gst::Element::link_many([&convert, &resample, &rg_volume, &capsfilter, &tee])
-        .map_err(|e| format!("failed to link audio chain: {e}"))?;
+    gst::Element::link_many([&convert, &resample, &rg_volume, &tee]).map_err(|e| format!("failed to link audio chain: {e}"))?;
     gst::Element::link_many([&play_queue, &audiosink]).map_err(|e| format!("failed to link audio play branch: {e}"))?;
-    gst::Element::link_many([&tap_queue, tap_sink_el]).map_err(|e| format!("failed to link audio tap branch: {e}"))?;
+    gst::Element::link_many([&tap_queue, &tap_convert, &tap_resample, &tap_caps, tap_sink_el])
+        .map_err(|e| format!("failed to link audio tap branch: {e}"))?;
 
     // Wire the tee's request pads to each branch's queue.
     let link_branch = |queue: &gst::Element| -> Result<(), String> {
