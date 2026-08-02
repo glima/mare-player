@@ -371,6 +371,9 @@ pub struct AppModel {
     pub(crate) pending_seek: Option<f64>,
     /// Seek debounce version counter
     pub(crate) seek_debounce_version: u64,
+    /// Monotonic version for debouncing playback-URL resolution, so a burst of
+    /// rapid skips only resolves the track the user settles on.
+    pub(crate) playback_resolve_version: u64,
     /// Current volume level (0.0 to 1.0)
     pub(crate) volume_level: f32,
     /// Whether to show the volume bar overlay (panel-applet scroll-wheel indicator)

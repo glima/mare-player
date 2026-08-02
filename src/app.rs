@@ -191,6 +191,7 @@ impl cosmic::Application for AppModel {
             loading_progress: 0.0,
             pending_seek: None,
             seek_debounce_version: 0,
+            playback_resolve_version: 0,
             volume_level: saved_volume,
             show_volume_bar: false,
             volume_bar_shown_at: None,
@@ -769,6 +770,7 @@ impl cosmic::Application for AppModel {
                 Task::none()
             }
             Message::PreloadNextTrack => self.handle_preload_next_track(),
+            Message::ResolvePlaybackDebounced(v) => self.handle_resolve_playback_debounced(v),
             Message::PreloadUrlReceived(result) => self.handle_preload_url_received(result),
             Message::GaplessTransition => self.handle_gapless_transition(),
             Message::SeekTo(percent) => self.handle_seek_to(percent),

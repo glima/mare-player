@@ -19,20 +19,36 @@ use crate::tidal::player::{NowPlaying, PlaybackState};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// How long to wait after the last skip before resolving a playback URL.
+///
+/// Long enough to swallow a burst of rapid skips into one request, short enough
+/// to disappear under the resolution itself (TIDAL takes ~180–400 ms to answer
+/// `playbackinfopostpaywall`).
+const PLAYBACK_RESOLVE_DEBOUNCE_MS: u64 = 150;
+
 // =============================================================================
 // Task Helper Methods
 // =============================================================================
 
 impl AppModel {
     /// Start playback of a track at the given index in the queue.
-    /// Fetches the playback URL from TIDAL and triggers playback.
+    ///
+    /// The visible state changes (rewind the slider, tear down the old
+    /// pipeline, switch to `Loading`) happen immediately so the UI stays
+    /// responsive, while the URL resolution is debounced by
+    /// [`PLAYBACK_RESOLVE_DEBOUNCE_MS`] — a burst of rapid skips costs one TIDAL
+    /// request for whatever the user settles on rather than one per skip, each
+    /// of which mints a stream token. Mirrors `seek_debounce_version`.
+    ///
+    /// This owns `playback_queue_index`: the debounced resolve reads it back as
+    /// the authority for "what should be playing", so setting it here is what
+    /// keeps the two in agreement.
     pub(crate) fn play_track_at_index(&mut self, index: usize) -> Task<cosmic::Action<Message>> {
         if index >= self.playback_queue.len() {
             return Task::none();
         }
-        let Some(track) = self.playback_queue.get(index).cloned() else {
-            return Task::none();
-        };
+        self.playback_queue_index = index;
+
         // Reset position and switch to Loading immediately so the slider
         // rewinds to 0:00 before the new track starts buffering.  Setting
         // the state here prevents the tick handler from overwriting the
@@ -49,8 +65,33 @@ impl AppModel {
         self.loading_progress = 0.0;
         self.playback_state = PlaybackState::Loading;
 
-        // Music videos play through a video pipeline; tear down any audio
-        // pipeline first so the two never overlap, then resolve the HLS URL.
+        self.playback_resolve_version = self.playback_resolve_version.wrapping_add(1);
+        let version = self.playback_resolve_version;
+        Task::perform(
+            async move {
+                tokio::time::sleep(Duration::from_millis(PLAYBACK_RESOLVE_DEBOUNCE_MS)).await;
+                version
+            },
+            |v| cosmic::Action::App(Message::ResolvePlaybackDebounced(v)),
+        )
+    }
+
+    /// Resolve the playback URL for the track the queue has settled on.
+    ///
+    /// Superseded by a newer skip → drop it; the newer request has its own
+    /// timer running. Reads the track from `playback_queue_index` rather than
+    /// carrying an index through the message, so it can't disagree with the
+    /// staleness guard that judges the response.
+    pub fn handle_resolve_playback_debounced(&mut self, version: u64) -> Task<cosmic::Action<Message>> {
+        if version != self.playback_resolve_version {
+            return Task::none();
+        }
+        let Some(track) = self.playback_queue.get(self.playback_queue_index).cloned() else {
+            return Task::none();
+        };
+
+        // Music videos play through a video pipeline; the audio pipeline was
+        // already torn down above, so the two never overlap.
         if track.is_video {
             self.visualizer_state.set_active(false);
             let video_id = track.id.clone();
@@ -251,13 +292,40 @@ impl AppModel {
         result: Result<(Track, PlaybackUrl), String>,
     ) -> Task<cosmic::Action<Message>> {
         match result {
-            Ok((track, playback_url)) => self.start_gst_audio(track, playback_url),
+            Ok((track, playback_url)) => {
+                if self.is_stale_resolution(&track) {
+                    return Task::none();
+                }
+                self.start_gst_audio(track, playback_url)
+            }
             Err(e) => {
                 tracing::error!("Failed to get playback URL: {}", e);
                 self.error_message = Some(format!("Failed to get playback URL: {}", e));
                 Task::none()
             }
         }
+    }
+
+    /// True when a resolved URL belongs to a track the user has already moved
+    /// past, so the caller should drop it.
+    ///
+    /// Every play kicks off an async URL fetch, and skipping leaves several in
+    /// flight at once; they do **not** complete in order. Accepting a late one
+    /// would start playing a track the user has left, and seed its gapless
+    /// preload from a `playback_queue_index` belonging to a different track.
+    ///
+    /// The queue position is the user's latest intent, so it is the authority a
+    /// late response is judged against. An empty queue means ad-hoc playback
+    /// with nothing to compare, and is always accepted.
+    fn is_stale_resolution(&self, track: &Track) -> bool {
+        let Some(current) = self.playback_queue.get(self.playback_queue_index) else {
+            return false;
+        };
+        if current.id == track.id {
+            return false;
+        }
+        tracing::debug!("Dropping stale URL resolution for {track}; queue is now on {current}");
+        true
     }
 
     /// Start an audio track through the GStreamer [`MediaPlayer`].
@@ -395,6 +463,11 @@ impl AppModel {
     pub fn handle_video_url_received(&mut self, result: Result<(Track, String), String>) -> Task<cosmic::Action<Message>> {
         match result {
             Ok((track, url)) => {
+                // Same staleness guard as the audio path: rapid skipping leaves
+                // several HLS resolutions in flight and they finish out of order.
+                if self.is_stale_resolution(&track) {
+                    return Task::none();
+                }
                 self.current_video_url = Some(url.clone());
 
                 // If the video is popped out, hand the new stream to the child

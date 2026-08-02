@@ -275,6 +275,9 @@ pub enum Message {
     VideoInteraction,
     /// Preload the next track for gapless playback
     PreloadNextTrack,
+    /// Debounced playback-URL resolution: carries the request version so a
+    /// burst of rapid skips collapses into one TIDAL request.
+    ResolvePlaybackDebounced(u64),
     /// Preload URL received for gapless playback
     PreloadUrlReceived(Result<(Track, PlaybackUrl), String>),
     /// Gapless transition occurred — the preloaded track started playing
