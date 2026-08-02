@@ -81,6 +81,12 @@ check *args:
     echo "Checking formatting..."
     cargo fmt --all -- --check
     cargo clippy --all-features {{ args }} -- -W dead_code -D warnings
+    # Clippy above deliberately omits --all-targets: the production lint set
+    # (unwrap_used, indexing_slicing, …) is wrong for test code. That leaves
+    # integration tests uncompiled, so build them here — a signature change in
+    # the library can otherwise break `tests/` without this recipe noticing.
+    echo "Checking that tests compile..."
+    cargo test --no-run --all-features
     echo "Checking for unused imports..."
     if command -v cargo >/dev/null 2>&1 && cargo --list | grep -q machete; then
         cargo machete || exit 1
