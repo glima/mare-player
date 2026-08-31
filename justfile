@@ -98,6 +98,15 @@ check *args:
     else
         echo "cargo-machete not found, skipping unused import check (install with: cargo install cargo-machete)"
     fi
+    echo "Checking dependency licences..."
+    if command -v cargo-deny >/dev/null 2>&1; then
+        # Allow list and exceptions live in deny.toml. The project is
+        # GPL-3.0-only, so this gates what a new dependency may drag in —
+        # the licence of a transitive crate is as binding as a direct one.
+        cargo deny check licenses --hide-inclusion-graph || exit 1
+    else
+        echo "cargo-deny not found, skipping licence check (install with: cargo install cargo-deny)"
+    fi
     echo "Running cargo audit for security vulnerabilities..."
     if command -v cargo-audit >/dev/null 2>&1; then
         # All ignored advisories are transitive deps from libcosmic/iced
