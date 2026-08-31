@@ -43,6 +43,19 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@8e6bcdad38b75e3ed7b36872031a94f7c61006cc # cargo-nextest
 
+      # `just check` skips whichever of these is missing, which is right for a
+      # laptop and wrong for CI: unused dependencies, security advisories and
+      # dependency licences were all being reported as "not found, skipping"
+      # rather than gating anything.
+      - name: Install cargo-machete
+        uses: taiki-e/install-action@cdcb1f492e0a327e6492f6748d9a637ac2ffd66f # cargo-machete
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@55ed588c2f0e092949af25ad4c5873185e476b5c # cargo-audit
+
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@e7755904d936cb033d6d742aa409597c6a104079 # cargo-deny
+
       - name: Cache cargo registry and build artifacts
         # Without this the job compiles all ~870 crates on every push. The key
         # follows Cargo.lock, so dependencies are built once per lockfile
