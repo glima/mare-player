@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Receiving the PKCE sign-in callback as a `tidal://` URI.
 //!

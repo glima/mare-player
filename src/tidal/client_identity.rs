@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! The TIDAL client identity Maré Player presents — one place, one answer.
 //!

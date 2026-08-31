@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Report track plays to TIDAL's Event Producer bus so they count for the
 //! user's "Recently Played", recommendations, and artist royalty accounting.

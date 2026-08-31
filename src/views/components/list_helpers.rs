@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! List-item wrappers, fading text helpers, and track-row configuration.
 //!

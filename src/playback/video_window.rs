@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Handle to the out-of-process music-video window (`mare-video-window`).
 //!

@@ -4,7 +4,7 @@
   <name>Maré Player</name>
   <summary>Maré Player — a COSMIC desktop applet for TIDAL music streaming</summary>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>MIT</project_license>
+  <project_license>GPL-3.0-only</project_license>
   <description>
     <p>
       Stream TIDAL from your COSMIC panel. Hi-Res FLAC playback, library

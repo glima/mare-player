@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-3.0-only
 
 //! Maré Player — a panel applet for the COSMIC™ desktop that streams
 //! music from the TIDAL service.

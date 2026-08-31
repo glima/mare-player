@@ -2,7 +2,7 @@
 name = "mare-video-window"
 version = "0.3.1"
 edition = "2024"
-license = "MIT"
+license = "GPL-3.0-only"
 authors = ["Maré Player authors"]
 description = "Maré Player — out-of-process video window companion"
 repository = "https://github.com/glima/mare-player"
