@@ -33,7 +33,7 @@ use cosmic::widget::image::Handle;
 
 /// Fixed-capacity LRU cache for decoded RGBA image handles.
 ///
-/// Each [`get`](Self::get) call records the access timestamp on the
+/// Each [`HandleCache::get`](Self::get) call records the access timestamp on the
 /// returned entry, so handles that the view repeatedly fetches (i.e.
 /// items currently visible on screen) become the *most recently used*.
 /// When the cache is full, [`insert`](Self::insert) evicts the entry
@@ -52,10 +52,10 @@ pub(crate) struct HandleCache {
     capacity: usize,
     /// Monotonic access counter, bumped on every `get` and `insert`.
     counter: Cell<u64>,
-    /// Outgoing channel used by [`get_or_request`] to ask the app to fetch
+    /// Outgoing channel used by [`HandleCache::get_or_request`] to ask the app to fetch
     /// a missing thumbnail.  Set late (after the channel is created in
-    /// `AppModel::init`).  When `None`, [`get_or_request`] behaves exactly
-    /// like [`get`].
+    /// `AppModel::init`).  When `None`, [`HandleCache::get_or_request`] behaves exactly
+    /// like [`Self::get`].
     request_tx: Option<tokio::sync::mpsc::UnboundedSender<String>>,
 }
 
@@ -65,7 +65,7 @@ impl HandleCache {
         Self { map: HashMap::with_capacity(capacity), capacity, counter: Cell::new(0), request_tx: None }
     }
 
-    /// Install the channel that [`get_or_request`] uses to request lazy
+    /// Install the channel that [`Self::get_or_request`] uses to request lazy
     /// loads of missing thumbnails.  Called once at app init.
     pub(crate) fn set_request_tx(&mut self, tx: tokio::sync::mpsc::UnboundedSender<String>) {
         self.request_tx = Some(tx);
@@ -89,11 +89,11 @@ impl HandleCache {
         Some(&entry.0)
     }
 
-    /// Like [`get`], but on a cache miss with a non-empty `key`, fire off
+    /// Like [`Self::get`], but on a cache miss with a non-empty `key`, fire off
     /// a lazy load request through the channel installed by
-    /// [`set_request_tx`].
+    /// [`Self::set_request_tx`].
     ///
-    /// Renderers should call this instead of [`get`] for any thumbnail
+    /// Renderers should call this instead of [`Self::get`] for any thumbnail
     /// they want lazy-loaded; the request is deduplicated at the
     /// `handle_load_image` level so flooding from re-renders is harmless.
     pub(crate) fn get_or_request(&self, key: &str) -> Option<&cosmic::widget::image::Handle> {
@@ -356,7 +356,7 @@ pub struct AppModel {
     /// Receiver half of the lazy-thumbnail-request channel.  Renderers call
     /// [`HandleCache::get_or_request`] which pushes onto the sender side;
     /// the subscription drains this receiver and dispatches
-    /// [`Message::LoadImage`] for each URL.
+    /// [`Message::LoadImage`](crate::messages::Message::LoadImage) for each URL.
     pub(crate) thumbnail_request_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
     /// Set of track IDs that are in user's favorites
     pub(crate) favorite_track_ids: HashSet<String>,

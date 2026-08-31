@@ -328,7 +328,7 @@ impl AppModel {
         true
     }
 
-    /// Start an audio track through the GStreamer [`MediaPlayer`].
+    /// Start an audio track through the GStreamer [`MediaPlayer`](crate::playback::MediaPlayer)(crate::playback::MediaPlayer).
     ///
     /// Builds a GStreamer URI from the
     /// resolved [`PlaybackUrl`], starts the pipeline with the track's album
@@ -741,7 +741,8 @@ impl AppModel {
         }
     }
 
-    /// Rebuild the inline video [`MediaPlayer`] for `url`, seeking to `pos`.
+    /// Rebuild the inline video [`MediaPlayer`](crate::playback::MediaPlayer) for
+    /// `url`, seeking to `pos`.
     /// Used when popping a video back in (button, window-closed, or failed
     /// spawn).
     pub(crate) fn resume_inline_video(&mut self, url: &str, pos: f64) -> Task<cosmic::Action<Message>> {

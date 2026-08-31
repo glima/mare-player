@@ -3,7 +3,7 @@
 //! List-item wrappers, fading text helpers, and track-row configuration.
 //!
 //! This module contains the composable helpers that sit between the low-level
-//! [`FadingClip`](super::fading_clip::FadingClip) widget and the high-level
+//! [`FadingClip`] widget and the high-level
 //! row builders in [`super::rows`].  Everything that *constructs* a reusable
 //! list element lives here; everything that *fills* one with domain data
 //! (tracks, albums, playlists) lives in `rows`.

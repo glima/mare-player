@@ -5,7 +5,7 @@
 //! This module contains the mixes list view (personalized mixes from the
 //! TIDAL home feed) and the mix detail view showing tracks in a selected mix.
 //!
-//! The mix detail track list uses iced's virtual [`List`] widget so that only
+//! The mix detail track list uses iced's virtual [`List`](cosmic::iced::widget::list::List) widget so that only
 //! the rows visible in the viewport are materialised.
 
 use std::sync::Arc;

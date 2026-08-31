@@ -172,7 +172,7 @@ fn extract_f32_samples(sample: &gst::Sample) -> Option<Vec<f32>> {
     if bytes.len() < 4 {
         return None;
     }
-    Some(bytes.chunks_exact(4).filter_map(|c| c.try_into().ok().map(f32::from_le_bytes)).collect())
+    Some(bytes.as_chunks::<4>().0.iter().map(|c| f32::from_le_bytes(*c)).collect())
 }
 
 /// Log how far the analyzer tap runs ahead of (or behind) what the speakers

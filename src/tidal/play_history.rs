@@ -71,7 +71,8 @@ impl PlayHistory {
     /// The track is prepended to the list.  If the same track ID already
     /// exists anywhere in the list it is removed first (dedup / move-to-front).
     ///
-    /// **Does not** persist automatically — call [`save`](Self::save) afterwards
+    /// **Does not** persist automatically — hand the entry to
+    /// [`Db::put_play_history`](crate::cache::Db::put_play_history) afterwards
     /// when you have access to the cache.
     pub fn record(&mut self, track: &Track) {
         // Remove any previous occurrence of this track.
@@ -104,7 +105,8 @@ impl PlayHistory {
 
     /// Remove all entries.
     ///
-    /// Call [`save`](Self::save) afterwards to persist the change.
+    /// Call [`Db::clear_play_history`](crate::cache::Db::clear_play_history)
+    /// afterwards to persist the change.
     pub fn clear(&mut self) {
         self.entries.clear();
     }

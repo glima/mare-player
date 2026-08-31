@@ -3,7 +3,7 @@
 //! Play history view for Maré Player.
 //!
 //! This module renders the locally-tracked "Recently Played" track list
-//! using iced's virtual [`List`] widget, which only materialises the rows
+//! using iced's virtual [`List`](cosmic::iced::widget::list::List) widget, which only materialises the rows
 //! currently visible in the viewport.  The underlying data lives in
 //! [`AppModel::track_list_content`] and is kept in sync by the handler
 //! helpers (`rebuild_history_track_list`, `set_track_list`).

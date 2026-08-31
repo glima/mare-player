@@ -811,7 +811,7 @@ impl TidalAppClient {
     /// [`Self::complete_login`]. Which client we authenticate as decides the
     /// stream ceiling independently of the subscription, and PKCE is the only
     /// flow whose client is granted the hi-res tier — see
-    /// [`client_identity`](super::client_identity) for the measurements.
+    /// [`super::client_identity`] for the measurements.
     ///
     /// The half-finished client is parked in `self.client` because it holds the
     /// PKCE code verifier that the redirect's `code` is exchanged against.

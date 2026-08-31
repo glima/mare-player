@@ -129,7 +129,7 @@ impl AppModel {
     ///
     /// This is the pure routing logic — it returns the page content element
     /// without any chrome (no now-playing bar, no error banner).  Both
-    /// [`Self::view_content`] and [`Self::view_standalone`] call this and
+    /// [`Self::view_content`] and `view_standalone` call this and
     /// then compose the result with the surrounding UI elements.
     fn view_page_content(&self) -> Element<'_, Message> {
         match &self.view_state {

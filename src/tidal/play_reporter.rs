@@ -158,7 +158,7 @@ impl PlayReporter {
 ///
 /// The playback handler opens one of these when a track starts, updates
 /// `last_position_s` on every tick, and turns it into a [`PlaySession`]
-/// via [`finalize`] when the track ends.
+/// via [`InProgressPlay::finalize`] when the track ends.
 #[derive(Debug, Clone)]
 pub struct InProgressPlay {
     pub session_id: String,

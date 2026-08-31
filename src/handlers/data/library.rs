@@ -173,7 +173,7 @@ impl AppModel {
 
     /// Load credits for a specific track.
     ///
-    /// Returns an empty [`TrackCredits`] (not an error) when TIDAL has no
+    /// Returns an empty [`TrackCredits`](crate::tidal::models::TrackCredits) (not an error) when TIDAL has no
     /// credits for the track; only genuine network/parse failures end in
     /// `Err`.  See
     /// [`TidalAppClient::get_track_credits`](crate::tidal::client::TidalAppClient::get_track_credits).
@@ -200,7 +200,7 @@ impl AppModel {
 
     /// Load lyrics for a specific track.
     ///
-    /// Returns an empty [`TrackLyrics`] (not an error) when TIDAL has
+    /// Returns an empty [`TrackLyrics`](crate::tidal::models::TrackLyrics) (not an error) when TIDAL has
     /// no lyrics; only genuine network/parse failures end in `Err`.
     /// See [`TidalAppClient::get_track_lyrics`](crate::tidal::client::TidalAppClient::get_track_lyrics).
     pub(crate) fn load_track_lyrics(&self, track_id: String) -> Task<cosmic::Action<Message>> {

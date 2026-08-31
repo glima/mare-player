@@ -3,7 +3,7 @@
 //! Favorite tracks view for Maré Player.
 //!
 //! This module renders the favorite tracks list view using iced's virtual
-//! [`List`] widget, which only materialises the rows currently visible in
+//! [`List`](cosmic::iced::widget::list::List) widget, which only materialises the rows currently visible in
 //! the viewport.  The underlying data lives in
 //! [`AppModel::track_list_content`] and is kept in sync by the handler
 //! helper `rebuild_favorites_track_list`.

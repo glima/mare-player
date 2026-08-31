@@ -220,6 +220,14 @@ panic = "deny"            # Disallow any usage of panic! macro — panics in pro
 unwrap_used = "deny"      # Avoid .unwrap() — it panics on None/Err; prefer match or ? for error propagation
 wildcard_imports = "deny" # Ban use foo::* — use explicit imports for clarity and to avoid namespace pollution
 
+[lints.rustdoc]
+# This is an application, not a published library: the lib target exists so the
+# integration tests can reach the modules, and most items are crate-internal.
+# Doc comments link to them freely, which is exactly what `just doc`
+# (--document-private-items) renders. Broken links are still caught by the
+# default `broken_intra_doc_links`.
+private_intra_doc_links = "allow"
+
 [dev-dependencies]
 libc = "0.2.180"
 tempfile = "3.24.0"
