@@ -184,9 +184,24 @@ impl ImageCache {
         }
     }
 
+    /// Whether a URL may be fetched.
+    ///
+    /// Artwork URLs arrive from TIDAL's API responses, so this is the last
+    /// point where a hostile one can be turned away: `https://` only, in
+    /// anything that ships. The loopback exemption exists for the tests
+    /// below, which serve PNGs from a local server, and is compiled out of
+    /// release builds — otherwise an API response naming `http://127.0.0.1:…`
+    /// would have the player fetch from a service on the user's own machine.
+    fn is_fetchable(url: &str) -> bool {
+        if url.starts_with("https://") {
+            return true;
+        }
+        cfg!(test) && (url.starts_with("http://127.0.0.1") || url.starts_with("http://localhost"))
+    }
+
     /// Download an image from a URL
     async fn download_image(&self, url: &str) -> Result<Vec<u8>, String> {
-        if !url.starts_with("https://") && !url.starts_with("http://127.0.0.1") && !url.starts_with("http://localhost") {
+        if !Self::is_fetchable(url) {
             return Err(format!("Refusing non-HTTPS image URL: {url}"));
         }
 
@@ -525,6 +540,28 @@ mod tests {
         assert!(cache.load_from_disk("https://x/y.png").await.is_none());
         cache.save_grid("k", b"data").await;
         assert!(cache.get_cached_grid("k").await.is_none());
+    }
+
+    // ── is_fetchable ─────────────────────────────────────────────────────
+
+    #[test]
+    fn is_fetchable_accepts_https_only_outside_tests() {
+        assert!(ImageCache::is_fetchable("https://resources.tidal.com/images/x/320x320.jpg"));
+        // Artwork URLs come from API responses; these are the shapes a
+        // hostile one would take.
+        assert!(!ImageCache::is_fetchable("http://resources.tidal.com/images/x.jpg"));
+        assert!(!ImageCache::is_fetchable("file:///etc/passwd"));
+        assert!(!ImageCache::is_fetchable("ftp://example.test/x.png"));
+        assert!(!ImageCache::is_fetchable("//example.test/x.png"));
+    }
+
+    /// The loopback exemption is `cfg(test)`-only, which is why the tests
+    /// below can serve PNGs over plain HTTP while a release build cannot be
+    /// talked into fetching from a service on the user's machine.
+    #[test]
+    fn loopback_http_is_a_test_only_allowance() {
+        assert_eq!(ImageCache::is_fetchable("http://127.0.0.1:8080/x.png"), cfg!(test));
+        assert_eq!(ImageCache::is_fetchable("http://localhost:8080/x.png"), cfg!(test));
     }
 
     // ── download_image ──────────────────────────────────────────────────
