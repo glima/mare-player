@@ -29,9 +29,7 @@ via the `panel-applet` feature flag (enabled by default).
 ## Features
 
 - **Hi-Res Audio Playback** — Stream FLAC up to 24-bit/192 kHz (DASH),
-  played through GStreamer (PipeWire/PulseAudio output). Needs the PKCE
-  sign-in below: TIDAL caps every other login flow at 16-bit/44.1 kHz,
-  whatever the subscription says
+  played through GStreamer (PipeWire/PulseAudio output)
 - **Music Video Playback** — Stream TIDAL music videos (HLS, H.264/AAC)
   through a GStreamer pipeline, shown in an auto-hiding "theater" HUD
   with the same clickable title/artist/context and transport controls
@@ -69,8 +67,8 @@ via the `panel-applet` feature flag (enabled by default).
 - **Sharing** — Generate song.link URLs and copy to clipboard
 - **Dual Mode** — Builds as a COSMIC panel applet *or* a standalone
   windowed application (`--no-default-features`)
-- **Secure Authentication** — OAuth PKCE flow (the one TIDAL serves
-  hi-res to) with credentials stored in the system keyring
+- **Secure Authentication** — Browser sign-in, with credentials stored in
+  the system keyring
 - **Persistent Sessions** — Automatic token refresh across reboots
 - **Disk Caching** — Artwork is cached on disk with a configurable size
   limit and LRU eviction; library data (playlists, albums, history,
@@ -137,34 +135,15 @@ just install-standalone
 
 1. Click the Maré Player icon in your panel (or launch the standalone app)
 2. Click **Sign in with TIDAL**, then **Open Browser**
-3. Sign in on TIDAL's page — with Google, Apple or your email — and that's
-   it. TIDAL redirects to `tidal://login/auth?code=…`, your browser hands
-   that to Maré, and the sign-in completes on its own
+3. Sign in on TIDAL's page, with Google, Apple or your email. The browser
+   hands the result back to Maré and the sign-in completes on its own
 
-Installing registers Maré as the handler for `tidal://` links, which is
-what makes step 3 the last one. To check, or to take the scheme over from
-another TIDAL client that already claims it:
+If the login screen asks you to paste a URL, another application owns the
+`tidal://` scheme. Take it back, as your user rather than root:
 
 ```sh
-xdg-mime query default x-scheme-handler/tidal      # who owns it now
 xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
 ```
-
-Run those as yourself, not under `sudo` — the association is per-user.
-
-Without the registration (running from `cargo run`, or another app owning
-the scheme) the login view falls back to asking for the URL by hand: TIDAL
-redirects to `https://tidal.com/android/login/auth?code=…` instead, the
-browser shows a page that fails to load, and its address goes into the
-field on the login screen. The log says which of the two you're in.
-
-Why a browser at all: TIDAL grants the `HI_RES_LOSSLESS` tier per OAuth
-client, and only the PKCE flow's client has it. The device-code flow (type
-a short code at link.tidal.com) is friendlier, but the hi-res client
-refuses it — `/oauth2/device_authorization` answers *"Client is not a
-Limited Input Device client"* — and the clients that accept it are capped
-at 16-bit/44.1 kHz, even for tracks tagged `HIRES_LOSSLESS` on a plan
-entitled to hi-res.
 
 ### Browsing & Playback
 
