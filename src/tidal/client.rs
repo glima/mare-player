@@ -19,7 +19,7 @@ use super::models::{
     tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
-use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
+use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -1761,17 +1761,16 @@ impl TidalAppClient {
     /// re-opening the view paints instantly.
     pub async fn get_track_credits(&self, track_id: &str) -> TidalResult<TrackCredits> {
         self.ensure_valid_token().await?;
-        let ctx = self.auth_context().await?;
 
         debug!("Fetching credits for track {}", track_id);
 
-        let meta_url = format!("https://api.tidal.com/v1/tracks/{}?countryCode={}", track_id, ctx.country_code);
-        let http_client = reqwest::Client::new();
-        let meta_req = http_client.get(&meta_url).header(AUTHORIZATION, format!("Bearer {}", ctx.access_token)).send();
-
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+
+        // Two legs, run together: the roles, and the catalog extras the
+        // credits endpoint doesn't carry (copyright, ISRC, BPM, release date).
         let credits_req = client.get_track_credits(track_id.to_string(), true);
+        let meta_req = client.get_track(track_id);
 
         let (credits_res, meta_res) = tokio::join!(credits_req, meta_req);
 
@@ -1801,31 +1800,9 @@ impl TidalAppClient {
             .collect();
 
         // ── Catalog extras (best-effort leg) ──────────────────────────────
-        #[derive(Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct RawTrackMeta {
-            #[serde(default)]
-            copyright: Option<String>,
-            #[serde(default)]
-            stream_start_date: Option<String>,
-            #[serde(default)]
-            isrc: Option<String>,
-            #[serde(default)]
-            bpm: Option<u32>,
-        }
-
-        let meta: Option<RawTrackMeta> = match meta_res {
-            Ok(resp) if resp.status().is_success() => match resp.json::<RawTrackMeta>().await {
-                Ok(m) => Some(m),
-                Err(e) => {
-                    debug!("Track metadata parse failed for {}: {:?}", track_id, e);
-                    None
-                }
-            },
-            Ok(resp) => {
-                debug!("Track metadata fetch returned HTTP {} for {}", resp.status(), track_id);
-                None
-            }
+        // Missing extras cost a line in the view; they never fail the credits.
+        let meta = match meta_res {
+            Ok(track) => Some(track),
             Err(e) => {
                 debug!("Track metadata fetch failed for {}: {:?}", track_id, e);
                 None
@@ -1844,7 +1821,8 @@ impl TidalAppClient {
                 // `2014-10-27T00:00:00.000+0000` → `2014-10-27`
                 non_empty(m.stream_start_date).map(|d| d.split('T').next().unwrap_or(&d).to_string()),
                 non_empty(m.isrc),
-                m.bpm.filter(|b| *b > 0),
+                // tidlers types BPM as f32; the view shows a whole number.
+                m.bpm.filter(|b| *b > 0.0).map(|b| b.round() as u32),
             ),
             None => (None, None, None, None),
         };
@@ -1877,10 +1855,7 @@ impl TidalAppClient {
     }
     /// Fetch the user's subscription plan.
     ///
-    /// Tries tidlers' built-in `client.subscription()` first (uses the v1
-    /// endpoint internally). If that fails (e.g. because of a type mismatch
-    /// on `premiumAccess`), falls back to a raw HTTP call with lenient JSON
-    /// parsing.
+    /// Asks tidlers, which wraps the v1 endpoint.
     ///
     /// Returns a human-readable label such as "HiFi Plus", "HiFi", or "Free".
     /// On any failure the method returns `Ok(None)` so callers can treat the
@@ -1888,7 +1863,6 @@ impl TidalAppClient {
     async fn get_user_subscription(&self) -> TidalResult<Option<String>> {
         self.ensure_valid_token().await?;
 
-        // --- Attempt 1: tidlers built-in subscription() -----------------------
         {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
@@ -1909,82 +1883,12 @@ impl TidalAppClient {
                     return Ok(label);
                 }
                 Err(e) => {
-                    warn!("tidlers subscription() failed ({}), falling back to raw HTTP", e);
+                    warn!("subscription lookup failed ({e}); the plan badge stays hidden");
                 }
             }
         } // client_guard dropped
 
-        // --- Attempt 2: raw HTTP with lenient JSON parsing --------------------
-        let (user_id, access_token) = {
-            let client_guard = self.client.lock().await;
-            let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-            let uid = match client.session.auth.user_id {
-                Some(id) => id,
-                None => {
-                    warn!("No user ID available – cannot fetch subscription");
-                    return Ok(None);
-                }
-            };
-            let token = match client.session.auth.access_token.as_ref() {
-                Some(t) => t.clone(),
-                None => {
-                    warn!("No access token available – cannot fetch subscription");
-                    return Ok(None);
-                }
-            };
-            (uid, token)
-        }; // client_guard dropped
-
-        let url = format!("https://api.tidal.com/v1/users/{}/subscription", user_id);
-
-        let http_client = reqwest::Client::new();
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            AUTHORIZATION,
-            HeaderValue::from_str(&format!("Bearer {}", access_token))
-                .map_err(|e| TidalError::RequestFailed(format!("Invalid auth header: {}", e)))?,
-        );
-
-        match http_client.get(&url).headers(headers).send().await {
-            Ok(response) => {
-                if !response.status().is_success() {
-                    let status = response.status();
-                    let body = response.text().await.unwrap_or_default();
-                    warn!("Subscription endpoint returned HTTP {}: {}", status, body);
-                    return Ok(None);
-                }
-
-                let body = response.text().await.unwrap_or_default();
-                debug!("Subscription raw response: {}", body);
-
-                // Parse with serde_json::Value first for maximum flexibility —
-                // `premiumAccess` can be a string OR a bool depending on TIDAL
-                // API version / account type.
-                match serde_json::from_str::<serde_json::Value>(&body) {
-                    Ok(v) => {
-                        let premium_access = v.get("premiumAccess").and_then(|p| p.as_str().map(String::from));
-                        let sub_type =
-                            v.get("subscription").and_then(|s| s.get("type")).and_then(|t| t.as_str().map(String::from));
-                        let highest_quality = v.get("highestSoundQuality").and_then(|h| h.as_str().map(String::from));
-
-                        let label =
-                            Self::derive_plan_label(premium_access.as_deref(), sub_type.as_deref(), highest_quality.as_deref());
-                        if let Some(l) = &label {
-                            info!("User subscription plan (via raw HTTP): {}", l);
-                        }
-                        Ok(label)
-                    }
-                    Err(e) => {
-                        warn!("Failed to parse subscription JSON: {}", e);
-                        Ok(None)
-                    }
-                }
-            }
-            Err(e) => {
-                warn!("Failed to fetch subscription info: {:?}", e);
-                Ok(None)
-            }
-        }
+        Ok(None)
     }
 
     /// Derive a human-readable plan label from `subscription.type` and
