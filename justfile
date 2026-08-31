@@ -103,12 +103,13 @@ check *args:
         # All ignored advisories are transitive deps from libcosmic/iced
         # that we cannot fix or upgrade ourselves.
         cargo audit \
-            --ignore RUSTSEC-2024-0436 `# paste (unmaintained) — via metal/accesskit_windows → wgpu/iced` \
-            --ignore RUSTSEC-2026-0186 `# memmap2 (unsound) — via cosmic-freedesktop-icons / cosmic-text → libcosmic` \
-            --ignore RUSTSEC-2026-0192 `# ttf-parser (unmaintained) — via ab_glyph/sctk-adwaita → winit → libcosmic` \
+            --ignore RUSTSEC-2024-0436 `# paste (unmaintained) — via metal (macOS-only) → wgpu-hal → wgpu → cryoglyph → iced_wgpu → libcosmic` \
+            --ignore RUSTSEC-2026-0186 `# memmap2 0.8 (unsound) — via xkbcommon 0.7 → iced_winit → libcosmic. Everything else here is already on the unaffected 0.9.11; clears when iced_winit moves to xkbcommon 0.9, which asks for memmap2 ^0.9` \
+            --ignore RUSTSEC-2026-0192 `# ttf-parser (unmaintained) — via fontdb → cosmic-text, owned_ttf_parser → ab_glyph → accesskit_winit, and rustybuzz → resvg; all three land in libcosmic` \
             --ignore RUSTSEC-2026-0206 `# rustybuzz (unmaintained) — via resvg/usvg → iced_tiny_skia → iced → libcosmic (SVG/text shaping)` \
             --ignore RUSTSEC-2026-0194 `# quick-xml DoS — via pprof→inferno 0.11→quick-xml 0.26; the SIGUSR1 flamegraph profiler is debug-builds-only and parses its own output, never untrusted input. pprof 0.15 (latest) pins inferno ^0.11, so the fixed quick-xml >=0.41 is out of reach until pprof moves to inferno 0.12` \
-            --ignore RUSTSEC-2026-0195 `# quick-xml DoS — same pprof→inferno→quick-xml 0.26 path. (The old wayland-scanner path is fixed: 0.31.11 moved to quick-xml 0.41.)`
+            --ignore RUSTSEC-2026-0195 `# quick-xml DoS — same pprof→inferno→quick-xml 0.26 path. (The old wayland-scanner path is fixed: 0.31.11 moved to quick-xml 0.41.)` \
+            --ignore RUSTSEC-2026-0253 `# lru (unsound) — via cryoglyph → iced → libcosmic, which requires lru ^0.16 while the fix landed in 0.18.2, so cargo cannot reach it. The unsoundness needs a key whose Drop panics under catch_unwind; cryoglyph's single cache is keyed by cosmic-text's CacheKey, a Copy struct of integers with no Drop at all. Clears when cryoglyph moves to lru 0.18`
     else
         echo "cargo-audit not found, skipping security audit (install with: cargo install cargo-audit)"
     fi
