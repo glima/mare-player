@@ -175,11 +175,11 @@ impl AppModel {
 
         // Apply to the TIDAL client
         let client = self.tidal_client.clone();
-        let tidlers_quality = quality.to_tidlers();
+
         Task::perform(
             async move {
                 let mut client = client.lock().await;
-                client.set_audio_quality(tidlers_quality).await;
+                client.set_audio_quality(quality).await;
             },
             |_| cosmic::Action::App(Message::ClearError), // No-op on completion
         )

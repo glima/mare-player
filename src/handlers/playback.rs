@@ -286,6 +286,9 @@ impl AppModel {
         // the API didn't provide one.
         let replay_gain_db = playback_url.replay_gain_db().unwrap_or(0.0);
 
+        // Badge what TIDAL actually served, not what we asked for.
+        self.now_playing_quality = playback_url.stream_quality();
+
         // `as_url()` returns a ready-to-use GStreamer URI: an http(s) URL for
         // direct qualities, or an inline `data:application/dash+xml` URI for
         // DASH (HiRes) — nothing is written to disk.

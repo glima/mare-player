@@ -40,22 +40,22 @@ mod audio_quality_display_name {
 
     #[test]
     fn low_display_name() {
-        assert_eq!(AudioQuality::Low.display_name(), "Low (96 kbps)");
+        assert_eq!(AudioQuality::Low.display_name(), "Low — 96 kbps AAC");
     }
 
     #[test]
     fn high_display_name() {
-        assert_eq!(AudioQuality::High.display_name(), "High (320 kbps)");
+        assert_eq!(AudioQuality::High.display_name(), "High — 320 kbps AAC");
     }
 
     #[test]
     fn lossless_display_name() {
-        assert_eq!(AudioQuality::Lossless.display_name(), "Lossless (CD Quality)");
+        assert_eq!(AudioQuality::Lossless.display_name(), "Lossless — 16-bit, 44.1 kHz");
     }
 
     #[test]
     fn hires_display_name() {
-        assert_eq!(AudioQuality::HiRes.display_name(), "Hi-Res (Master Quality)");
+        assert_eq!(AudioQuality::HiRes.display_name(), "Hi-Res Lossless — up to 24-bit, 192 kHz");
     }
 
     #[test]

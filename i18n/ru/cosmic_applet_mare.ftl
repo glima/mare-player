@@ -114,14 +114,10 @@ debug-unoptimized = (без оптимизации)
 
 # Настройки
 audio-quality = Качество звука
-quality-low = Низкое (96 кбит/с)
-quality-high = Высокое (320 кбит/с)
-quality-lossless = Без потерь (CD-качество)
-quality-hires = Hi-Res (мастер-качество)
-quality-description-low = 96 кбит/с AAC — Экономия трафика
-quality-description-high = 320 кбит/с AAC — Хорошее качество
-quality-description-lossless = FLAC 16 бит/44,1 кГц — CD-качество
-quality-description-hires = FLAC до 24 бит/192 кГц — Мастер-качество (требуется HiFi Plus)
+quality-description-low = Минимальный расход трафика
+quality-description-high = С потерями, но экономит трафик
+quality-description-lossless = CD-качество
+quality-description-hires = Нужна подписка с поддержкой Hi-Res
 account = Аккаунт
 about = О программе
 version = Версия

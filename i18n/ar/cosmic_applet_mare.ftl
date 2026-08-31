@@ -118,14 +118,10 @@ debug-unoptimized = (غير محسَّن)
 
 # Settings
 audio-quality = جودة الصوت
-quality-low = منخفضة (96 كيلوبت/ث)
-quality-high = عالية (320 كيلوبت/ث)
-quality-lossless = بدون فقدان (جودة القرص المضغوط)
-quality-hires = عالية الدقة (جودة الماستر)
-quality-description-low = AAC بسرعة 96 كيلوبت/ث - تستهلك بيانات أقل
-quality-description-high = AAC بسرعة 320 كيلوبت/ث - جودة جيدة
-quality-description-lossless = FLAC بدقة 16 بت/44.1 كيلوهرتز - جودة القرص المضغوط
-quality-description-hires = FLAC حتى 24 بت/192 كيلوهرتز - جودة الماستر (يتطلب HiFi Plus)
+quality-description-low = أقل استهلاك للبيانات
+quality-description-high = مضغوطة، لكنها خفيفة على البيانات
+quality-description-lossless = جودة القرص المضغوط
+quality-description-hires = يتطلب اشتراكًا يشمل البث عالي الدقة
 account = الحساب
 about = حول
 version = الإصدار

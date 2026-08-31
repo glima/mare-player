@@ -110,14 +110,10 @@ debug-unoptimized = (ooptimerad)
 
 # Inställningar
 audio-quality = Ljudkvalitet
-quality-low = Låg (96 kbps)
-quality-high = Hög (320 kbps)
-quality-lossless = Lossless (CD-kvalitet)
-quality-hires = Hi-Res (Master-kvalitet)
-quality-description-low = 96 kbps AAC - Använder mindre data
-quality-description-high = 320 kbps AAC - Bra kvalitet
-quality-description-lossless = FLAC 16-bit/44.1kHz - CD kvalitet
-quality-description-hires = FLAC up to 24-bit/192kHz - Master kvalitet (kräver HiFi Plus)
+quality-description-low = Minst dataanvändning
+quality-description-high = Komprimerad, men snål med data
+quality-description-lossless = CD-kvalitet
+quality-description-hires = Kräver ett abonnemang med hi-res-strömning
 account = Konto
 about = Om
 version = Version

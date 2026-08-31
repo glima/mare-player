@@ -120,6 +120,10 @@ fn concise_error(error: &str) -> String {
     }
 }
 
+/// Font size for the two-line stream-quality badge above the spectrum. Smaller
+/// than the context line so it reads as an annotation rather than metadata.
+const QUALITY_BADGE_SIZE: u16 = 9;
+
 impl AppModel {
     /// Dispatch to the appropriate view based on the current [`ViewState`].
     ///
@@ -493,26 +497,45 @@ impl AppModel {
 
         let track_info: Element<'_, Message> = track_info_col.into();
 
+        // Stream-quality badge, stacked above the spectrum and split across two
+        // lines — tier, then bit depth and rate — so neither line is wide enough
+        // to push the visualizer around or crowd the track metadata.
+        let quality_badge: Option<Element<'_, Message>> = self.now_playing_quality.as_ref().map(|q| {
+            let mut col = widget::Column::new()
+                .push(text(q.tier()).size(QUALITY_BADGE_SIZE).wrapping(Wrapping::None))
+                .spacing(1)
+                .align_x(Alignment::End);
+            if let Some(spec) = q.spec() {
+                col = col.push(text(spec).size(QUALITY_BADGE_SIZE).wrapping(Wrapping::None));
+            }
+            col.into()
+        });
+
+        let visualizer_col: Element<'_, Message> = widget::Column::new()
+            .push_maybe(quality_badge)
+            .push(self.visualizer_state.view())
+            .spacing(3)
+            .align_x(Alignment::End)
+            .into();
+
         // Info row: in video mode, album thumbnail + track info + spectrum
         // visualizer (the video pipeline taps its audio into the same analyzer)
         // — this same row, with its clickable title/artist/context, is overlaid
         // as the auto-hiding HUD. The audio bar uses the identical layout.
         let info_row: Element<'_, Message> = if self.video_player.is_some() {
-            let visualizer = self.visualizer_state.view();
             widget::Row::new()
                 .push(now_playing_art)
                 .push(track_info)
-                .push(visualizer)
+                .push(visualizer_col)
                 .spacing(8)
                 .align_y(Alignment::Center)
                 .width(Length::Fill)
                 .into()
         } else {
-            let visualizer = self.visualizer_state.view();
             widget::Row::new()
                 .push(now_playing_art)
                 .push(track_info)
-                .push(visualizer)
+                .push(visualizer_col)
                 .spacing(8)
                 .align_y(Alignment::Center)
                 .into()

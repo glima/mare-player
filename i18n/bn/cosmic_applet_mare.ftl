@@ -110,14 +110,10 @@ debug-unoptimized = (অনুকূলিত নয়)
 
 # সেটিংস
 audio-quality = অডিও গুণমান
-quality-low = নিম্ন (96 kbps)
-quality-high = উচ্চ (320 kbps)
-quality-lossless = লসলেস (সিডি গুণমান)
-quality-hires = হাই-রেজ (মাস্টার গুণমান)
-quality-description-low = 96 kbps AAC - কম ডেটা ব্যবহার করে
-quality-description-high = 320 kbps AAC - ভালো গুণমান
-quality-description-lossless = FLAC 16-বিট/44.1kHz - সিডি গুণমান
-quality-description-hires = FLAC 24-বিট/192kHz পর্যন্ত - মাস্টার গুণমান (HiFi Plus প্রয়োজন)
+quality-description-low = সবচেয়ে কম ডেটা ব্যবহার
+quality-description-high = লসি, তবে ডেটা কম লাগে
+quality-description-lossless = সিডি গুণমান
+quality-description-hires = হাই-রেজ স্ট্রিমিং সহ সাবস্ক্রিপশন প্রয়োজন
 account = অ্যাকাউন্ট
 about = সম্পর্কে
 version = সংস্করণ

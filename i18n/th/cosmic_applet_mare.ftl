@@ -104,14 +104,10 @@ debug-unoptimized = (ไม่ได้เพิ่มประสิทธิ�
 
 # การตั้งค่า
 audio-quality = คุณภาพเสียง
-quality-low = ต่ำ (96 kbps)
-quality-high = สูง (320 kbps)
-quality-lossless = ไม่สูญเสียคุณภาพ (คุณภาพ CD)
-quality-hires = ความละเอียดสูง (คุณภาพมาสเตอร์)
-quality-description-low = 96 kbps AAC - ใช้ข้อมูลน้อยลง
-quality-description-high = 320 kbps AAC - คุณภาพดี
-quality-description-lossless = FLAC 16 บิต/44.1kHz - คุณภาพ CD
-quality-description-hires = FLAC สูงสุด 24 บิต/192kHz - คุณภาพมาสเตอร์ (ต้องใช้ HiFi Plus)
+quality-description-low = ใช้ข้อมูลน้อยที่สุด
+quality-description-high = บีบอัดแบบสูญเสีย แต่ใช้ข้อมูลน้อย
+quality-description-lossless = คุณภาพ CD
+quality-description-hires = ต้องใช้แพ็กเกจที่รองรับการสตรีมความละเอียดสูง
 account = บัญชี
 about = เกี่ยวกับ
 version = เวอร์ชัน

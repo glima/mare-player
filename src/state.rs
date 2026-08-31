@@ -229,6 +229,15 @@ pub struct AppModel {
     /// current track returns. Drives whether the now-playing bar shows the
     /// lyrics icon at all. Backed by the DB lyrics cache.
     pub(crate) now_playing_lyrics: Option<(String, bool)>,
+    /// What TIDAL actually served for the current stream — quality label, sample
+    /// rate and bit depth from `playbackinfopostpaywall`. Shown as a badge under
+    /// the now-playing title. `None` for videos and before the first track.
+    ///
+    /// Deliberately sourced from the playback response rather than the catalog
+    /// metadata or the subscription's `highestSoundQuality`: both of those
+    /// advertise capability, while TIDAL silently downgrades the actual stream
+    /// to whatever the plan entitles.
+    pub(crate) now_playing_quality: Option<crate::tidal::models::StreamQuality>,
     /// The track whose credits view is currently open.
     pub(crate) selected_credits_track: Option<Track>,
     /// Credits loaded for `selected_credits_track`.  `None` while loading;

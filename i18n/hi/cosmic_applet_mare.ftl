@@ -110,14 +110,10 @@ debug-unoptimized = (अनऑप्टिमाइज़्ड)
 
 # Settings
 audio-quality = ऑडियो गुणवत्ता
-quality-low = निम्न (96 kbps)
-quality-high = उच्च (320 kbps)
-quality-lossless = लॉसलेस (CD गुणवत्ता)
-quality-hires = हाई-रेज़ (मास्टर गुणवत्ता)
-quality-description-low = 96 kbps AAC - कम डेटा उपयोग
-quality-description-high = 320 kbps AAC - अच्छी गुणवत्ता
-quality-description-lossless = FLAC 16-बिट/44.1kHz - CD गुणवत्ता
-quality-description-hires = FLAC 24-बिट/192kHz तक - मास्टर गुणवत्ता (HiFi Plus आवश्यक)
+quality-description-low = सबसे कम डेटा उपयोग
+quality-description-high = लॉसी, लेकिन कम डेटा में
+quality-description-lossless = CD गुणवत्ता
+quality-description-hires = हाई-रेज़ स्ट्रीमिंग वाली सदस्यता आवश्यक
 account = खाता
 about = बारे में
 version = संस्करण

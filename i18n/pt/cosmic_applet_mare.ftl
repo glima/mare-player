@@ -110,14 +110,10 @@ debug-unoptimized = (não otimizado)
 
 # Configurações
 audio-quality = Qualidade de Áudio
-quality-low = Baixa (96 kbps)
-quality-high = Alta (320 kbps)
-quality-lossless = Sem Perdas (Qualidade de CD)
-quality-hires = Hi-Res (Qualidade Master)
-quality-description-low = 96 kbps AAC - Usa menos dados
-quality-description-high = 320 kbps AAC - Boa qualidade
-quality-description-lossless = FLAC 16-bit/44.1kHz - Qualidade de CD
-quality-description-hires = FLAC até 24-bit/192kHz - Qualidade Master (requer HiFi Plus)
+quality-description-low = Menor consumo de dados
+quality-description-high = Com perdas, mas gasta poucos dados
+quality-description-lossless = Qualidade de CD
+quality-description-hires = Requer um plano que inclua streaming hi-res
 account = Conta
 about = Sobre
 version = Versão

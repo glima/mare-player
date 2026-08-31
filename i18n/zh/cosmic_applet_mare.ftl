@@ -104,14 +104,10 @@ debug-unoptimized = （未优化）
 
 # 设置
 audio-quality = 音频质量
-quality-low = 低（96 kbps）
-quality-high = 高（320 kbps）
-quality-lossless = 无损（CD 音质）
-quality-hires = 高解析（母带音质）
-quality-description-low = 96 kbps AAC - 节省流量
-quality-description-high = 320 kbps AAC - 良好音质
-quality-description-lossless = FLAC 16位/44.1kHz - CD 音质
-quality-description-hires = FLAC 最高 24位/192kHz - 母带音质（需要 HiFi Plus）
+quality-description-low = 流量占用最少
+quality-description-high = 有损压缩，但流量占用低
+quality-description-lossless = CD 音质
+quality-description-hires = 需要包含高解析串流的订阅方案
 account = 账户
 about = 关于
 version = 版本

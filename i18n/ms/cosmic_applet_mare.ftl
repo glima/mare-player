@@ -104,14 +104,10 @@ debug-unoptimized = (tidak dioptimumkan)
 
 # Tetapan
 audio-quality = Kualiti Audio
-quality-low = Rendah (96 kbps)
-quality-high = Tinggi (320 kbps)
-quality-lossless = Tanpa Rugi (Kualiti CD)
-quality-hires = Resolusi Tinggi (Kualiti Master)
-quality-description-low = 96 kbps AAC - Kurang penggunaan data
-quality-description-high = 320 kbps AAC - Kualiti baik
-quality-description-lossless = FLAC 16-bit/44.1kHz - Kualiti CD
-quality-description-hires = FLAC sehingga 24-bit/192kHz - Kualiti master (memerlukan HiFi Plus)
+quality-description-low = Penggunaan data paling rendah
+quality-description-high = Lossy, tetapi jimat data
+quality-description-lossless = Kualiti CD
+quality-description-hires = Perlukan langganan yang merangkumi penstriman hi-res
 account = Akaun
 about = Perihal
 version = Versi

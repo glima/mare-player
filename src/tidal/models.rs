@@ -927,9 +927,99 @@ impl TrackCredits {
     }
 }
 
+// ── Stream quality ────────────────────────────────────────────────────────────────
+
+/// What TIDAL *actually served* for a stream, as reported by
+/// `playbackinfopostpaywall` — which is not necessarily what we asked for.
+///
+/// The catalog advertises capability (`mediaMetadata.tags` carries
+/// `HIRES_LOSSLESS` on plenty of tracks) and the subscription endpoint reports
+/// a stale MQA-era `highestSoundQuality`, but neither tells you what comes down
+/// the wire for *this* account: TIDAL silently downgrades to whatever the plan
+/// entitles instead of erroring. So the response is the only honest source, and
+/// this is what the now-playing bar shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StreamQuality {
+    /// TIDAL's own label for the served stream: `LOSSLESS`,
+    /// `HI_RES_LOSSLESS`, `HIGH`, `LOW`.
+    pub quality: String,
+    /// Sample rate in Hz, when the response carried one.
+    pub sample_rate: Option<u32>,
+    /// Bit depth, when the response carried one.
+    pub bit_depth: Option<u32>,
+}
+
+impl StreamQuality {
+    /// First badge line — the tier in title case, so it sits quietly next to
+    /// the meter instead of shouting TIDAL's wire constant.
+    ///
+    /// The two known hi-res spellings are given explicitly to match the wording
+    /// of the Settings dropdown (`Hi-Res Lossless`), since the point of the
+    /// badge is to be comparable with what was asked for. Anything
+    /// unrecognised is title-cased word by word.
+    pub fn tier(&self) -> String {
+        match self.quality.as_str() {
+            "HI_RES_LOSSLESS" => "Hi-Res Lossless".to_string(),
+            "HI_RES" => "Hi-Res".to_string(),
+            other => other.split('_').map(Self::title_word).collect::<Vec<_>>().join(" "),
+        }
+    }
+
+    /// `LOSSLESS` → `Lossless`.
+    fn title_word(word: &str) -> String {
+        let mut chars = word.chars();
+        match chars.next() {
+            Some(first) => first.to_uppercase().collect::<String>() + &chars.as_str().to_lowercase(),
+            None => String::new(),
+        }
+    }
+
+    /// Second badge line — `16-bit 44.1 kHz`. `None` when the response carried
+    /// neither number, in which case the badge is just the tier.
+    ///
+    /// The rate is rendered in kHz with one decimal only when it needs it, so
+    /// 44100 reads "44.1 kHz" and 96000 reads "96 kHz".
+    pub fn spec(&self) -> Option<String> {
+        match (self.bit_depth, self.sample_rate) {
+            (Some(bits), Some(rate)) => Some(format!("{}-bit {}", bits, Self::khz(rate))),
+            (None, Some(rate)) => Some(Self::khz(rate)),
+            (Some(bits), None) => Some(format!("{bits}-bit")),
+            (None, None) => None,
+        }
+    }
+
+    /// `44100` → `"44.1 kHz"`, `96000` → `"96 kHz"`.
+    fn khz(rate: u32) -> String {
+        if rate.is_multiple_of(1000) { format!("{} kHz", rate / 1000) } else { format!("{:.1} kHz", rate as f32 / 1000.0) }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stream_quality_label() {
+        let lossless = StreamQuality { quality: "LOSSLESS".into(), sample_rate: Some(44100), bit_depth: Some(16) };
+        assert_eq!(lossless.tier(), "Lossless");
+        assert_eq!(lossless.spec().as_deref(), Some("16-bit 44.1 kHz"));
+
+        // Matches the Settings dropdown's wording, not the wire constant.
+        let hires = StreamQuality { quality: "HI_RES_LOSSLESS".into(), sample_rate: Some(96000), bit_depth: Some(24) };
+        assert_eq!(hires.tier(), "Hi-Res Lossless");
+        assert_eq!(hires.spec().as_deref(), Some("24-bit 96 kHz"));
+
+        // Anything unrecognised still renders readably.
+        let unknown = StreamQuality { quality: "SOME_NEW_TIER".into(), sample_rate: None, bit_depth: None };
+        assert_eq!(unknown.tier(), "Some New Tier");
+
+        // Partial data still renders something useful.
+        let bare = StreamQuality { quality: "HIGH".into(), sample_rate: None, bit_depth: None };
+        assert_eq!(bare.tier(), "High");
+        assert_eq!(bare.spec(), None);
+        let rate_only = StreamQuality { quality: "LOSSLESS".into(), sample_rate: Some(88200), bit_depth: None };
+        assert_eq!(rate_only.spec().as_deref(), Some("88.2 kHz"));
+    }
 
     #[test]
     fn track_credits_empty_and_roundtrip() {

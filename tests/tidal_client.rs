@@ -29,29 +29,29 @@ mod playback_url_as_url {
 
     #[test]
     fn direct_returns_the_url() {
-        let url = PlaybackUrl::Direct("https://example.com/stream.mp4".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com/stream.mp4".to_string(), None, None);
         assert_eq!(url.as_url(), "https://example.com/stream.mp4");
     }
 
     #[test]
     fn dash_manifest_returns_data_uri() {
         // The inline manifest is base64-wrapped into a data: URI for GStreamer.
-        let url = PlaybackUrl::DashManifest("<MPD>hi</MPD>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD>hi</MPD>".to_string(), None, None);
         assert!(url.as_url().starts_with("data:application/dash+xml;base64,"));
     }
 
     #[test]
     fn direct_empty_url() {
-        let url = PlaybackUrl::Direct(String::new(), None);
+        let url = PlaybackUrl::Direct(String::new(), None, None);
         assert_eq!(url.as_url(), "");
     }
 
     #[test]
     fn dash_manifest_data_uri_is_deterministic_per_manifest() {
         // Same manifest -> same URI; different manifest -> different URI.
-        let a = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None);
-        let a2 = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None);
-        let b = PlaybackUrl::DashManifest("<MPD>b</MPD>".to_string(), None);
+        let a = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None, None);
+        let a2 = PlaybackUrl::DashManifest("<MPD>a</MPD>".to_string(), None, None);
+        let b = PlaybackUrl::DashManifest("<MPD>b</MPD>".to_string(), None, None);
         assert_eq!(a.as_url(), a2.as_url());
         assert_ne!(a.as_url(), b.as_url());
     }
@@ -66,13 +66,13 @@ mod playback_url_is_dash {
 
     #[test]
     fn direct_is_not_dash() {
-        let url = PlaybackUrl::Direct("https://example.com/stream".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com/stream".to_string(), None, None);
         assert!(!url.is_dash());
     }
 
     #[test]
     fn dash_manifest_is_dash() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         assert!(url.is_dash());
     }
 }
@@ -86,14 +86,14 @@ mod playback_url_traits {
 
     #[test]
     fn direct_clone() {
-        let url = PlaybackUrl::Direct("https://example.com".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com".to_string(), None, None);
         let cloned = url.clone();
         assert_eq!(url.as_url(), cloned.as_url());
     }
 
     #[test]
     fn dash_manifest_clone() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         let cloned = url.clone();
         assert_eq!(url.as_url(), cloned.as_url());
         assert!(cloned.is_dash());
@@ -102,7 +102,7 @@ mod playback_url_traits {
     #[test]
     fn debug_output_is_nonempty_for_all_variants() {
         let variants: Vec<PlaybackUrl> =
-            vec![PlaybackUrl::Direct("url".to_string(), None), PlaybackUrl::DashManifest("<MPD/>".to_string(), None)];
+            vec![PlaybackUrl::Direct("url".to_string(), None, None), PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None)];
         for v in &variants {
             let dbg = format!("{:?}", v);
             assert!(!dbg.is_empty());
@@ -111,7 +111,7 @@ mod playback_url_traits {
 
     #[test]
     fn debug_direct_contains_url() {
-        let url = PlaybackUrl::Direct("https://test.url".to_string(), None);
+        let url = PlaybackUrl::Direct("https://test.url".to_string(), None, None);
         let dbg = format!("{:?}", url);
         assert!(dbg.contains("Direct"), "Debug should contain variant name");
         assert!(dbg.contains("https://test.url"), "Debug should contain URL");
@@ -119,7 +119,7 @@ mod playback_url_traits {
 
     #[test]
     fn debug_dash_contains_variant_name() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         let dbg = format!("{:?}", url);
         assert!(dbg.contains("DashManifest"), "Debug should contain variant name");
     }
@@ -134,13 +134,13 @@ mod playback_url_exclusivity {
 
     #[test]
     fn direct_has_no_special_flags() {
-        let url = PlaybackUrl::Direct("https://example.com".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com".to_string(), None, None);
         assert!(!url.is_dash());
     }
 
     #[test]
     fn dash_is_dash() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         assert!(url.is_dash());
     }
 }
@@ -1001,75 +1001,75 @@ mod playback_url_replay_gain {
 
     #[test]
     fn direct_none_replay_gain() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), None, None);
         assert_eq!(url.replay_gain_db(), None);
     }
 
     #[test]
     fn direct_some_replay_gain() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-7.4));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-7.4), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-7.4)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn dash_manifest_none_replay_gain() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         assert_eq!(url.replay_gain_db(), None);
     }
 
     #[test]
     fn dash_manifest_some_replay_gain() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.2));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.2), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-3.2)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn replay_gain_zero() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(0.0));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(0.0), None);
         let rg = url.replay_gain_db().unwrap();
         assert!(rg.abs() < f32::EPSILON);
     }
 
     #[test]
     fn replay_gain_positive() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(5.0));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(5.0), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - 5.0).abs() < f32::EPSILON);
     }
 
     #[test]
     fn replay_gain_negative() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-12.3));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-12.3), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-12.3)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn replay_gain_preserved_by_clone() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-4.1));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-4.1), None);
         let cloned = url.clone();
         assert_eq!(url.replay_gain_db(), cloned.replay_gain_db());
     }
 
     #[test]
     fn replay_gain_none_preserved_by_clone() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None);
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), None, None);
         let cloned = url.clone();
         assert_eq!(url.replay_gain_db(), cloned.replay_gain_db());
     }
 
     #[test]
     fn replay_gain_small_fractional() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-0.001));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-0.001), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-0.001)).abs() < f32::EPSILON);
     }
 
     #[test]
     fn replay_gain_large_value() {
-        let url = PlaybackUrl::Direct("https://example.com/loud.mp4".to_string(), Some(-51.0));
+        let url = PlaybackUrl::Direct("https://example.com/loud.mp4".to_string(), Some(-51.0), None);
         let rg = url.replay_gain_db().unwrap();
         assert!((rg - (-51.0)).abs() < f32::EPSILON);
     }
@@ -1084,37 +1084,37 @@ mod playback_url_combined {
 
     #[test]
     fn direct_with_gain_is_not_dash() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-5.0));
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), Some(-5.0), None);
         assert!(!url.is_dash());
         assert!(url.replay_gain_db().is_some());
     }
 
     #[test]
     fn dash_with_gain_is_dash() {
-        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.0));
+        let url = PlaybackUrl::DashManifest("<MPD/>".to_string(), Some(-3.0), None);
         assert!(url.is_dash());
         assert!(url.replay_gain_db().is_some());
     }
 
     #[test]
     fn direct_without_gain_has_none_replay_gain() {
-        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), None);
+        let url = PlaybackUrl::Direct("https://example.com/s.mp4".to_string(), None, None);
         assert!(!url.is_dash());
         assert!(url.replay_gain_db().is_none());
     }
 
     #[test]
     fn as_url_works_regardless_of_replay_gain() {
-        let url1 = PlaybackUrl::Direct("https://a.com/1.mp4".to_string(), None);
-        let url2 = PlaybackUrl::Direct("https://a.com/1.mp4".to_string(), Some(-4.0));
+        let url1 = PlaybackUrl::Direct("https://a.com/1.mp4".to_string(), None, None);
+        let url2 = PlaybackUrl::Direct("https://a.com/1.mp4".to_string(), Some(-4.0), None);
         assert_eq!(url1.as_url(), url2.as_url());
     }
 
     #[test]
     fn dash_as_url_works_regardless_of_replay_gain() {
         let m = "<MPD/>".to_string();
-        let url1 = PlaybackUrl::DashManifest(m.clone(), None);
-        let url2 = PlaybackUrl::DashManifest(m, Some(-2.0));
+        let url1 = PlaybackUrl::DashManifest(m.clone(), None, None);
+        let url2 = PlaybackUrl::DashManifest(m, Some(-2.0), None);
         assert_eq!(url1.as_url(), url2.as_url());
     }
 }

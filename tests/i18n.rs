@@ -200,9 +200,12 @@ mod fl_macro {
     #[test]
     fn fl_quality_keys_all_resolve() {
         cosmic_applet_mare::i18n::init(&[]);
-        assert!(!cosmic_applet_mare::fl!("quality-low").is_empty());
-        assert!(!cosmic_applet_mare::fl!("quality-high").is_empty());
-        assert!(!cosmic_applet_mare::fl!("quality-lossless").is_empty());
-        assert!(!cosmic_applet_mare::fl!("quality-hires").is_empty());
+        // The dropdown's own labels come from `AudioQuality::display_name()`
+        // (see its docs for why they aren't localized); the prose beneath it is
+        // what Fluent supplies.
+        assert!(!cosmic_applet_mare::fl!("quality-description-low").is_empty());
+        assert!(!cosmic_applet_mare::fl!("quality-description-high").is_empty());
+        assert!(!cosmic_applet_mare::fl!("quality-description-lossless").is_empty());
+        assert!(!cosmic_applet_mare::fl!("quality-description-hires").is_empty());
     }
 }

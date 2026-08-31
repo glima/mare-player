@@ -104,14 +104,10 @@ debug-unoptimized = (최적화되지 않음)
 
 # Settings
 audio-quality = 오디오 음질
-quality-low = 낮음 (96 kbps)
-quality-high = 높음 (320 kbps)
-quality-lossless = 무손실 (CD 음질)
-quality-hires = 고해상도 (마스터 음질)
-quality-description-low = 96 kbps AAC - 데이터 사용량 적음
-quality-description-high = 320 kbps AAC - 좋은 음질
-quality-description-lossless = FLAC 16비트/44.1kHz - CD 음질
-quality-description-hires = FLAC 최대 24비트/192kHz - 마스터 음질 (HiFi Plus 필요)
+quality-description-low = 데이터 사용량 최소
+quality-description-high = 손실 압축이지만 데이터 사용량 적음
+quality-description-lossless = CD 음질
+quality-description-hires = 고해상도 스트리밍이 포함된 구독 필요
 account = 계정
 about = 정보
 version = 버전

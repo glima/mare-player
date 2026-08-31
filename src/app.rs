@@ -138,6 +138,7 @@ impl cosmic::Application for AppModel {
             selected_track_lyrics: None,
             current_lyric_index: None,
             now_playing_lyrics: None,
+            now_playing_quality: None,
             selected_credits_track: None,
             selected_track_credits: None,
             selected_detail_track: None,

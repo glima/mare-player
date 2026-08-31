@@ -24,13 +24,26 @@ pub enum AudioQuality {
 }
 
 impl AudioQuality {
-    /// Get display name for the quality setting
+    /// Label for the Settings dropdown: TIDAL's tier name plus what it actually
+    /// delivers.
+    ///
+    /// Deliberately the same vocabulary the now-playing badge uses for the
+    /// *served* stream, so "what I asked for" and "what I'm getting" can be
+    /// compared directly, and phrased like TIDAL's own client ("16-bit,
+    /// 44.1 kHz" / "Up to 24-bit, 192 kHz").
+    ///
+    /// Not localized, for the same reason the log-level dropdown isn't: the
+    /// content is TIDAL's tier names and unit-bearing specs. The badge renders
+    /// the tier straight from the API response, so translating this side alone
+    /// would put the two halves of that comparison in different languages. The
+    /// prose *underneath* the dropdown (`quality-description-*`) is localized —
+    /// that's where anything explanatory belongs.
     pub fn display_name(&self) -> &'static str {
         match self {
-            AudioQuality::Low => "Low (96 kbps)",
-            AudioQuality::High => "High (320 kbps)",
-            AudioQuality::Lossless => "Lossless (CD Quality)",
-            AudioQuality::HiRes => "Hi-Res (Master Quality)",
+            AudioQuality::Low => "Low — 96 kbps AAC",
+            AudioQuality::High => "High — 320 kbps AAC",
+            AudioQuality::Lossless => "Lossless — 16-bit, 44.1 kHz",
+            AudioQuality::HiRes => "Hi-Res Lossless — up to 24-bit, 192 kHz",
         }
     }
 
@@ -41,6 +54,22 @@ impl AudioQuality {
             AudioQuality::High => tidlers::client::models::playback::AudioQuality::High,
             AudioQuality::Lossless => tidlers::client::models::playback::AudioQuality::Lossless,
             AudioQuality::HiRes => tidlers::client::models::playback::AudioQuality::HiRes,
+        }
+    }
+
+    /// The string TIDAL's `audioquality` request parameter expects.
+    ///
+    /// Deliberately not derived from [`Self::to_tidlers`]: tidlers renders its
+    /// `HiRes` as `HI_RES`, the MQA-era tier TIDAL retired, and asking for a
+    /// tier that no longer exists earns a silent downgrade to `LOSSLESS`. The
+    /// FLAC hi-res tier — "Max" in TIDAL's own UI, up to 24-bit / 192 kHz — is
+    /// `HI_RES_LOSSLESS`.
+    pub fn tidal_param(self) -> &'static str {
+        match self {
+            AudioQuality::Low => "LOW",
+            AudioQuality::High => "HIGH",
+            AudioQuality::Lossless => "LOSSLESS",
+            AudioQuality::HiRes => "HI_RES_LOSSLESS",
         }
     }
 }

@@ -14,17 +14,15 @@
 use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
 use super::models::{
     Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity,
-    FeedItem, Mix, PageLink, Playlist, SearchResults, Track, TrackCredits, TrackLyrics, tidal_cover_url, tidal_promo_image_url,
+    FeedItem, Mix, PageLink, Playlist, SearchResults, StreamQuality, Track, TrackCredits, TrackLyrics, tidal_cover_url,
+    tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::{AUTHORIZATION, HeaderMap, HeaderValue};
 use serde::Deserialize;
+use std::collections::HashSet;
 use std::sync::Arc;
-use tidlers::{
-    TidalClient,
-    auth::TidalAuth,
-    client::models::{collection::favorites::FavoriteResourceType, playback::AudioQuality},
-};
+use tidlers::{TidalClient, auth::TidalAuth, client::models::collection::favorites::FavoriteResourceType};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
@@ -57,11 +55,11 @@ fn is_tidlers_network_error(e: &tidlers::error::TidalError) -> bool {
 #[derive(Debug, Clone)]
 pub enum PlaybackUrl {
     /// Direct streaming URL (for Low/High/Lossless quality)
-    Direct(String, Option<f32>),
+    Direct(String, Option<f32>, Option<StreamQuality>),
     /// Inline DASH manifest XML (for HiRes quality). Played through a `data:`
     /// URI so nothing is written to disk; its embedded segment URLs are
     /// absolute and carry short-lived tokens.
-    DashManifest(String, Option<f32>),
+    DashManifest(String, Option<f32>, Option<StreamQuality>),
 }
 
 impl PlaybackUrl {
@@ -78,8 +76,8 @@ impl PlaybackUrl {
     /// manifests would not work inline — but TIDAL doesn't serve those here.
     pub fn as_url(&self) -> String {
         match self {
-            PlaybackUrl::Direct(url, _) => url.clone(),
-            PlaybackUrl::DashManifest(manifest, _) => {
+            PlaybackUrl::Direct(url, _, _) => url.clone(),
+            PlaybackUrl::DashManifest(manifest, _, _) => {
                 let b64 = general_purpose::STANDARD.encode(manifest.as_bytes());
                 format!("data:application/dash+xml;base64,{b64}")
             }
@@ -94,7 +92,16 @@ impl PlaybackUrl {
     /// Get the replay gain value in dB, if available from the TIDAL API.
     pub fn replay_gain_db(&self) -> Option<f32> {
         match self {
-            PlaybackUrl::Direct(_, rg) | PlaybackUrl::DashManifest(_, rg) => *rg,
+            PlaybackUrl::Direct(_, rg, _) | PlaybackUrl::DashManifest(_, rg, _) => *rg,
+        }
+    }
+
+    /// What TIDAL actually served for this stream, when the response said so.
+    /// See [`StreamQuality`] for why the response is the only trustworthy
+    /// source of that.
+    pub fn stream_quality(&self) -> Option<StreamQuality> {
+        match self {
+            PlaybackUrl::Direct(_, _, q) | PlaybackUrl::DashManifest(_, _, q) => q.clone(),
         }
     }
 }
@@ -106,7 +113,7 @@ impl std::fmt::Display for PlaybackUrl {
     /// tokens). Never print the raw URL / manifest in logs.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PlaybackUrl::Direct(url, rg) => {
+            PlaybackUrl::Direct(url, rg, _) => {
                 let base = url.split('?').next().unwrap_or(url);
                 write!(f, "Direct({base}")?;
                 if let Some(rg) = rg {
@@ -114,7 +121,7 @@ impl std::fmt::Display for PlaybackUrl {
                 }
                 write!(f, ")")
             }
-            PlaybackUrl::DashManifest(manifest, rg) => {
+            PlaybackUrl::DashManifest(manifest, rg, _) => {
                 write!(f, "DashManifest(<inline manifest, {} bytes>", manifest.len())?;
                 if let Some(rg) = rg {
                     write!(f, ", {rg:+.2}dB")?;
@@ -330,7 +337,14 @@ pub struct TidalAppClient {
     /// Authentication manager
     auth_manager: AuthManager,
     /// Current audio quality setting
-    audio_quality: AudioQuality,
+    audio_quality: crate::config::AudioQuality,
+    /// Track ids we've already logged a quality downgrade for.
+    ///
+    /// TIDAL serving a lower tier than we asked for is a standing property of
+    /// the account, not an event, and every track resolves twice (once to play,
+    /// once to preload for gapless) — so the warning fires once per track id
+    /// rather than once per resolution.
+    warned_downgrades: Arc<std::sync::Mutex<HashSet<String>>>,
 }
 
 impl Default for TidalAppClient {
@@ -418,7 +432,12 @@ impl TidalAppClient {
 
     /// Create a new TidalAppClient
     pub fn new() -> Self {
-        Self { client: Arc::new(Mutex::new(None)), auth_manager: AuthManager::new(), audio_quality: AudioQuality::High }
+        Self {
+            client: Arc::new(Mutex::new(None)),
+            auth_manager: AuthManager::new(),
+            audio_quality: crate::config::AudioQuality::High,
+            warned_downgrades: Arc::new(std::sync::Mutex::new(HashSet::new())),
+        }
     }
 
     /// Get the current authentication state
@@ -439,12 +458,17 @@ impl TidalAppClient {
     }
 
     /// Set the audio quality for playback
-    pub async fn set_audio_quality(&mut self, quality: AudioQuality) {
+    pub async fn set_audio_quality(&mut self, quality: crate::config::AudioQuality) {
         info!("Setting audio quality to: {:?}", quality);
-        self.audio_quality = quality.clone();
+        self.audio_quality = quality;
+        // A different tier may or may not be entitled, so let the downgrade
+        // warning speak once more per track under the new setting.
+        if let Ok(mut seen) = self.warned_downgrades.lock() {
+            seen.clear();
+        }
         let mut client_guard = self.client.lock().await;
         if let Some(client) = client_guard.as_mut() {
-            client.set_audio_quality(quality);
+            client.set_audio_quality(quality.to_tidlers());
         }
     }
 
@@ -679,7 +703,7 @@ impl TidalAppClient {
                             info!("Token will expire in {}s (~{})", remaining, format_duration(remaining),);
                         }
 
-                        client.set_audio_quality(self.audio_quality.clone());
+                        client.set_audio_quality(self.audio_quality.to_tidlers());
                         *self.client.lock().await = Some(client);
                         self.auth_manager.set_state(AuthState::Authenticated { profile });
 
@@ -828,7 +852,7 @@ impl TidalAppClient {
                     warn!("Failed to store credentials: {}", e);
                 }
 
-                client.set_audio_quality(self.audio_quality.clone());
+                client.set_audio_quality(self.audio_quality.to_tidlers());
                 // Drop the lock before calling fetch_and_set_subscription_plan
                 // which needs &mut self (and internally re-acquires the lock).
                 drop(client_guard);
@@ -1249,7 +1273,7 @@ impl TidalAppClient {
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
 
-        info!("Getting playback URL for track: {} with quality: {:?} (cache miss)", track_id, self.audio_quality);
+        info!("Getting playback URL for track: {} with quality: {:?}", track_id, self.audio_quality);
 
         // Get auth info for our own request (we need the raw manifest)
         let access_token = client.session.auth.access_token.as_ref().ok_or_else(|| {
@@ -1261,7 +1285,9 @@ impl TidalAppClient {
 
         let url = format!(
             "https://api.tidal.com/v1/tracks/{}/playbackinfopostpaywall?audioquality={}&playbackmode=STREAM&assetpresentation=FULL&countryCode={}",
-            track_id, self.audio_quality, country_code
+            track_id,
+            self.audio_quality.tidal_param(),
+            country_code
         );
 
         let http_client = reqwest::Client::new();
@@ -1291,13 +1317,36 @@ impl TidalAppClient {
 
         let audio_mode = parsed.get("audioMode").and_then(|v| v.as_str()).unwrap_or("unknown");
 
+        // What TIDAL *actually served*, which is not necessarily what we asked
+        // for: the backend silently downgrades to whatever the subscription
+        // entitles rather than erroring. This is the only trustworthy source
+        // for the badge the now-playing bar shows.
+        let sample_rate = parsed.get("sampleRate").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let bit_depth = parsed.get("bitDepth").and_then(|v| v.as_u64()).map(|v| v as u32);
+        let stream_quality =
+            (audio_quality != "unknown").then(|| StreamQuality { quality: audio_quality.to_string(), sample_rate, bit_depth });
+
+        if let Some(served) = &stream_quality {
+            let requested = self.audio_quality.tidal_param();
+            if served.quality != requested {
+                // Once per track id — see `warned_downgrades`.
+                let first_time = self.warned_downgrades.lock().map(|mut seen| seen.insert(track_id.to_string())).unwrap_or(true);
+                if first_time {
+                    warn!(
+                        "TIDAL downgraded the stream: requested {}, served {} — the account's plan doesn't entitle the requested tier",
+                        requested, served.quality
+                    );
+                }
+            }
+        }
+
         let replay_gain_db = parsed.get("albumReplayGain").and_then(|v| v.as_f64()).map(|v| v as f32);
 
         let peak_amplitude = parsed.get("albumPeakAmplitude").and_then(|v| v.as_f64()).map(|v| v as f32);
 
         info!(
-            "Playback info received - audio_quality: {}, audio_mode: {}, manifest_mime_type: {}, replay_gain: {:?} dB, peak: {:?}",
-            audio_quality, audio_mode, manifest_mime_type, replay_gain_db, peak_amplitude
+            "Playback info received - audio_quality: {}, audio_mode: {}, manifest_mime_type: {}, sample_rate: {:?}, bit_depth: {:?}, replay_gain: {:?} dB, peak: {:?}",
+            audio_quality, audio_mode, manifest_mime_type, sample_rate, bit_depth, replay_gain_db, peak_amplitude
         );
 
         let manifest_b64 = parsed
@@ -1323,7 +1372,7 @@ impl TidalAppClient {
             // writing it to disk — see `PlaybackUrl::as_url`. The manifest is
             // single-use anyway (its segment URLs carry short-lived tokens), so
             // there is nothing worth persisting.
-            return Ok(PlaybackUrl::DashManifest(manifest_str, replay_gain_db));
+            return Ok(PlaybackUrl::DashManifest(manifest_str, replay_gain_db, stream_quality));
         }
 
         // For non-DASH (JSON manifest with direct URLs)
@@ -1335,7 +1384,7 @@ impl TidalAppClient {
             && let Some(url_str) = first_url.as_str()
         {
             info!("Got direct playback URL");
-            return Ok(PlaybackUrl::Direct(url_str.to_string(), replay_gain_db));
+            return Ok(PlaybackUrl::Direct(url_str.to_string(), replay_gain_db, stream_quality));
         }
 
         Err(TidalError::RequestFailed("No playback URL available".to_string()))

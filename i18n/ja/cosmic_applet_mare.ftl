@@ -104,14 +104,10 @@ debug-unoptimized = （未最適化）
 
 # 設定
 audio-quality = オーディオ品質
-quality-low = 低 (96 kbps)
-quality-high = 高 (320 kbps)
-quality-lossless = ロスレス (CD品質)
-quality-hires = ハイレゾ (マスター品質)
-quality-description-low = 96 kbps AAC - データ使用量が少ない
-quality-description-high = 320 kbps AAC - 高音質
-quality-description-lossless = FLAC 16ビット/44.1kHz - CD品質
-quality-description-hires = FLAC 最大24ビット/192kHz - マスター品質（HiFi Plusが必要）
+quality-description-low = データ使用量が最小
+quality-description-high = 非可逆圧縮だがデータ使用量は控えめ
+quality-description-lossless = CD品質
+quality-description-hires = ハイレゾ配信に対応したプランが必要
 account = アカウント
 about = このアプリについて
 version = バージョン

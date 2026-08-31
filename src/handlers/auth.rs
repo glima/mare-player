@@ -18,7 +18,7 @@ impl AppModel {
     /// Attempt to restore a previous session from stored credentials
     pub(crate) fn restore_session(&self) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
-        let audio_quality = self.config.audio_quality.to_tidlers();
+        let audio_quality = self.config.audio_quality;
         Task::perform(
             async move {
                 let mut client = client.lock().await;
@@ -33,7 +33,7 @@ impl AppModel {
     /// Start the OAuth device code flow
     pub(crate) fn start_oauth_flow(&self) -> Task<cosmic::Action<Message>> {
         let client = self.tidal_client.clone();
-        let audio_quality = self.config.audio_quality.to_tidlers();
+        let audio_quality = self.config.audio_quality;
         Task::perform(
             async move {
                 let mut client = client.lock().await;
@@ -177,7 +177,7 @@ impl AppModel {
                 self.error_message = Some("Network unavailable, retrying\u{2026}".into());
                 self.is_loading = true;
                 let client = self.tidal_client.clone();
-                let aq = self.config.audio_quality.to_tidlers();
+                let aq = self.config.audio_quality;
                 Task::perform(
                     async move {
                         tokio::time::sleep(std::time::Duration::from_secs(5)).await;

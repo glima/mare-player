@@ -104,14 +104,10 @@ debug-unoptimized = (optimize edilmemiş)
 
 # Ayarlar
 audio-quality = Ses Kalitesi
-quality-low = Düşük (96 kbps)
-quality-high = Yüksek (320 kbps)
-quality-lossless = Kayıpsız (CD Kalitesi)
-quality-hires = Yüksek Çözünürlük (Master Kalitesi)
-quality-description-low = 96 kbps AAC - Daha az veri kullanır
-quality-description-high = 320 kbps AAC - İyi kalite
-quality-description-lossless = FLAC 16-bit/44,1kHz - CD kalitesi
-quality-description-hires = FLAC 24-bit/192kHz'e kadar - Master kalitesi (HiFi Plus gerektirir)
+quality-description-low = En az veri kullanımı
+quality-description-high = Kayıplı ama az veri kullanır
+quality-description-lossless = CD kalitesi
+quality-description-hires = Yüksek çözünürlüklü yayın içeren abonelik gerektirir
 account = Hesap
 about = Hakkında
 version = Sürüm
