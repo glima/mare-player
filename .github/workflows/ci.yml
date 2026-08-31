@@ -20,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # `cog check --from-latest-tag` needs history and tags
 
       - name: Install system dependencies
         run: |
@@ -55,6 +57,12 @@ jobs:
 
       - name: Install cargo-deny
         uses: taiki-e/install-action@e7755904d936cb033d6d742aa409597c6a104079 # cargo-deny
+
+      # `cog check` needs history and tags to know where the last release was.
+      - name: Install cocogitto
+        uses: cocogitto/cocogitto-action@9a9fe03b31c47444290c0d7f9b1ee1b44ee13f20 # v4.1.0
+        with:
+          install-only: true
 
       - name: Cache cargo registry and build artifacts
         # Without this the job compiles all ~870 crates on every push. The key

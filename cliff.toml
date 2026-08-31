@@ -1,0 +1,49 @@
+# Release-note generation (git-cliff), used by .github/workflows/release.yml.
+#
+# The rule that matters: every conventional commit lands somewhere. Types get
+# their own section, and anything not listed falls into "Other changes"
+# instead of being dropped — a release note that silently omits a commit is
+# worse than an untidy one. `release:` commits are the sole exception; they
+# carry no information a reader wants.
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+## {{ group }}
+
+{% for commit in commits %}\
+- {{ commit.message | upper_first }}\
+{% if commit.breaking %} **(breaking)**{% endif %}
+{% endfor %}
+{% endfor %}
+"""
+trim = true
+footer = ""
+
+[git]
+conventional_commits = true
+filter_unconventional = false      # keep them, grouped under "Other changes"
+split_commits = false
+protect_breaking_commits = true    # a breaking change is never filtered out
+filter_commits = false
+topo_order = false
+sort_commits = "oldest"
+
+commit_parsers = [
+    { message = "^release", skip = true },
+    { message = "^chore\\(deps\\)", group = "Dependencies" },
+    { body = ".*BREAKING CHANGE", group = "Breaking changes" },
+    { message = "^[a-z]+(\\(.*\\))?!:", group = "Breaking changes" },
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug fixes" },
+    { message = "^security", group = "Security" },
+    { message = "^perf", group = "Performance" },
+    { message = "^license", group = "Licensing" },
+    { message = "^deps", group = "Dependencies" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^packaging", group = "Packaging" },
+    { message = "^ci", group = "CI" },
+    { message = "^(build|chore|refactor|test|style)", group = "Maintenance" },
+    { message = ".*", group = "Other changes" },
+]

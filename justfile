@@ -98,6 +98,16 @@ check *args:
     else
         echo "cargo-machete not found, skipping unused import check (install with: cargo install cargo-machete)"
     fi
+    echo "Checking commit messages..."
+    if command -v cog >/dev/null 2>&1; then
+        # Conventional Commits, from the last tag forward — the history before
+        # the convention stays as it is. Types beyond the defaults are declared
+        # in cog.toml, and each one has a section in cliff.toml, so a subject
+        # that passes here cannot fall out of the release notes.
+        cog check --from-latest-tag || exit 1
+    else
+        echo "cocogitto not found, skipping commit-message check (install with: cargo install cocogitto)"
+    fi
     echo "Checking dependency licences..."
     if command -v cargo-deny >/dev/null 2>&1; then
         # Allow list and exceptions live in deny.toml. The project is

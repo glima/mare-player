@@ -1,0 +1,20 @@
+# Conventional-commit rules, enforced by `just check` (cocogitto).
+#
+# CONTRIBUTING.md states the format; this is what makes it true. The check
+# runs over commits since the last tag, so the pre-convention history stays
+# untouched while everything new has to conform.
+
+# Tags are `vX.Y.Z`; without this cog looks for bare versions and finds none.
+tag_prefix = "v"
+branch_whitelist = ["main"]
+ignore_merge_commits = true
+
+# Types beyond the conventional defaults. Each one earns its place by being a
+# kind of change that reads badly as `chore(x)` — and each has a home in
+# cliff.toml, so nothing declared here can fall out of the release notes.
+[commit_types]
+security = { changelog_title = "Security" }
+deps = { changelog_title = "Dependencies" }
+packaging = { changelog_title = "Packaging" }
+license = { changelog_title = "Licensing" }
+release = { changelog_title = "Releases", omit_from_changelog = true }

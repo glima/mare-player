@@ -192,45 +192,27 @@ jobs:
       - name: Stage provenance bundle as a release asset
         run: cp "${{ steps.attest.outputs.bundle-path }}" release/provenance.sigstore
 
+      - name: Install git-cliff
+        uses: taiki-e/install-action@d8ae1fa96886bc82c05515b8ac15b41515da2c6d # git-cliff
+
       - name: Generate release notes from commits
         run: |
           set -euo pipefail
+          # Grouping and the catch-all live in cliff.toml, so a commit type
+          # nobody thought about lands under "Other changes" instead of
+          # disappearing — which is how the GPL-3.0 relicense went missing from
+          # the v0.3.2 notes.
+          git-cliff --current --strip header --output RELEASE_NOTES.md
+
           TAG="${GITHUB_REF#refs/tags/}"
           PREV=$(git describe --tags --abbrev=0 --match 'v[0-9]*' "${TAG}^" 2>/dev/null || true)
-          if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="$TAG"; fi
-
-          # Emit a markdown section for commits whose conventional-commit type
-          # matches $1; strips the `type(scope):` prefix and bullets each line.
-          section() {
-            local body
-            body=$(git log "$RANGE" --no-merges --pretty='%s' \
-              | grep -iE "^($1)(\([^)]*\))?!?:" \
-              | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?:[[:space:]]*//' \
-              | sed -E 's/^(.)/- \U\1/' || true)
-            [ -n "$body" ] && printf '## %s\n\n%s\n\n' "$2" "$body" || true
-          }
-
-          {
-            section 'feat' '✨ Features'
-            section 'fix' '🐛 Bug Fixes'
-            section 'ui' '🎨 UI & UX'
-            section 'perf' '⚡ Performance'
-            section 'build|chore|refactor|test' '🔧 Maintenance & Dependencies'
-            section 'ci' '🤖 CI'
-            section 'docs' '📝 Documentation'
-            if [ -n "$PREV" ]; then
-              printf '**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
-                "$GITHUB_REPOSITORY" "$PREV" "$TAG"
-            fi
-          } > RELEASE_NOTES.md
+          if [ -n "$PREV" ]; then
+            printf '\n**Full Changelog**: https://github.com/%s/compare/%s...%s\n' \
+              "$GITHUB_REPOSITORY" "$PREV" "$TAG" >> RELEASE_NOTES.md
+          fi
           echo '----- generated release notes -----'
           cat RELEASE_NOTES.md
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v2
-        with:
-          name: ${{ steps.meta.outputs.release_name }}
-          draft: false
           body_path: RELEASE_NOTES.md
           files: |
             release/*.deb

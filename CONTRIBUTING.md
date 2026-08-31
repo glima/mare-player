@@ -33,7 +33,8 @@ dependencies.
   welcome.
 
 - Optional, but what CI uses:
-  `cargo install cargo-nextest cargo-machete cargo-audit cargo-llvm-cov`.
+  `cargo install cargo-nextest cargo-machete cargo-audit cargo-llvm-cov \
+  cargo-deny cocogitto`.
   The recipes fall back or skip when a tool is missing, so you can start
   without them.
 
@@ -82,6 +83,8 @@ cargo fmt --all     # or `just fmt`
   `src/` should not. If you need one, the exception belongs in a comment
   saying why it is safe.
 - **`cargo machete`** fails on dependencies nothing imports.
+- **`cog check`** fails on a commit message that isn't a Conventional
+  Commit — see below.
 - **`cargo deny check licenses`** fails on a dependency whose licence
   isn't GPL-3.0-compatible — see below.
 - **`cargo audit`** fails on advisories. If an advisory is unreachable or
@@ -116,8 +119,13 @@ BREAKING CHANGE: only when a user has to do something differently.
 ```
 
 - **Types**: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`,
-  `ci`, `chore`, `style`. A `!` before the colon marks a breaking change and
-  pairs with a `BREAKING CHANGE:` trailer.
+  `ci`, `chore`, `style`, plus `security`, `deps`, `packaging`, `license` and
+  `release`. That list is [`cog.toml`](./cog.toml), and it is checked: `just
+  check` runs `cog check --from-latest-tag`, so an unknown type or a
+  non-conventional subject fails the build. Each type also has a section in
+  [`cliff.toml`](./cliff.toml), so anything that passes the check appears in
+  the release notes. A `!` before the colon marks a breaking change, pairs
+  with a `BREAKING CHANGE:` trailer, and earns its own section.
 - **Scopes** are the area touched, not the file: `auth`, `playback`,
   `quality`, `cache`, `ui`, `nav`, `lyrics`, `video`, `deps`, `audit`, `i18n`.
 - **Bodies matter more than summaries.** Say what the behaviour was, what it
