@@ -47,8 +47,23 @@ jobs:
         with:
           languages: rust
 
+      # Same dependency cache as CI, under its own key: CodeQL builds through
+      # its extractor, so its artifacts are not interchangeable with the ones
+      # the build or coverage jobs produce.
+      - name: Cache cargo registry and build artifacts
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          shared-key: codeql
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
       - name: Build
-        run: cargo build --verbose
+        run: |
+          # The extractor builds its database by watching the compiler work, so
+          # our own crates have to compile here even on a cache hit — only the
+          # dependencies are safe to restore. Without this, a push that changed
+          # nothing cargo cares about would analyse almost nothing.
+          cargo clean -p cosmic-applet-mare -p mare-video-window
+          cargo build --verbose
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
