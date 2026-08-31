@@ -43,8 +43,24 @@ jobs:
       - name: Install cargo-nextest
         uses: taiki-e/install-action@8e6bcdad38b75e3ed7b36872031a94f7c61006cc # cargo-nextest
 
-      - name: Build
-        run: cargo build --workspace --verbose
+      - name: Cache cargo registry and build artifacts
+        # Without this the job compiles all ~870 crates on every push. The key
+        # follows Cargo.lock, so dependencies are built once per lockfile
+        # change; `save-if` keeps pull requests restoring without each of them
+        # writing an entry, since the repo cache is capped at 10 GB and evicts
+        # by age.
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          shared-key: ci-build
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      # `just check` (clippy + `cargo test --no-run`) and `just test-matrix`
+      # both compile the root package, so the workspace build that used to sit
+      # here only added a fourth compile of it. What they never touch is the
+      # companion binary, which is a separate workspace member — so build that
+      # alone, and let the steps below cover the rest.
+      - name: Build mare-video-window
+        run: cargo build -p mare-video-window
 
       - name: Check/sanitize
         run: just check
@@ -90,6 +106,15 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@e5de28abeb52d916c5e5875d54b21a9e738b61ec # cargo-llvm-cov
+
+      - name: Cache cargo registry and build artifacts
+        # Kept separate from ci-build: llvm-cov compiles the tree with coverage
+        # instrumentation, so none of those artifacts are interchangeable with
+        # the ones the build job produces.
+        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        with:
+          shared-key: ci-coverage
+          save-if: ${{ github.ref == 'refs/heads/main' }}
 
       - name: Generate LCOV coverage report
         run: just coverage-summary && cargo llvm-cov report --lcov --output-path lcov.info --ignore-filename-regex '/tests?/|/target/'
