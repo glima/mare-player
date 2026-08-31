@@ -58,11 +58,21 @@ jobs:
       - name: Install cargo-deny
         uses: taiki-e/install-action@e7755904d936cb033d6d742aa409597c6a104079 # cargo-deny
 
-      # `cog check` needs history and tags to know where the last release was.
+      # cocogitto has no install-action entry, and cocogitto-action's
+      # `install-only` input exists only on its unreleased main — pinning the
+      # v4.1.0 release ran its `cog` step with no command and failed the job.
+      # So: the published binary, checksum-pinned, leaving `just check` as the
+      # single place the gate is defined.
       - name: Install cocogitto
-        uses: cocogitto/cocogitto-action@9a9fe03b31c47444290c0d7f9b1ee1b44ee13f20 # v4.1.0
-        with:
-          install-only: true
+        run: |
+          set -euo pipefail
+          ver=7.0.0
+          url="https://github.com/cocogitto/cocogitto/releases/download/${ver}/cocogitto-${ver}-x86_64-unknown-linux-musl.tar.gz"
+          curl -sSfL "$url" -o /tmp/cog.tgz
+          echo "e03938ff2c4c86d71c00c0f3284dbbe95c5ca76fe34a51f33e945c23010d59bb  /tmp/cog.tgz" | sha256sum -c -
+          tar xzf /tmp/cog.tgz -C /tmp
+          install -Dm755 /tmp/x86_64-unknown-linux-musl/cog "$HOME/.local/bin/cog"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Cache cargo registry and build artifacts
         # Without this the job compiles all ~870 crates on every push. The key
