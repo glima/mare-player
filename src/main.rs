@@ -80,7 +80,38 @@ fn start_pprof_profiler() -> std::sync::Arc<AtomicBool> {
     running
 }
 
+/// Hand a sign-in callback to the running Maré and report whether it landed.
+///
+/// The browser launches us with `tidal://login/auth?code=…` after the user
+/// signs in. Only the process that started the login holds the PKCE code
+/// verifier, so this one forwards the URI over the session bus and gets out of
+/// the way rather than opening a second player.
+fn forward_login_callback(uri: &str) -> i32 {
+    let result = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .map_err(|e| format!("failed to start a runtime: {e}"))
+        .and_then(|rt| rt.block_on(cosmic_applet_mare::tidal::login_uri::forward_to_running_instance(uri)));
+
+    match result {
+        Ok(()) => 0,
+        Err(e) => {
+            eprintln!("Maré Player: could not deliver the TIDAL sign-in: {e}");
+            1
+        }
+    }
+}
+
 fn main() -> cosmic::iced::Result {
+    // A `tidal://` URI means the browser is returning from a TIDAL sign-in.
+    // Handle it before touching the UI: this process exists only to pass the
+    // URI along.
+    if let Some(uri) = std::env::args().nth(1)
+        && uri.starts_with(&format!("{}://", cosmic_applet_mare::tidal::login_uri::CALLBACK_SCHEME))
+    {
+        std::process::exit(forward_login_callback(&uri));
+    }
+
     // Initialize tracing with filters to reduce noise
     // Filter out noisy warnings from iced_futures subscription tracker
     let mut filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));

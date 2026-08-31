@@ -15,16 +15,17 @@
 //! entry carries a JSON `MessageBody` with the actual `playback_session`
 //! event, plus a `Headers` MessageAttribute with identity metadata.
 //!
-//! ## Body shape: mimic Android (not Web)
+//! ## Body shape: mimic a mobile client (not Web)
 //!
 //! The downstream `play_log` consumer routes events into Recently
 //! Played only when the body looks like it came from a mobile client.
 //! Both the iOS and Android SDKs include `user` and `client` objects
 //! inside the `MessageBody`; the Web SDK is the outlier and its
-//! events get filtered out of Recently Played.  We claim `platform:
-//! "android"`, `deviceType: "androidAuto"` to match the Android
-//! Automotive PKCE/OAuth client_id mare-player authenticates under
-//! (numeric `cid` 8017).
+//! events get filtered out of Recently Played.  The platform / device
+//! type / app version we claim come from
+//! [`client_identity`](super::client_identity), so they describe the
+//! same TIDAL client the access token was minted for; the numeric
+//! client id and session id are read out of the token itself.
 //!
 //! ## Recently Played vs aggregate counters
 //!
@@ -56,6 +57,8 @@ use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
 
+use super::client_identity::TIDAL_CLIENT;
+
 // ── Constants ──────────────────────────────────────────────────────────
 
 const EVENT_URL: &str = "https://ec.tidal.com/api/event-batch";
@@ -63,14 +66,7 @@ const EVENT_NAME: &str = "playback_session";
 const EVENT_GROUP: &str = "play_log";
 const EVENT_VERSION: u32 = 2;
 
-// App identity claimed in both the body's `client` object and the Headers
-// attribute.  We claim Android Automotive to match the PKCE/OAuth client_id
-// mare-player uses (`fX2Jx…`, numeric cid 8017).
-const APP_NAME: &str = "TIDAL";
-const APP_VERSION: &str = "2.47.0";
 const CONSENT_CATEGORY: &str = "NECESSARY";
-const CLIENT_PLATFORM: &str = "android";
-const CLIENT_DEVICE_TYPE: &str = "androidAuto";
 
 /// Maximum number of recent report attempts kept in the in-memory
 /// diagnostic log.  Older entries fall off when this cap is hit.
@@ -384,9 +380,9 @@ fn build_message_body(session: &PlaySession, claims: &JwtClaims) -> String {
         },
         "client": {
             "token": client_id_int.to_string(),
-            "deviceType": CLIENT_DEVICE_TYPE,
-            "version": APP_VERSION,
-            "platform": CLIENT_PLATFORM,
+            "deviceType": TIDAL_CLIENT.device_type,
+            "version": TIDAL_CLIENT.app_version,
+            "platform": TIDAL_CLIENT.platform,
         },
         "payload": payload,
         "extras": serde_json::Value::Null,
@@ -397,18 +393,17 @@ fn build_message_body(session: &PlaySession, claims: &JwtClaims) -> String {
 
 fn build_headers_attr(token: &str, client_id: Option<&str>) -> String {
     // The Headers MessageAttribute travels alongside the MessageBody in
-    // every SQS entry.  TIDAL's mobile SDKs send these keys; the Web SDK
-    // additionally sends browser-name/-version, which would be wrong
-    // here since we're claiming to be an Android client.
+    // every SQS entry.  These are the keys TIDAL's mobile SDKs send, which
+    // is what we authenticate as.
     //
     // `authorization` is the raw token, NO "Bearer " prefix — that's only
     // on the outer HTTP Authorization header.
     let headers = serde_json::json!({
-        "app-name": APP_NAME,
-        "app-version": APP_VERSION,
+        "app-name": TIDAL_CLIENT.app_name,
+        "app-version": TIDAL_CLIENT.app_version,
         "client-id": client_id.unwrap_or("unknown"),
         "consent-category": CONSENT_CATEGORY,
-        "os-name": CLIENT_PLATFORM,
+        "os-name": TIDAL_CLIENT.platform,
         "requested-sent-timestamp": now_ms(),
         "authorization": token,
     });
@@ -434,14 +429,14 @@ fn encode_sqs_batch(msg_id: &str, body: &str, headers_attr: &str) -> Vec<(String
 
 /// Subset of TIDAL JWT claims we read.  Attribution is entirely
 /// server-side from `uid` (user id) and `cid` (numeric client id);
-/// `sid` is echoed back as the session id Android clients carry.
+/// `sid` is echoed back as the session id mobile clients carry.
 #[derive(Debug, Default, Deserialize)]
 struct JwtClaims {
     /// User id, sometimes called `sub` in standards-compliant tokens.
     uid: Option<String>,
     /// Numeric client id of the OAuth/PKCE client the token was issued to.
     cid: Option<String>,
-    /// Session id (Android-style); empty for desktop clients.
+    /// Session id (mobile-style); empty for desktop clients.
     sid: Option<String>,
 }
 
@@ -563,8 +558,8 @@ mod tests {
         assert_eq!(v["payload"]["actualQuality"], "LOSSLESS");
         assert_eq!(v["user"]["id"], 42);
         assert_eq!(v["user"]["clientId"], 8017);
-        assert_eq!(v["client"]["platform"], "android");
-        assert_eq!(v["client"]["deviceType"], "androidAuto");
+        assert_eq!(v["client"]["platform"], TIDAL_CLIENT.platform);
+        assert_eq!(v["client"]["deviceType"], TIDAL_CLIENT.device_type);
         // PLAYBACK_START + PLAYBACK_STOP.
         assert_eq!(v["payload"]["actions"].as_array().unwrap().len(), 2);
     }
@@ -575,8 +570,8 @@ mod tests {
         let v: serde_json::Value = serde_json::from_str(&attr).unwrap();
         assert_eq!(v["authorization"], "raw-token");
         assert_eq!(v["client-id"], "8017");
-        assert_eq!(v["app-name"], "TIDAL");
-        assert_eq!(v["os-name"], "android");
+        assert_eq!(v["app-name"], TIDAL_CLIENT.app_name);
+        assert_eq!(v["os-name"], TIDAL_CLIENT.platform);
     }
 
     #[test]

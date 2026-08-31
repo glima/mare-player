@@ -8,10 +8,12 @@ open-browser = ब्राउज़र खोलें
 cancel = रद्द करें
 verifying-auth = प्रमाणीकरण सत्यापित हो रहा है...
 verifying-auth-wait = कृपया प्रतीक्षा करें, हम आपके लॉगिन की पुष्टि कर रहे हैं।
-oauth-open-url = यह URL अपने ब्राउज़र में खोलें:
-oauth-enter-code = या कोड दर्ज करें: {$code}
-waiting-for-login = लॉगिन की प्रतीक्षा हो रही है...
-complete-login-in-browser = ब्राउज़र में लॉगिन पूरा करें, फिर यहाँ लौटें।
+login-step-browser = 1. TIDAL लॉगिन पेज खोलें और साइन इन करें:
+login-returns-here = साइन इन करते ही आप सीधे यहाँ लौट आएँगे — कुछ भी कॉपी नहीं करना है।
+login-step-paste = 2. इसके बाद ब्राउज़र एक ऐसे पेज पर पहुँचता है जो लोड नहीं होता। उसका पता कॉपी करके यहाँ पेस्ट करें:
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = साइन इन पूरा करें
+login-retry = यह साइन-इन लिंक पहले ही इस्तेमाल हो चुका है या समाप्त हो गया — ब्राउज़र फिर से खोलें और नया पता कॉपी करें।
 preparing-login = लॉगिन तैयार हो रहा है...
 
 # Navigation

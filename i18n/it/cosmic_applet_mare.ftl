@@ -8,10 +8,12 @@ open-browser = Apri il browser
 cancel = Annulla
 verifying-auth = Verifica dell'autenticazione in corso...
 verifying-auth-wait = Attendi mentre confermiamo il tuo accesso.
-oauth-open-url = Apri questo URL nel tuo browser:
-oauth-enter-code = Oppure inserisci il codice: {$code}
-waiting-for-login = In attesa dell'accesso...
-complete-login-in-browser = Completa l'accesso nel browser, poi torna qui.
+login-step-browser = 1. Apri la pagina di accesso di TIDAL e accedi:
+login-returns-here = Al termine dell’accesso torni direttamente qui: non c’è nulla da copiare.
+login-step-paste = 2. Il browser arriva poi a una pagina che non si carica. Copia il suo indirizzo e incollalo qui:
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = Completa l'accesso
+login-retry = Quel link di accesso è già stato usato o è scaduto: riapri il browser e copia il nuovo indirizzo.
 preparing-login = Preparazione dell'accesso...
 
 # Navigazione

@@ -8,10 +8,12 @@ open-browser = 打开浏览器
 cancel = 取消
 verifying-auth = 正在验证身份...
 verifying-auth-wait = 请稍候，我们正在确认您的登录。
-oauth-open-url = 在浏览器中打开此链接：
-oauth-enter-code = 或输入代码：{$code}
-waiting-for-login = 等待登录...
-complete-login-in-browser = 请在浏览器中完成登录，然后返回此处。
+login-step-browser = 1. 打开 TIDAL 登录页面并登录：
+login-returns-here = 登录后会直接回到这里 —— 无需复制任何内容。
+login-step-paste = 2. 随后浏览器会跳转到一个无法加载的页面。复制该页面的地址并粘贴到这里：
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = 完成登录
+login-retry = 该登录链接已被使用或已过期 —— 请重新打开浏览器并复制新的地址。
 preparing-login = 正在准备登录...
 
 # 导航

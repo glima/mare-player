@@ -8,10 +8,12 @@ open-browser = Browser openen
 cancel = Annuleren
 verifying-auth = Authenticatie verifiëren...
 verifying-auth-wait = Even geduld terwijl we je login bevestigen.
-oauth-open-url = Open deze URL in je browser:
-oauth-enter-code = Of voer de code in: {$code}
-waiting-for-login = Wachten op inloggen...
-complete-login-in-browser = Voltooi het inloggen in de browser en keer dan hier terug.
+login-step-browser = 1. Open de TIDAL-inlogpagina en log in:
+login-returns-here = Na het inloggen kom je meteen hier terug — niets te kopiëren.
+login-step-paste = 2. De browser komt daarna op een pagina die niet laadt. Kopieer het adres en plak het hier:
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = Inloggen voltooien
+login-retry = Die inloglink is al gebruikt of verlopen — open de browser opnieuw en kopieer het nieuwe adres.
 preparing-login = Inloggen voorbereiden...
 
 # Navigatie

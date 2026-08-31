@@ -7,6 +7,11 @@ rootdir := ''
 prefix := '/usr'
 bloat-target := cargo-target-dir / 'release-bloat' / name
 
+# `install` normally runs under sudo, but the `tidal://` scheme association is
+# per-user config: run that one command back as the invoking user, or it lands
+# in root's home and the sign-in silently falls back to copying a URL.
+as-invoking-user := if env('SUDO_USER', '') != '' { 'sudo -u ' + env('SUDO_USER', '') } else { '' }
+
 # Installation paths
 
 base-dir := absolute_path(clean(rootdir / prefix))
@@ -239,6 +244,15 @@ _install profile:
     install -Dm0644 resources/icon.svg {{ icon-symbolic-dst }}
     install -Dm0644 resources/icon.svg {{ icon-scalable-symbolic-dst }}
 
+    # Route `tidal://login/auth?code=…` to the player, so the TIDAL sign-in
+    # returns by itself instead of asking for the URL to be copied.
+    #
+    # The association is per-user while this recipe usually runs under sudo, so
+    # it has to be set as the invoking user — as root it lands in /root and the
+    # sign-in silently falls back to the paste box. Best-effort either way.
+    -update-desktop-database {{ base-dir }}/share/applications 2>/dev/null
+    -{{ as-invoking-user }} xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
+
 # Internal: install standalone binary from the given profile plus shared resources.
 
 # Patches the applet .desktop and metainfo.xml files for standalone mode.
@@ -270,6 +284,10 @@ _install-standalone profile:
     install -Dm0644 resources/icon.svg {{ icon-dst }}
     install -Dm0644 resources/icon.svg {{ icon-symbolic-dst }}
     install -Dm0644 resources/icon.svg {{ icon-scalable-symbolic-dst }}
+
+    # Same `tidal://` handler registration as the applet install — see there.
+    -update-desktop-database {{ base-dir }}/share/applications 2>/dev/null
+    -{{ as-invoking-user }} xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
 
 # Installs release build
 install: (_install 'release')

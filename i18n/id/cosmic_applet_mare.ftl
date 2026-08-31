@@ -8,10 +8,12 @@ open-browser = Buka Peramban
 cancel = Batal
 verifying-auth = Memverifikasi autentikasi...
 verifying-auth-wait = Mohon tunggu sementara kami mengonfirmasi login Anda.
-oauth-open-url = Buka URL ini di peramban Anda:
-oauth-enter-code = Atau masukkan kode: {$code}
-waiting-for-login = Menunggu login...
-complete-login-in-browser = Selesaikan login di peramban, lalu kembali ke sini.
+login-step-browser = 1. Buka halaman login TIDAL dan masuk:
+login-returns-here = Setelah masuk, Anda langsung kembali ke sini — tidak ada yang perlu disalin.
+login-step-paste = 2. Peramban lalu menuju halaman yang gagal dimuat. Salin alamatnya dan tempel di sini:
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = Selesaikan Masuk
+login-retry = Tautan masuk itu sudah dipakai atau kedaluwarsa — buka peramban lagi dan salin alamat yang baru.
 preparing-login = Menyiapkan login...
 
 # Navigasi

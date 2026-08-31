@@ -932,12 +932,20 @@ impl TrackCredits {
 /// What TIDAL *actually served* for a stream, as reported by
 /// `playbackinfopostpaywall` — which is not necessarily what we asked for.
 ///
-/// The catalog advertises capability (`mediaMetadata.tags` carries
-/// `HIRES_LOSSLESS` on plenty of tracks) and the subscription endpoint reports
-/// a stale MQA-era `highestSoundQuality`, but neither tells you what comes down
-/// the wire for *this* account: TIDAL silently downgrades to whatever the plan
-/// entitles instead of erroring. So the response is the only honest source, and
-/// this is what the now-playing bar shows.
+/// Two independent things decide it, and asking for a tier past either one is
+/// answered with a lower tier rather than an error:
+///
+/// * What the OAuth client we authenticate as is granted. That ceiling is
+///   fixed at login, not by the subscription — see
+///   [`client_identity`](crate::tidal::client_identity).
+/// * Whether the recording exists in that tier at all. Most of the catalogue
+///   tops out at 16-bit/44.1 kHz.
+///
+/// Nothing else in the API answers the question honestly. The catalogue
+/// advertises capability (`mediaMetadata.tags` carries `HIRES_LOSSLESS` on
+/// plenty of tracks), and the subscription endpoint reports a stale MQA-era
+/// `highestSoundQuality`. So the playback response is the source of truth, and
+/// it is what the now-playing bar shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StreamQuality {
     /// TIDAL's own label for the served stream: `LOSSLESS`,

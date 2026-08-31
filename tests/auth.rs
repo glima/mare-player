@@ -437,13 +437,11 @@ mod auth_manager {
     fn set_state_to_awaiting_auth() {
         let mut m = AuthManager::new();
         m.set_state(AuthState::AwaitingUserAuth {
-            verification_uri: "https://link.tidal.com/ABCDE".to_string(),
-            user_code: "ABCDE".to_string(),
+            authorize_url: "https://login.tidal.com/authorize?code_challenge=ABCDE".to_string(),
         });
         match m.state() {
-            AuthState::AwaitingUserAuth { verification_uri, user_code } => {
-                assert_eq!(verification_uri, "https://link.tidal.com/ABCDE");
-                assert_eq!(user_code, "ABCDE");
+            AuthState::AwaitingUserAuth { authorize_url } => {
+                assert_eq!(authorize_url, "https://login.tidal.com/authorize?code_challenge=ABCDE");
             }
             other => panic!("Expected AwaitingUserAuth, got {:?}", other),
         }
@@ -488,8 +486,7 @@ mod auth_manager {
 
         // Initiate OAuth
         m.set_state(AuthState::AwaitingUserAuth {
-            verification_uri: "https://link.tidal.com/XYZ".to_string(),
-            user_code: "XYZ".to_string(),
+            authorize_url: "https://login.tidal.com/authorize?code_challenge=XYZ".to_string(),
         });
         assert!(matches!(m.state(), AuthState::AwaitingUserAuth { .. }));
 
@@ -510,8 +507,7 @@ mod auth_manager {
 
         // Start OAuth
         m.set_state(AuthState::AwaitingUserAuth {
-            verification_uri: "https://link.tidal.com/ABC".to_string(),
-            user_code: "ABC".to_string(),
+            authorize_url: "https://login.tidal.com/authorize?code_challenge=ABC".to_string(),
         });
 
         // OAuth fails
@@ -524,8 +520,7 @@ mod auth_manager {
 
         // Start OAuth again
         m.set_state(AuthState::AwaitingUserAuth {
-            verification_uri: "https://link.tidal.com/DEF".to_string(),
-            user_code: "DEF".to_string(),
+            authorize_url: "https://login.tidal.com/authorize?code_challenge=DEF".to_string(),
         });
         assert!(matches!(m.state(), AuthState::AwaitingUserAuth { .. }));
 
@@ -570,19 +565,15 @@ mod auth_state_traits {
 
     #[test]
     fn awaiting_user_auth_eq() {
-        let a =
-            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() };
-        let b =
-            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() };
+        let a = AuthState::AwaitingUserAuth { authorize_url: "https://example.com/?code_challenge=X".to_string() };
+        let b = AuthState::AwaitingUserAuth { authorize_url: "https://example.com/?code_challenge=X".to_string() };
         assert_eq!(a, b);
     }
 
     #[test]
     fn awaiting_user_auth_ne_different_code() {
-        let a =
-            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE1".to_string() };
-        let b =
-            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE2".to_string() };
+        let a = AuthState::AwaitingUserAuth { authorize_url: "https://example.com/?code_challenge=1".to_string() };
+        let b = AuthState::AwaitingUserAuth { authorize_url: "https://example.com/?code_challenge=2".to_string() };
         assert_ne!(a, b);
     }
 
@@ -619,7 +610,7 @@ mod auth_state_traits {
     fn different_variants_ne() {
         let states: Vec<AuthState> = vec![
             AuthState::NotAuthenticated,
-            AuthState::AwaitingUserAuth { verification_uri: "https://example.com".to_string(), user_code: "CODE".to_string() },
+            AuthState::AwaitingUserAuth { authorize_url: "https://example.com/?code_challenge=X".to_string() },
             AuthState::Authenticated { profile: UserProfile::default() },
             AuthState::Failed("err".to_string()),
         ];
@@ -709,8 +700,7 @@ mod edge_cases {
                 m.set_state(AuthState::NotAuthenticated);
             } else if i % 3 == 1 {
                 m.set_state(AuthState::AwaitingUserAuth {
-                    verification_uri: format!("https://link.tidal.com/{}", i),
-                    user_code: format!("CODE{}", i),
+                    authorize_url: format!("https://login.tidal.com/authorize?state={}", i),
                 });
             } else {
                 m.set_state(AuthState::Authenticated {
@@ -741,5 +731,52 @@ mod edge_cases {
         let i1 = p.initials();
         let i2 = p.initials();
         assert_eq!(i1, i2);
+    }
+}
+
+// ===========================================================================
+// LoginRequest — how the code comes back
+// ===========================================================================
+
+mod login_request {
+    use cosmic_applet_mare::tidal::auth::LoginRequest;
+    use cosmic_applet_mare::tidal::login_uri::{CALLBACK_REDIRECT_URI, PASTE_REDIRECT_URI, redirect_uri};
+
+    #[test]
+    fn delivers_itself_is_the_callback_case() {
+        let automatic = LoginRequest { authorize_url: "https://login.tidal.com/authorize?x=1".into(), delivers_itself: true };
+        let by_hand = LoginRequest { authorize_url: "https://login.tidal.com/authorize?x=1".into(), delivers_itself: false };
+        assert_ne!(automatic, by_hand);
+    }
+
+    /// Whichever redirect we choose has to be one TIDAL accepts for this
+    /// client: every other value tried against the authorize endpoint —
+    /// `http://localhost:…`, `http://127.0.0.1:…`, `com.aspiro.tidal://…` —
+    /// comes back as error 11102.
+    #[test]
+    fn chosen_redirect_is_one_tidal_accepts() {
+        let chosen = redirect_uri();
+        assert!(chosen == CALLBACK_REDIRECT_URI || chosen == PASTE_REDIRECT_URI, "unexpected redirect uri: {chosen}");
+    }
+}
+
+// ===========================================================================
+// authorize URL — what the browser is sent to
+// ===========================================================================
+
+mod authorize_url {
+    /// The login page renders different sign-in methods per `appMode`, and the
+    /// one tidlers hardcodes (`android`) offers only email — which means an
+    /// emailed code. `web` also offers Google and Apple.
+    ///
+    /// Asserted through the public surface we can reach from a test: the flow
+    /// builds this URL itself precisely so the mode isn't tidlers' to choose.
+    #[test]
+    fn asks_for_the_login_page_that_offers_more_than_email() {
+        let url = cosmic_applet_mare::tidal::client::authorize_url_for_test();
+        assert!(url.starts_with("https://login.tidal.com/authorize?"), "unexpected endpoint: {url}");
+        assert!(url.contains("appMode=web"), "should not ask for the email-only page: {url}");
+        assert!(url.contains("code_challenge_method=S256"));
+        assert!(url.contains("response_type=code"));
     }
 }

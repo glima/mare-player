@@ -29,10 +29,19 @@ impl AppModel {
         container(content).width(Length::Fill).align_x(Alignment::Center).align_y(Alignment::Center).into()
     }
 
-    /// Render the OAuth waiting view shown during login flow.
+    /// Render the login view shown while the user completes the TIDAL sign-in
+    /// in their browser.
+    ///
+    /// Two shapes, depending on what TIDAL was asked to redirect to (see
+    /// [`login_uri`](crate::tidal::login_uri)):
+    ///
+    /// * `tidal://` — the browser hands the code back to us, so there is
+    ///   nothing to do here but wait.
+    /// * https — the browser lands on a page that fails to load, and its
+    ///   address, which carries the code, has to be brought over by hand.
     pub fn view_awaiting_oauth(&self) -> Element<'_, Message> {
         let content = if self.is_loading {
-            // Show loading state while polling for OAuth completion
+            // Exchanging the code for tokens
             widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
                 .push(widget::space::vertical().height(20))
@@ -44,24 +53,30 @@ impl AppModel {
                 .push(button::text(fl!("cancel")).on_press(Message::ShowMain))
                 .spacing(8)
                 .align_x(Alignment::Center)
-        } else if let Some(info) = &self.device_code_info {
-            let url_container =
-                container(text(&info.verification_uri_complete).size(11)).padding(8).class(cosmic::theme::Container::Card);
-
-            widget::Column::new()
+        } else if let Some(request) = &self.login_request {
+            let mut col = widget::Column::new()
                 .push(text(fl!("sign-in-title")).size(20))
                 .push(widget::space::vertical().height(10))
-                .push(text(fl!("oauth-open-url")).size(12))
-                .push(url_container)
-                .push(widget::space::vertical().height(10))
-                .push(text(fl!("oauth-enter-code", code = info.user_code.clone())).size(14))
-                .push(widget::space::vertical().height(20))
-                .push(button::standard(fl!("open-browser")).on_press(Message::OpenOAuthUrl))
-                .push(widget::space::vertical().height(15))
-                .push(text("⏳").size(24))
-                .push(text(fl!("waiting-for-login")).size(12))
-                .push(text(fl!("complete-login-in-browser")).size(11))
-                .push(widget::space::vertical().height(10))
+                .push(text(fl!("login-step-browser")).size(12))
+                .push(button::standard(fl!("open-browser")).on_press(Message::OpenLoginUrl))
+                .push(widget::space::vertical().height(15));
+
+            col = if request.delivers_itself {
+                col.push(text(fl!("login-returns-here")).size(12))
+            } else {
+                // No handler for `tidal://` on this desktop: the code stops at
+                // the browser and has to be carried over.
+                col.push(text(fl!("login-step-paste")).size(12))
+                    .push(
+                        widget::text_input(fl!("login-redirect-placeholder"), &self.login_redirect_url)
+                            .on_input(Message::LoginRedirectUrlChanged)
+                            .on_submit(|_| Message::SubmitLoginRedirectUrl)
+                            .width(Length::Fill),
+                    )
+                    .push(button::suggested(fl!("login-finish")).on_press(Message::SubmitLoginRedirectUrl).width(Length::Fill))
+            };
+
+            col.push(widget::space::vertical().height(10))
                 .push(button::text(fl!("cancel")).on_press(Message::ShowMain))
                 .spacing(8)
                 .align_x(Alignment::Center)

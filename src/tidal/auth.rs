@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-//! Authentication manager for TIDAL OAuth device flow.
+//! Authentication manager for TIDAL OAuth PKCE flow.
 //!
 //! This module handles:
-//! - OAuth device code flow initiation and completion
 //! - Secure credential storage using the system keyring
 //! - Session token refresh and persistence
+//!
+//! The flow itself lives in [`client`](super::client). TIDAL only serves the
+//! hi-res tier to PKCE clients (see [`client_identity`](super::client_identity)),
+//! and PKCE has no device code to poll: the user signs in through the browser
+//! and hands the resulting redirect URL back to the app.
 
 use keyring::Entry;
 use serde::{Deserialize, Serialize};
@@ -27,19 +31,23 @@ pub struct StoredCredentials {
     pub username: Option<String>,
 }
 
-/// OAuth device code response for display to user
-#[derive(Debug, Clone)]
-pub struct DeviceCodeInfo {
-    /// The full verification URI including the code
-    pub verification_uri_complete: String,
-    /// The user code to display
-    pub user_code: String,
-    /// Device code for polling (internal use)
-    pub device_code: String,
-    /// Expiry time in seconds
-    pub expires_in: u64,
-    /// Polling interval in seconds
-    pub interval: u64,
+/// A pending PKCE login: the TIDAL page the user has to complete.
+///
+/// After signing in, TIDAL redirects the browser to whichever redirect URI we
+/// asked for, carrying the authorization code that
+/// [`TidalAppClient::complete_login`](super::client::TidalAppClient::complete_login)
+/// exchanges for tokens. Which one we can ask for depends on the desktop — see
+/// [`login_uri`](super::login_uri).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoginRequest {
+    /// `https://login.tidal.com/authorize?…` — open this in a browser.
+    pub authorize_url: String,
+    /// Whether the browser will hand the authorization code back to us.
+    ///
+    /// True when this desktop routes `tidal://` to Maré, in which case signing
+    /// in is all the user has to do. False when we had to ask for the https
+    /// redirect instead, which lands in the browser and has to be copied.
+    pub delivers_itself: bool,
 }
 
 /// Authentication state
@@ -127,8 +135,12 @@ impl UserProfile {
 pub enum AuthState {
     /// Not authenticated, need to start login flow
     NotAuthenticated,
-    /// Waiting for user to complete OAuth in browser
-    AwaitingUserAuth { verification_uri: String, user_code: String },
+    /// Waiting for the user to finish signing in in their browser and paste
+    /// the redirect URL back.
+    AwaitingUserAuth {
+        /// The TIDAL authorize URL the user was sent to.
+        authorize_url: String,
+    },
     /// Successfully authenticated
     Authenticated {
         /// Full user profile (name, email, picture, etc.)

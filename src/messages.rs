@@ -12,7 +12,7 @@ use cosmic::surface;
 use tokio::sync::Mutex;
 
 use crate::config::{AudioQuality, Config, LogLevel};
-use crate::tidal::auth::DeviceCodeInfo;
+use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::PlaybackUrl;
 use crate::tidal::models::{
     Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
@@ -48,12 +48,20 @@ pub enum Message {
     // Authentication
     /// Start the login flow
     StartLogin,
-    /// OAuth device code info received
-    LoginOAuthReceived(Result<DeviceCodeInfo, String>),
-    /// Open the OAuth URL in browser
-    OpenOAuthUrl,
-    /// OAuth flow completed
-    OAuthComplete(Result<(), String>),
+    /// The PKCE authorize URL is ready (or the flow failed to start)
+    LoginUrlReceived(Result<LoginRequest, String>),
+    /// Open the TIDAL authorize URL in the browser
+    OpenLoginUrl,
+    /// The user edited the pasted redirect URL
+    LoginRedirectUrlChanged(String),
+    /// Exchange the pasted redirect URL for tokens
+    SubmitLoginRedirectUrl,
+    /// The login callback service started (or failed to)
+    LoginUriServiceStarted(Result<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>, String>),
+    /// The browser handed us a `tidal://login/auth?code=…` URI
+    LoginCallbackUri(String),
+    /// Login flow completed
+    LoginComplete(Result<(), String>),
     /// Session restore attempted
     SessionRestored(Result<bool, String>),
     /// Log out the user

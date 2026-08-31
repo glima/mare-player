@@ -3,10 +3,13 @@ Name=Maré Player
 Comment=Maré Player — a COSMIC desktop applet for TIDAL music streaming
 Type=Application
 Icon=io.github.cosmic-applet-mare
-Exec=cosmic-applet-mare
+Exec=cosmic-applet-mare %u
 Terminal=false
 StartupNotify=true
 Categories=COSMIC;Audio;Music;Player
+# TIDAL redirects the PKCE sign-in to `tidal://login/auth?code=…`; claiming
+# the scheme is what lets the browser hand the code straight to the player.
+MimeType=x-scheme-handler/tidal;
 Keywords=COSMIC;Maré;TIDAL;Music;Streaming;Audio
 NoDisplay=true
 X-CosmicApplet=true

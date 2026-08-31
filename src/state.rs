@@ -19,7 +19,7 @@ use crate::config::Config;
 use crate::image_cache::ImageCache;
 #[cfg(not(feature = "panel-applet"))]
 use crate::menu::TidalMenuAction;
-use crate::tidal::auth::DeviceCodeInfo;
+use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::TidalAppClient;
 use crate::tidal::models::{
     Album, Artist, ArtistRow, ExplorePage, ExploreRow, FeedActivity, FeedRow, Mix, Playlist, SearchResults, Track, TrackDetailRow,
@@ -155,8 +155,12 @@ pub struct AppModel {
     pub(crate) tidal_client: Arc<Mutex<TidalAppClient>>,
     /// Current view state
     pub(crate) view_state: ViewState,
-    /// OAuth device code info (during login flow)
-    pub(crate) device_code_info: Option<DeviceCodeInfo>,
+    /// Pending PKCE login (during the login flow)
+    pub(crate) login_request: Option<LoginRequest>,
+    /// The redirect URL the user pasted back from the browser
+    pub(crate) login_redirect_url: String,
+    /// Sign-in callbacks delivered by the browser through `tidal://`
+    pub(crate) login_uri_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
     /// Current search query
     pub(crate) search_query: String,
     /// Search results
@@ -233,10 +237,9 @@ pub struct AppModel {
     /// rate and bit depth from `playbackinfopostpaywall`. Shown as a badge under
     /// the now-playing title. `None` for videos and before the first track.
     ///
-    /// Deliberately sourced from the playback response rather than the catalog
-    /// metadata or the subscription's `highestSoundQuality`: both of those
-    /// advertise capability, while TIDAL silently downgrades the actual stream
-    /// to whatever the plan entitles.
+    /// Sourced from the playback response rather than the catalogue metadata or
+    /// the subscription, both of which only advertise capability — see
+    /// [`StreamQuality`](crate::tidal::models::StreamQuality).
     pub(crate) now_playing_quality: Option<crate::tidal::models::StreamQuality>,
     /// The track whose credits view is currently open.
     pub(crate) selected_credits_track: Option<Track>,

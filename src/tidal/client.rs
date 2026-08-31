@@ -4,14 +4,15 @@
 //!
 //! This module wraps the `tidlers` crate and provides a high-level async API
 //! for interacting with TIDAL's services including:
-//! - OAuth authentication
+//! - OAuth PKCE authentication
 //! - Playlist and album browsing
 //! - Artist and album detail pages
 //! - Track search
 //! - User favorites (tracks and albums)
 //! - HiRes/DASH streaming support
 
-use super::auth::{AuthManager, AuthState, DeviceCodeInfo, StoredCredentials, UserProfile};
+use super::auth::{AuthManager, AuthState, LoginRequest, StoredCredentials, UserProfile};
+use super::client_identity;
 use super::models::{
     Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity,
     FeedItem, Mix, PageLink, Playlist, SearchResults, StreamQuality, Track, TrackCredits, TrackLyrics, tidal_cover_url,
@@ -54,11 +55,15 @@ fn is_tidlers_network_error(e: &tidlers::error::TidalError) -> bool {
 /// inline DASH manifest for FLAC/hi-res.
 #[derive(Debug, Clone)]
 pub enum PlaybackUrl {
-    /// Direct streaming URL (for Low/High/Lossless quality)
+    /// Direct streaming URL, from a `vnd.tidal.bts` manifest.
+    ///
+    /// Which tiers arrive this way is the client's choice, not ours: the PKCE
+    /// client we authenticate as serves DASH for both lossless tiers, leaving
+    /// this for the AAC ones.
     Direct(String, Option<f32>, Option<StreamQuality>),
-    /// Inline DASH manifest XML (for HiRes quality). Played through a `data:`
-    /// URI so nothing is written to disk; its embedded segment URLs are
-    /// absolute and carry short-lived tokens.
+    /// Inline DASH manifest XML — both FLAC tiers, hi-res and lossless alike.
+    /// Played through a `data:` URI so nothing is written to disk; its embedded
+    /// segment URLs are absolute and carry short-lived tokens.
     DashManifest(String, Option<f32>, Option<StreamQuality>),
 }
 
@@ -329,6 +334,52 @@ impl std::fmt::Display for TidalError {
 
 impl std::error::Error for TidalError {}
 
+/// TIDAL's authorize endpoint, which the PKCE flow starts at.
+const AUTHORIZE_URL: &str = "https://login.tidal.com/authorize";
+
+/// The `appMode` to ask the login page to render as.
+///
+/// This decides which sign-in methods the page offers. `web` shows email,
+/// *Continue with Google* and *Continue with Apple* — for a linked account,
+/// one click against a session the browser already has. `android`, which
+/// tidlers sends, shows email alone: an address, then a code mailed to it.
+///
+/// Nothing else about the flow changes; the token exchange never sees it.
+const LOGIN_APP_MODE: &str = "web";
+
+/// Build the URL that starts the sign-in, from the PKCE parameters tidlers
+/// generated.
+///
+/// Built here rather than by tidlers' `initiate_pkce_login` so the login page
+/// is ours to choose (see [`LOGIN_APP_MODE`]). Everything the token exchange
+/// later verifies — client id, redirect URI, challenge, unique key — is taken
+/// straight from the same `PkceConfig` tidlers will exchange with, keeping the
+/// two halves in step.
+fn authorize_url(pkce: &tidlers::auth::pkce::PkceConfig) -> Result<String, serde_urlencoded::ser::Error> {
+    let query = serde_urlencoded::to_string([
+        ("response_type", "code"),
+        ("redirect_uri", pkce.redirect_uri.as_str()),
+        ("client_id", pkce.client_id.as_str()),
+        ("lang", "EN"),
+        ("appMode", LOGIN_APP_MODE),
+        ("client_unique_key", pkce.client_unique_key.as_str()),
+        ("code_challenge", pkce.code_challenge.as_str()),
+        ("code_challenge_method", "S256"),
+        ("restrict_signup", "true"),
+    ])?;
+    Ok(format!("{AUTHORIZE_URL}?{query}"))
+}
+
+/// The authorize URL built from a throwaway PKCE config, for tests.
+///
+/// Exists so the choice of login page — the difference between "type the code
+/// we emailed you" and "Continue with Google" — is covered without a login.
+#[doc(hidden)]
+pub fn authorize_url_for_test() -> String {
+    let auth = TidalAuth::with_pkce();
+    authorize_url(&auth.pkce_config).unwrap_or_default()
+}
+
 /// High-level TIDAL client for the COSMIC applet
 pub struct TidalAppClient {
     /// The underlying tidlers client (if authenticated)
@@ -338,12 +389,13 @@ pub struct TidalAppClient {
     auth_manager: AuthManager,
     /// Current audio quality setting
     audio_quality: crate::config::AudioQuality,
-    /// Track ids we've already logged a quality downgrade for.
+    /// Track ids we've already logged a lower-than-requested tier for.
     ///
-    /// TIDAL serving a lower tier than we asked for is a standing property of
-    /// the account, not an event, and every track resolves twice (once to play,
-    /// once to preload for gapless) — so the warning fires once per track id
-    /// rather than once per resolution.
+    /// Which tiers a track exists in is a property of the recording, not an
+    /// event: most catalogue is 16-bit/44.1 kHz and simply has no hi-res master
+    /// to serve. Every track also resolves twice (once to play, once to preload
+    /// for gapless), so the note is logged once per track id rather than once
+    /// per resolution.
     warned_downgrades: Arc<std::sync::Mutex<HashSet<String>>>,
 }
 
@@ -603,6 +655,21 @@ impl TidalAppClient {
         // Try to restore the session from the stored JSON
         match TidalClient::from_json(&credentials.session_json) {
             Ok(mut client) => {
+                // Sessions minted by the old device-code flow are capped at
+                // LOSSLESS whatever the account is entitled to, and no request
+                // parameter lifts that — so there is nothing worth restoring
+                // them for. Drop it and send the user through PKCE once.
+                if !client.session.auth.pkce_login {
+                    info!(
+                        "Stored session predates PKCE login (client id {}); discarding it so the user can sign in for hi-res",
+                        client.session.auth.client_id
+                    );
+                    let _ = AuthManager::delete_credentials();
+                    self.auth_manager.set_state(AuthState::NotAuthenticated);
+                    return Ok(false);
+                }
+                client_identity::verify(&client.session.auth.pkce_config.client_id);
+
                 // Log current token state
                 if let (Some(expiry), Some(last_refresh)) =
                     (client.session.auth.refresh_expiry, client.session.auth.last_refresh_time)
@@ -737,66 +804,66 @@ impl TidalAppClient {
         }
     }
 
-    /// Start the OAuth device code flow
-    pub async fn start_oauth_flow(&mut self) -> TidalResult<DeviceCodeInfo> {
-        info!("Starting OAuth device code flow");
+    /// Start the OAuth **PKCE** login flow.
+    ///
+    /// Returns the TIDAL authorize URL the user has to open; the login is
+    /// finished by handing the browser's redirect URL to
+    /// [`Self::complete_login`]. Which client we authenticate as decides the
+    /// stream ceiling independently of the subscription, and PKCE is the only
+    /// flow whose client is granted the hi-res tier — see
+    /// [`client_identity`](super::client_identity) for the measurements.
+    ///
+    /// The half-finished client is parked in `self.client` because it holds the
+    /// PKCE code verifier that the redirect's `code` is exchanged against.
+    pub async fn start_login(&mut self) -> TidalResult<LoginRequest> {
+        info!("Starting OAuth PKCE login flow");
 
-        // tidlers' default OAuth client is entitled to lossless/hi-res playback
-        // (playbackinfopostpaywall returns FLAC). Some TIDAL clients are capped
-        // at HIGH/AAC regardless of the account tier, so which client we
-        // authenticate as matters -- don't override it.
-        let auth = TidalAuth::with_oauth();
+        let mut auth = TidalAuth::with_pkce();
+        // tidlers defaults to the https redirect, which only the browser can
+        // receive. When this desktop routes `tidal://` to us, ask for that one
+        // instead and the code comes home by itself — see `login_uri`.
+        let redirect_uri = super::login_uri::redirect_uri();
+        auth.pkce_config.redirect_uri = redirect_uri.to_string();
+
         let client = TidalClient::new(&auth);
+        client_identity::verify(&client.session.auth.pkce_config.client_id);
 
-        match client.get_oauth_link().await {
-            Ok(oauth) => {
-                let device_info = DeviceCodeInfo {
-                    verification_uri_complete: format!("https://{}", oauth.verification_uri_complete),
-                    user_code: oauth.user_code.clone(),
-                    device_code: oauth.device_code.clone(),
-                    expires_in: oauth.expires_in,
-                    interval: oauth.interval,
-                };
+        match authorize_url(&client.session.auth.pkce_config) {
+            Ok(authorize_url) => {
+                self.auth_manager.set_state(AuthState::AwaitingUserAuth { authorize_url: authorize_url.clone() });
 
-                self.auth_manager.set_state(AuthState::AwaitingUserAuth {
-                    verification_uri: device_info.verification_uri_complete.clone(),
-                    user_code: device_info.user_code.clone(),
-                });
-
-                // Store the client for later completion
+                // Park the client (and with it the code verifier) for `complete_login`.
                 *self.client.lock().await = Some(client);
 
-                info!("OAuth flow started, awaiting user authorization");
-                Ok(device_info)
+                info!(redirect_uri, "PKCE login started, awaiting user authorization");
+                Ok(LoginRequest { authorize_url, delivers_itself: redirect_uri == super::login_uri::CALLBACK_REDIRECT_URI })
             }
             Err(e) => {
-                error!("Failed to get OAuth link: {:?}", e);
+                error!("Failed to build the PKCE authorize URL: {:?}", e);
                 self.auth_manager.set_state(AuthState::Failed(format!("{:?}", e)));
                 Err(TidalError::AuthenticationFailed(format!("{:?}", e)))
             }
         }
     }
 
-    /// Wait for the user to complete OAuth authorization
-    pub async fn wait_for_oauth(&mut self, device_code: &str, expires_in: u64, interval: u64) -> TidalResult<()> {
-        info!(
-            "Waiting for user to complete OAuth authorization (device_code: {}..., expires_in: {}s, interval: {}s)",
-            &device_code[..8.min(device_code.len())],
-            expires_in,
-            interval
-        );
+    /// Finish the PKCE login with the URL the browser was redirected to.
+    ///
+    /// `redirect_url` is the full `https://tidal.com/android/login/auth?code=…`
+    /// address the user pasted back; only its `code` parameter is used.
+    pub async fn complete_login(&mut self, redirect_url: &str) -> TidalResult<()> {
+        info!("Completing PKCE login from the pasted redirect URL");
 
         let mut client_guard = self.client.lock().await;
         let client = client_guard.as_mut().ok_or_else(|| {
-            error!("wait_for_oauth called but self.client is None!");
+            error!("complete_login called without a login in progress!");
             TidalError::NotAuthenticated
         })?;
 
-        info!("Calling tidlers wait_for_oauth...");
-        match client.wait_for_oauth(device_code, expires_in, interval, None).await {
-            Ok(auth_response) => {
-                info!("OAuth authorization completed successfully!");
-                debug!("Auth response received: user_id={}", auth_response.user_id);
+        match client.finish_pkce_login(redirect_url.trim()).await {
+            Ok(()) => {
+                info!("PKCE authorization completed successfully!");
+                client_identity::verify(&client.session.auth.pkce_config.client_id);
+                debug!("Signed in as TIDAL client {:?}", client.session.auth.client_name);
 
                 // Log token expiry info
                 if let (Some(expiry), Some(last_refresh)) =
@@ -865,9 +932,13 @@ impl TidalAppClient {
                 Ok(())
             }
             Err(e) => {
-                error!("OAuth authorization failed with error: {:?}", e);
+                // Keep the client: it holds the code verifier, and the authorize
+                // URL we already handed the user stays valid. A failed exchange
+                // is nearly always a code that was spent or has expired (they
+                // are single-use and short-lived), so the way out is another
+                // trip through the browser with the *same* URL.
+                error!("PKCE authorization failed with error: {:?}", e);
                 self.auth_manager.set_state(AuthState::Failed(format!("{:?}", e)));
-                *client_guard = None;
                 Err(TidalError::AuthenticationFailed(format!("{:?}", e)))
             }
         }
@@ -1318,9 +1389,9 @@ impl TidalAppClient {
         let audio_mode = parsed.get("audioMode").and_then(|v| v.as_str()).unwrap_or("unknown");
 
         // What TIDAL *actually served*, which is not necessarily what we asked
-        // for: the backend silently downgrades to whatever the subscription
-        // entitles rather than erroring. This is the only trustworthy source
-        // for the badge the now-playing bar shows.
+        // for — the backend answers an out-of-reach tier with a lower one
+        // instead of erroring. The only trustworthy source for the badge the
+        // now-playing bar shows; see `StreamQuality` for why.
         let sample_rate = parsed.get("sampleRate").and_then(|v| v.as_u64()).map(|v| v as u32);
         let bit_depth = parsed.get("bitDepth").and_then(|v| v.as_u64()).map(|v| v as u32);
         let stream_quality =
@@ -1332,9 +1403,9 @@ impl TidalAppClient {
                 // Once per track id — see `warned_downgrades`.
                 let first_time = self.warned_downgrades.lock().map(|mut seen| seen.insert(track_id.to_string())).unwrap_or(true);
                 if first_time {
-                    warn!(
-                        "TIDAL downgraded the stream: requested {}, served {} — the account's plan doesn't entitle the requested tier",
-                        requested, served.quality
+                    info!(
+                        "TIDAL served {} for a {} request — this track isn't available in the requested tier",
+                        served.quality, requested
                     );
                 }
             }
@@ -1363,7 +1434,7 @@ impl TidalAppClient {
 
         // Check if this is a DASH manifest (used for HiRes)
         if manifest_mime_type.contains("dash") {
-            info!("DASH manifest detected for HiRes quality - playing inline");
+            info!("DASH manifest detected - playing inline");
             let preview_len = manifest_str.len().min(500);
             let preview: String = manifest_str.chars().take(preview_len).collect();
             debug!("DASH manifest content:\n{}", preview);

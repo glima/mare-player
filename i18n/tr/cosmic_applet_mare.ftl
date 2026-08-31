@@ -8,10 +8,12 @@ open-browser = Tarayıcıyı Aç
 cancel = İptal
 verifying-auth = Kimlik doğrulanıyor...
 verifying-auth-wait = Girişinizi onaylarken lütfen bekleyin.
-oauth-open-url = Bu URL'yi tarayıcınızda açın:
-oauth-enter-code = Veya kodu girin: {$code}
-waiting-for-login = Giriş bekleniyor...
-complete-login-in-browser = Tarayıcıda girişi tamamlayın, ardından buraya dönün.
+login-step-browser = 1. TIDAL giriş sayfasını açın ve oturum açın:
+login-returns-here = Oturum açtığınızda doğrudan buraya dönersiniz — kopyalanacak bir şey yok.
+login-step-paste = 2. Tarayıcı ardından yüklenemeyen bir sayfaya gider. O sayfanın adresini kopyalayıp buraya yapıştırın:
+login-redirect-placeholder = https://tidal.com/android/login/auth?code=…
+login-finish = Girişi Tamamla
+login-retry = Bu oturum açma bağlantısı zaten kullanıldı veya süresi doldu — tarayıcıyı yeniden açıp yeni adresi kopyalayın.
 preparing-login = Giriş hazırlanıyor...
 
 # Gezinme
