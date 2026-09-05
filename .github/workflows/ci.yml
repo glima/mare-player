@@ -80,7 +80,7 @@ jobs:
         # change; `save-if` keeps pull requests restoring without each of them
         # writing an entry, since the repo cache is capped at 10 GB and evicts
         # by age.
-        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           shared-key: ci-build
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -142,7 +142,7 @@ jobs:
         # Kept separate from ci-build: llvm-cov compiles the tree with coverage
         # instrumentation, so none of those artifacts are interchangeable with
         # the ones the build job produces.
-        uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           shared-key: ci-coverage
           save-if: ${{ github.ref == 'refs/heads/main' }}
