@@ -20,9 +20,6 @@ use cosmic::widget::popover::{Position, popover};
 use cosmic::widget::vertical_slider;
 use cosmic::widget::{self, button, container, icon, slider, text};
 
-#[cfg(not(feature = "panel-applet"))]
-use crate::views::components::scroll_to_volume_delta;
-
 use crate::fl;
 use crate::helpers::format_seconds;
 use crate::messages::Message;
@@ -664,8 +661,7 @@ impl AppModel {
 
             // Wrap the volume icon in a mouse_area so the user can scroll
             // to adjust volume without needing to open the popover first.
-            let vol_element: Element<'_, Message> =
-                widget::mouse_area(vol_element).on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta))).into();
+            let vol_element: Element<'_, Message> = widget::mouse_area(vol_element).on_scroll(Message::VolumeScroll).into();
 
             buttons_row.push(vol_element)
         };

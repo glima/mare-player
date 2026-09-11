@@ -17,7 +17,7 @@ use cosmic::widget::{self, autosize, button, container};
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::player::PlaybackState;
-use crate::views::components::{PANEL_ART_SIZE, VOLUME_BAR_WIDTH, scroll_to_volume_delta};
+use crate::views::components::{PANEL_ART_SIZE, VOLUME_BAR_WIDTH};
 
 /// Static ID for the autosize widget
 static AUTOSIZE_MAIN_ID: std::sync::LazyLock<widget::Id> = std::sync::LazyLock::new(widget::Id::unique);
@@ -118,9 +118,7 @@ impl AppModel {
             let btn = button::custom(content).on_press_down(Message::TogglePopup).class(class);
 
             // Wrap in mouse_area for right-click and scroll
-            let interactive = widget::mouse_area(btn)
-                .on_right_release(Message::NextTrack)
-                .on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
+            let interactive = widget::mouse_area(btn).on_right_release(Message::NextTrack).on_scroll(Message::VolumeScroll);
 
             autosize::autosize(interactive, AUTOSIZE_MAIN_ID.clone()).into()
         } else {
@@ -138,8 +136,7 @@ impl AppModel {
                 .on_press(Message::TogglePopup);
 
             // Wrap for scroll support even when not playing
-            let interactive =
-                widget::mouse_area(icon_btn).on_scroll(|delta| Message::AdjustVolume(scroll_to_volume_delta(delta)));
+            let interactive = widget::mouse_area(icon_btn).on_scroll(Message::VolumeScroll);
 
             if self.show_volume_bar {
                 widget::Row::new().push(interactive).push(self.build_volume_bar()).spacing(2).align_y(Alignment::Center).into()

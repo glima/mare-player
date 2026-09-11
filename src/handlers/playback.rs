@@ -1007,6 +1007,20 @@ impl AppModel {
     }
 
     /// Handle volume adjustment from mouse wheel on panel button
+    /// Handle a scroll event over a volume control.
+    ///
+    /// The raw delta arrives here rather than a ready-made adjustment because
+    /// deciding what a scroll event is worth needs state that a view function
+    /// cannot hold — see [`WheelVolume`](crate::state::WheelVolume).
+    pub fn handle_volume_scroll(&mut self, delta: cosmic::iced::mouse::ScrollDelta) -> Task<cosmic::Action<Message>> {
+        tracing::debug!("volume scroll: {:?}", delta);
+        let change = self.wheel_volume.steps(delta, Instant::now());
+        if change == 0.0 {
+            return Task::none();
+        }
+        self.handle_adjust_volume(change)
+    }
+
     pub fn handle_adjust_volume(&mut self, delta: f32) -> Task<cosmic::Action<Message>> {
         // Adjust volume by delta (typically ±0.05 per scroll step)
         let new_volume = (self.volume_level + delta).clamp(0.0, 1.0);

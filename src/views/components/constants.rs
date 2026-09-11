@@ -6,8 +6,6 @@
 //! that only depend on them into one place so they are easy to find and tune
 //! without touching layout or widget code.
 
-use cosmic::iced::mouse::ScrollDelta;
-
 // =============================================================================
 // Size Constants
 // =============================================================================
@@ -47,19 +45,6 @@ pub const VOLUME_BAR_WIDTH: f32 = 4.0;
 /// now-playing bar (scroll on volume icon) to keep the feel consistent.
 pub const VOLUME_STEP: f32 = 0.05;
 
-/// Convert a mouse-wheel [`ScrollDelta`] into a signed volume change
-/// suitable for [`Message::AdjustVolume`](crate::messages::Message::AdjustVolume).
-///
-/// Line-based scrolling (most mice) maps one line to [`VOLUME_STEP`].
-/// Pixel-based scrolling (trackpads) is normalised so that ~15 px of
-/// movement equals one step.
-pub fn scroll_to_volume_delta(delta: ScrollDelta) -> f32 {
-    match delta {
-        ScrollDelta::Lines { y, .. } => y * VOLUME_STEP,
-        ScrollDelta::Pixels { y, .. } => (y / 15.0) * VOLUME_STEP,
-    }
-}
-
 // =============================================================================
 // Cache Directory
 // =============================================================================
@@ -72,32 +57,3 @@ pub fn scroll_to_volume_delta(delta: ScrollDelta) -> f32 {
 pub const CACHE_DIR_NAME: &str = "cosmic-applet-mare";
 #[cfg(not(feature = "panel-applet"))]
 pub const CACHE_DIR_NAME: &str = "mare-player";
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn line_scroll_maps_one_line_to_one_step() {
-        let d = scroll_to_volume_delta(ScrollDelta::Lines { x: 0.0, y: 1.0 });
-        assert!((d - VOLUME_STEP).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn line_scroll_is_signed() {
-        let down = scroll_to_volume_delta(ScrollDelta::Lines { x: 0.0, y: -2.0 });
-        assert!((down - (-2.0 * VOLUME_STEP)).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn pixel_scroll_normalises_15px_to_one_step() {
-        let d = scroll_to_volume_delta(ScrollDelta::Pixels { x: 0.0, y: 15.0 });
-        assert!((d - VOLUME_STEP).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn pixel_scroll_ignores_horizontal_axis() {
-        let d = scroll_to_volume_delta(ScrollDelta::Pixels { x: 999.0, y: 0.0 });
-        assert_eq!(d, 0.0);
-    }
-}

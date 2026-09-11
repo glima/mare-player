@@ -195,6 +195,7 @@ impl cosmic::Application for AppModel {
             seek_debounce_version: 0,
             playback_resolve_version: 0,
             volume_level: saved_volume,
+            wheel_volume: crate::state::WheelVolume::default(),
             show_volume_bar: false,
             volume_bar_shown_at: None,
             #[cfg(not(feature = "panel-applet"))]
@@ -526,6 +527,7 @@ impl cosmic::Application for AppModel {
             | Message::HistoryFilterChanged(_)
             | Message::FavoriteTracksFilterChanged(_)
             | Message::AdjustVolume(_)
+            | Message::VolumeScroll(_)
             | Message::SetVolume(_)
             | Message::VideoWindowEvent(_)
             | Message::ArtistTopTracksLoaded(_)
@@ -911,6 +913,7 @@ impl cosmic::Application for AppModel {
 
             // Volume control
             Message::AdjustVolume(delta) => self.handle_adjust_volume(delta),
+            Message::VolumeScroll(delta) => self.handle_volume_scroll(delta),
             Message::SetVolume(level) => {
                 let delta = level.clamp(0.0, 1.0) - self.volume_level;
                 self.handle_adjust_volume(delta)

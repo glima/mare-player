@@ -42,7 +42,7 @@ pub mod rows;
 
 pub use constants::{
     ALBUM_COVER_SIZE, ARTIST_PICTURE_SIZE, MAX_POPUP_HEIGHT, NOW_PLAYING_ART_SIZE, PANEL_ART_SIZE, THUMBNAIL_SIZE,
-    VOLUME_BAR_WIDTH, VOLUME_STEP, scroll_to_volume_delta,
+    VOLUME_BAR_WIDTH, VOLUME_STEP,
 };
 
 pub use icons::{CREDITS_SVG, LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favorite_icon_handle};
