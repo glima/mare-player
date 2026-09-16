@@ -72,6 +72,21 @@ impl AudioQuality {
             AudioQuality::HiRes => "HI_RES_LOSSLESS",
         }
     }
+
+    /// The tidlers tier to request.
+    ///
+    /// `HiRes` maps to `HiResLossless`, the FLAC tier: tidlers' `HiRes`
+    /// renders as `HI_RES`, the retired MQA-era name that TIDAL answers with
+    /// `LOSSLESS` instead of erroring.
+    pub fn tidlers_quality(self) -> tidlers::client::models::playback::AudioQuality {
+        use tidlers::client::models::playback::AudioQuality as Tier;
+        match self {
+            AudioQuality::Low => Tier::Low,
+            AudioQuality::High => Tier::High,
+            AudioQuality::Lossless => Tier::Lossless,
+            AudioQuality::HiRes => Tier::HiResLossless,
+        }
+    }
 }
 
 impl AsRef<str> for AudioQuality {
