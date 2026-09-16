@@ -28,6 +28,9 @@ pub(crate) async fn load_play_history(db: &crate::cache::Db) -> Vec<crate::tidal
     db.get_play_history().await.iter().filter_map(|b| serde_json::from_slice::<HistoryEntry>(b).ok()).collect()
 }
 
+/// How many image loads may be in flight at once.
+const MAX_IMAGE_LOADS_IN_FLIGHT: usize = 24;
+
 impl AppModel {
     /// Handle subscription channel event (startup)
     pub fn handle_subscription_channel(&mut self) -> Task<cosmic::Action<Message>> {
@@ -53,6 +56,14 @@ impl AppModel {
     pub fn handle_load_image(&mut self, url: String) -> Task<cosmic::Action<Message>> {
         // Skip if already loaded or pending
         if self.loaded_images.contains_key(&url) || self.pending_image_loads.contains(&url) {
+            return Task::none();
+        }
+        // Every load holds the cache connection for a read and then lands a
+        // decoded handle on the update loop, so the number in flight is the
+        // number of frames the user waits. Rows that are on screen are rebuilt
+        // every frame and ask again, so refusing here costs a frame, not an
+        // image.
+        if self.pending_image_loads.len() >= MAX_IMAGE_LOADS_IN_FLIGHT {
             return Task::none();
         }
         self.pending_image_loads.insert(url.clone());

@@ -57,7 +57,7 @@ pub(crate) struct HandleCache {
     /// a missing thumbnail.  Set late (after the channel is created in
     /// `AppModel::init`).  When `None`, [`HandleCache::get_or_request`] behaves exactly
     /// like [`Self::get`].
-    request_tx: Option<tokio::sync::mpsc::UnboundedSender<String>>,
+    request_tx: Option<tokio::sync::mpsc::Sender<String>>,
 }
 
 impl HandleCache {
@@ -68,7 +68,7 @@ impl HandleCache {
 
     /// Install the channel that [`Self::get_or_request`] uses to request lazy
     /// loads of missing thumbnails.  Called once at app init.
-    pub(crate) fn set_request_tx(&mut self, tx: tokio::sync::mpsc::UnboundedSender<String>) {
+    pub(crate) fn set_request_tx(&mut self, tx: tokio::sync::mpsc::Sender<String>) {
         self.request_tx = Some(tx);
     }
 
@@ -104,9 +104,11 @@ impl HandleCache {
         if !key.is_empty()
             && let Some(tx) = &self.request_tx
         {
-            // Channel is unbounded; send only fails if the receiver was
-            // dropped (shouldn't happen during normal operation).  Ignore.
-            let _ = tx.send(key.to_string());
+            // Fails when the queue is full, which is the point: a layout pass
+            // asks for every row in the list, and only the visible ones will ask
+            // again. Also fails if the receiver was dropped, which does not happen
+            // in normal operation. Either way there is nothing to do.
+            let _ = tx.try_send(key.to_string());
         }
         None
     }
@@ -419,7 +421,7 @@ pub struct AppModel {
     /// [`HandleCache::get_or_request`] which pushes onto the sender side;
     /// the subscription drains this receiver and dispatches
     /// [`Message::LoadImage`](crate::messages::Message::LoadImage) for each URL.
-    pub(crate) thumbnail_request_rx: Option<Arc<Mutex<tokio::sync::mpsc::UnboundedReceiver<String>>>>,
+    pub(crate) thumbnail_request_rx: Option<Arc<Mutex<tokio::sync::mpsc::Receiver<String>>>>,
     /// Set of track IDs that are in user's favorites
     pub(crate) favorite_track_ids: HashSet<String>,
     /// MPRIS D-Bus handle for external media control
