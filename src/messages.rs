@@ -362,5 +362,7 @@ pub enum Message {
 
     // Wayland surface actions (used by responsive_menu_bar for popup menus)
     /// Forward a surface action to the COSMIC runtime (menu popups on Wayland).
-    Surface(surface::Action),
+    /// The action is generic over the message type a popup's view produces,
+    /// which for our popups is this enum.
+    Surface(surface::Action<Message>),
 }

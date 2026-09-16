@@ -27,6 +27,8 @@ impl AppModel {
                 cosmic::iced::widget::text::Style {
                     color: Some(cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2)),
                     selected_fill: cosmic::iced::Color::from_rgb(0.9, 0.2, 0.2),
+                    // `None` keeps the colour above when the text is selected.
+                    selected_text_color: None,
                 }
             })));
         }

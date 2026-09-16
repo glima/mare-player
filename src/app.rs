@@ -968,7 +968,7 @@ impl cosmic::Application for AppModel {
             }
 
             // Wayland surface action forwarding (responsive menu bar popups)
-            Message::Surface(action) => cosmic::task::message(cosmic::Action::Cosmic(cosmic::app::Action::Surface(action))),
+            Message::Surface(action) => cosmic::task::message(cosmic::Action::Surface(action)),
         }
     }
 
