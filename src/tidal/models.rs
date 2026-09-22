@@ -206,8 +206,7 @@ impl From<tidlers::client::models::album::AlbumResponse> for Album {
             cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: Some(a.audio_quality),
-            // tidlers' `AlbumResponse` does not carry `mediaMetadata`.
-            quality_tags: Vec::new(),
+            quality_tags: a.media_metadata.tags,
             review: None,
         }
     }
