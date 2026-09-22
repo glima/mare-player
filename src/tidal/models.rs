@@ -163,8 +163,33 @@ pub struct Album {
     pub explicit: bool,
     /// Audio quality available
     pub audio_quality: Option<String>,
+    /// The tiers TIDAL advertises for this album, from `mediaMetadata.tags`.
+    ///
+    /// The `audio_quality` field above is not the quality you get: this album
+    /// reads `HIGH` while every track streams as 22 kHz HE-AAC, and a hi-res
+    /// album reads `LOSSLESS` while streaming 24-bit/96 kHz. The tag list is
+    /// the honest one — it names each tier that exists, and is empty when
+    /// TIDAL advertises none.
+    #[serde(default)]
+    pub quality_tags: Vec<String>,
     /// Album review / editorial description text
     pub review: Option<String>,
+}
+
+impl Album {
+    /// The best tier TIDAL advertises for this album, title-cased to match the
+    /// now-playing badge, or `None` when it advertises none.
+    ///
+    /// Read from `quality_tags` rather than `audio_quality`, which claims a
+    /// tier the stream does not always deliver.
+    pub fn advertised_quality(&self) -> Option<String> {
+        const BEST_FIRST: [&str; 4] = ["HIRES_LOSSLESS", "LOSSLESS", "HIGH", "LOW"];
+        let best = BEST_FIRST.into_iter().find(|tier| self.quality_tags.iter().any(|tag| tag == tier))?;
+        Some(match best {
+            "HIRES_LOSSLESS" => "Hi-Res Lossless".to_string(),
+            other => other.split('_').map(StreamQuality::title_word).collect::<Vec<_>>().join(" "),
+        })
+    }
 }
 
 /// Convert from tidlers AlbumResponse type (full album info)
@@ -181,6 +206,8 @@ impl From<tidlers::client::models::album::AlbumResponse> for Album {
             cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: Some(a.audio_quality),
+            // tidlers' `AlbumResponse` does not carry `mediaMetadata`.
+            quality_tags: Vec::new(),
             review: None,
         }
     }
@@ -203,6 +230,7 @@ impl From<tidlers::client::models::search::SearchAlbumHit> for Album {
             cover_url: a.cover.as_deref().map(tidal_cover_url),
             explicit: a.explicit.unwrap_or(false),
             audio_quality: a.audio_quality,
+            quality_tags: Vec::new(),
             review: None,
         }
     }
@@ -286,6 +314,7 @@ impl From<tidlers::client::models::album::ArtistAlbum> for Album {
             cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: Some(a.audio_quality),
+            quality_tags: a.media_metadata.tags,
             review: None,
         }
     }
@@ -1382,5 +1411,35 @@ mod tests {
         let results = SearchResults { tracks: vec![Track::default()], ..Default::default() };
         assert!(!results.is_empty());
         assert_eq!(results.total_count(), 1);
+    }
+}
+
+#[cfg(test)]
+mod album_quality_tests {
+    use super::Album;
+
+    fn album_with(tags: &[&str]) -> Album {
+        Album { quality_tags: tags.iter().map(|t| t.to_string()).collect(), ..Album::default() }
+    }
+
+    #[test]
+    fn picks_the_best_advertised_tier() {
+        assert_eq!(album_with(&["LOSSLESS", "HIRES_LOSSLESS"]).advertised_quality().as_deref(), Some("Hi-Res Lossless"));
+        assert_eq!(album_with(&["LOSSLESS"]).advertised_quality().as_deref(), Some("Lossless"));
+        assert_eq!(album_with(&["HIGH"]).advertised_quality().as_deref(), Some("High"));
+    }
+
+    #[test]
+    fn advertises_nothing_when_tidal_advertises_nothing() {
+        // The case that started this: `audio_quality` reads HIGH while every
+        // track streams as 22 kHz HE-AAC, and the tag list is empty.
+        let mut album = album_with(&[]);
+        album.audio_quality = Some("HIGH".to_string());
+        assert_eq!(album.advertised_quality(), None);
+    }
+
+    #[test]
+    fn ignores_tags_that_name_no_tier() {
+        assert_eq!(album_with(&["DOLBY_ATMOS"]).advertised_quality(), None);
     }
 }

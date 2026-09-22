@@ -206,6 +206,7 @@ mod album {
             cover_url: Some("https://example.com/album.jpg".to_string()),
             explicit: true,
             audio_quality: Some("LOSSLESS".to_string()),
+            quality_tags: vec!["LOSSLESS".to_string()],
             review: Some("A masterpiece".to_string()),
         };
         let b = a.clone();
@@ -218,6 +219,7 @@ mod album {
         assert_eq!(a.cover_url, b.cover_url);
         assert_eq!(a.explicit, b.explicit);
         assert_eq!(a.audio_quality, b.audio_quality);
+        assert_eq!(a.quality_tags, b.quality_tags);
         assert_eq!(a.review, b.review);
     }
 
@@ -234,6 +236,7 @@ mod album {
             cover_url: Some("https://tidal.com/cover.jpg".to_string()),
             explicit: false,
             audio_quality: Some("HI_RES".to_string()),
+            quality_tags: vec!["LOSSLESS".to_string(), "HIRES_LOSSLESS".to_string()],
             review: None,
         };
         let json = serde_json::to_string(&a).unwrap();
@@ -241,6 +244,7 @@ mod album {
         assert_eq!(a2.id, "55");
         assert_eq!(a2.title, "Serde Album");
         assert_eq!(a2.num_tracks, 8);
+        assert_eq!(a2.advertised_quality().as_deref(), Some("Hi-Res Lossless"));
         assert!(!a2.explicit);
     }
 

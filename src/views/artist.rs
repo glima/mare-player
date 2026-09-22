@@ -179,7 +179,7 @@ fn build_artist_album_row<'a>(loaded_images: &HandleCache, album: &Album) -> Ele
     }
 
     // Quality badge
-    if let Some(ref quality) = album.audio_quality {
+    if let Some(quality) = album.advertised_quality() {
         info_children.push(text(quality.clone()).size(10).wrapping(Wrapping::None).into());
     }
 

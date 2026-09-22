@@ -180,8 +180,8 @@ impl AppModel {
         }
 
         // Audio quality
-        if let Some(ref quality) = album.audio_quality {
-            details = details.push(text(fl!("quality-label", quality = quality.clone())).size(10));
+        if let Some(quality) = album.advertised_quality() {
+            details = details.push(text(fl!("quality-label", quality = quality)).size(10));
         }
 
         // Explicit badge

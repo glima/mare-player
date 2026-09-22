@@ -257,7 +257,16 @@ struct ApiAlbumData {
     cover: String,
     explicit: bool,
     audio_quality: Option<String>,
+    /// The tiers TIDAL advertises, which `audio_quality` above does not
+    /// reliably describe. Absent from some responses.
+    media_metadata: Option<ApiMediaMetadata>,
     artist: ApiAlbumArtist,
+}
+
+#[derive(Debug, Deserialize)]
+struct ApiMediaMetadata {
+    #[serde(default)]
+    tags: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -280,6 +289,7 @@ impl From<ApiAlbumData> for Album {
             cover_url: Some(tidal_cover_url(&a.cover)),
             explicit: a.explicit,
             audio_quality: a.audio_quality,
+            quality_tags: a.media_metadata.map(|m| m.tags).unwrap_or_default(),
             review: None,
         }
     }
@@ -2435,6 +2445,12 @@ impl TidalAppClient {
             cover_url: it.get("cover").and_then(|v| v.as_str()).map(tidal_cover_url),
             explicit: it.get("explicit").and_then(|v| v.as_bool()).unwrap_or(false),
             audio_quality: it.get("audioQuality").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            quality_tags: it
+                .get("mediaMetadata")
+                .and_then(|m| m.get("tags"))
+                .and_then(|t| t.as_array())
+                .map(|tags| tags.iter().filter_map(|t| t.as_str().map(str::to_string)).collect())
+                .unwrap_or_default(),
             review: None,
         })
     }
@@ -2729,6 +2745,7 @@ impl TidalAppClient {
                 cover_url: album.cover.as_deref().map(tidal_cover_url),
                 explicit: album.explicit,
                 audio_quality: album.audio_quality,
+                quality_tags: Vec::new(),
                 review: None,
             }),
             TItem::HistoryMix(mix) => {
