@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "cosmic-applet-mare"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -4153,7 +4153,7 @@ dependencies = [
 
 [[package]]
 name = "mare-video-window"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "gstreamer",
 ]
