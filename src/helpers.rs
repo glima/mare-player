@@ -5,27 +5,18 @@
 //! This module contains shared utility functions used across the application,
 //! including clipboard operations, URL handling, and text manipulation.
 
-/// Generate a song.link URL for sharing
+/// The song.link page for a TIDAL URL.
 ///
-/// Takes a TIDAL URL and returns a universal song.link URL that works
-/// across multiple streaming platforms.
-pub async fn generate_songlink(tidal_url: &str) -> Result<String, String> {
-    let client = reqwest::Client::new();
-
-    // Build the URL with query parameters
-    let url = format!("https://api.song.link/v1-alpha.1/links?url={}&userCountry=US", urlencoding::encode(tidal_url));
-
-    let response = client.get(&url).send().await.map_err(|e| format!("Request failed: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("API returned status: {}", response.status()));
-    }
-
-    let bytes = response.bytes().await.map_err(|e| format!("Failed to read response: {}", e))?;
-
-    let json: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-
-    json.get("pageUrl").and_then(|v| v.as_str()).map(|s| s.to_string()).ok_or_else(|| "No pageUrl in response".to_string())
+/// song.link resolves a music-service URL appended to its own, so the page
+/// address is derivable and needs no request: Odesli retired the public API
+/// that used to report it, and a keyless call now answers
+/// `401 PUBLIC_API_ACCESS_DEPRECATED`.
+///
+/// The appended form is used rather than the per-platform shorthand
+/// (`song.link/t/<id>`) because that one needs a different host for each kind
+/// of entity — `album.link` for albums — while this works for both.
+pub fn songlink_url(tidal_url: &str) -> String {
+    format!("https://song.link/{tidal_url}")
 }
 
 /// Copy text to clipboard using system tools
@@ -169,6 +160,22 @@ pub fn format_seconds(seconds: f64) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn songlink_page_is_the_tidal_url_appended() {
+        assert_eq!(
+            songlink_url("https://tidal.com/browse/track/128802591"),
+            "https://song.link/https://tidal.com/browse/track/128802591"
+        );
+    }
+
+    #[test]
+    fn the_same_rule_covers_albums() {
+        assert_eq!(
+            songlink_url("https://tidal.com/browse/album/79640937"),
+            "https://song.link/https://tidal.com/browse/album/79640937"
+        );
+    }
+
     use super::*;
 
     #[test]

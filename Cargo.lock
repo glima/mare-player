@@ -1230,7 +1230,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "turso",
- "urlencoding",
  "uuid",
  "zbus",
 ]

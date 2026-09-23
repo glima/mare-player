@@ -868,7 +868,6 @@ impl cosmic::Application for AppModel {
                 self.handle_cancel_share();
                 Task::none()
             }
-            Message::ShareLinkGenerated(result) => self.handle_share_link_generated(result),
 
             // Misc handlers - MPRIS
             Message::MprisServiceStarted(result) => self.handle_mpris_service_started(result),

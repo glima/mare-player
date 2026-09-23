@@ -314,8 +314,6 @@ pub enum Message {
     ShareAlbum(String, String),
     /// Cancel share dialog
     CancelShare,
-    /// Result of generating a song.link URL
-    ShareLinkGenerated(Result<String, String>),
 
     // Settings
     /// Set audio quality preference
