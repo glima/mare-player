@@ -441,6 +441,15 @@ pub struct AppModel {
     /// Monotonic version for debouncing playback-URL resolution, so a burst of
     /// rapid skips only resolves the track the user settles on.
     pub(crate) playback_resolve_version: u64,
+    /// When the playing track's stream URL was issued. TIDAL's segment URLs
+    /// stop working an hour later, so this is what says a stream is too old to
+    /// resume or has just died of age.
+    pub(crate) stream_minted_at: Option<Instant>,
+    /// When a stream was last re-minted after a failure, so a stream that is
+    /// broken for some other reason cannot loop.
+    pub(crate) stream_reminted_at: Option<Instant>,
+    /// Where to pick up once a re-minted stream starts, in seconds.
+    pub(crate) audio_resume_target: Option<f64>,
     /// Current volume level (0.0 to 1.0)
     pub(crate) volume_level: f32,
     /// Turns scroll events into volume steps. See [`WheelVolume`].

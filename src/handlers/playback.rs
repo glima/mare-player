@@ -26,6 +26,28 @@ use std::time::{Duration, Instant};
 /// `playbackinfopostpaywall`).
 const PLAYBACK_RESOLVE_DEBOUNCE_MS: u64 = 150;
 
+/// How long TIDAL's stream URLs last.
+///
+/// The segment URLs inside a DASH manifest stop working exactly an hour after
+/// the manifest is issued — measured to the second: a manifest minted at
+/// 10:44:55.666 died at 11:44:55.507, mid-track, as
+/// `GstDashDemux2: Couldn't download fragments`.
+const STREAM_LIFETIME: Duration = Duration::from_secs(60 * 60);
+
+/// How long before that hour is up a stream is re-minted rather than used.
+/// Covers the rest of a track playing out after the check.
+const STREAM_REFRESH_MARGIN: Duration = Duration::from_secs(5 * 60);
+
+/// How long after re-minting a stream a second failure is taken at face value.
+/// A stream that dies twice this quickly is broken for some other reason, and
+/// the queue should move on rather than retry forever.
+const STREAM_REMINT_COOLDOWN: Duration = Duration::from_secs(15);
+
+/// Whether a stream this old should be re-minted before it is used.
+fn stream_expiring(age: Duration) -> bool {
+    age + STREAM_REFRESH_MARGIN >= STREAM_LIFETIME
+}
+
 // =============================================================================
 // Task Helper Methods
 // =============================================================================
@@ -74,6 +96,33 @@ impl AppModel {
             },
             |v| cosmic::Action::App(Message::ResolvePlaybackDebounced(v)),
         )
+    }
+
+    /// Re-resolve the playing track's stream and pick up where it stopped.
+    ///
+    /// A track whose stream URL expires has not ended — only its URL has, and
+    /// the fix is a new one plus a seek, not the next track. Returns `None`
+    /// when there is nothing to resume (no queue, nothing played yet) or when
+    /// a re-mint has just been tried, leaving the caller to treat the failure
+    /// as the end of the track.
+    fn remint_current_stream(&mut self, position: f64) -> Option<Task<cosmic::Action<Message>>> {
+        if position <= 0.0 || self.playback_queue.get(self.playback_queue_index).is_none() {
+            return None;
+        }
+        if self.stream_reminted_at.is_some_and(|at| at.elapsed() < STREAM_REMINT_COOLDOWN) {
+            return None;
+        }
+
+        let age = self.stream_minted_at.map(|at| at.elapsed());
+        tracing::info!("Re-minting stream at {position:.0}s (issued {age:?} ago)");
+
+        self.stream_reminted_at = Some(Instant::now());
+        // `play_track_at_index` rewinds the position and kicks off the
+        // resolve, so the target is set after it, for `start_gst_audio` to
+        // consume when the new URL lands.
+        let task = self.play_track_at_index(self.playback_queue_index);
+        self.audio_resume_target = Some(position);
+        Some(task)
     }
 
     /// Resolve the playback URL for the track the queue has settled on.
@@ -365,21 +414,31 @@ impl AppModel {
         tracing::info!("GStreamer audio: {} ({})", track, if playback_url.is_dash() { "DASH" } else { "direct" },);
 
         let analyzer = self.visualizer_state.analyzer();
-        match crate::playback::MediaPlayer::new_audio(&uri, analyzer, replay_gain_db) {
+        // A re-minted stream carries on from where its predecessor died, and
+        // is the same play: no new history entry, no second play session.
+        let resume_at = self.audio_resume_target.take();
+        let player = match resume_at {
+            Some(position) => crate::playback::MediaPlayer::new_audio_at(&uri, analyzer, replay_gain_db, position),
+            None => crate::playback::MediaPlayer::new_audio(&uri, analyzer, replay_gain_db),
+        };
+        match player {
             Ok(mp) => {
                 mp.set_volume(self.volume_level as f64);
                 self.media_player = Some(mp);
                 self.gst_transitions_seen = 0;
                 self.playback_state = PlaybackState::Playing;
                 self.now_playing = Some(now_playing);
-                self.playback_position = 0.0;
+                self.playback_position = resume_at.unwrap_or(0.0);
+                self.stream_minted_at = Some(Instant::now());
                 self.visualizer_state.set_active(true);
 
-                // Record in local play history and open a TIDAL
-                // play-attribution session (finalises the previous one).
-                self.play_history.record(&track);
-                self.persist_play_history();
-                self.open_play_session(&track);
+                if resume_at.is_none() {
+                    // Record in local play history and open a TIDAL
+                    // play-attribution session (finalises the previous one).
+                    self.play_history.record(&track);
+                    self.persist_play_history();
+                    self.open_play_session(&track);
+                }
 
                 // Stage the next track for gapless playback.
                 let preload_task = Task::done(cosmic::Action::App(Message::PreloadNextTrack));
@@ -641,6 +700,15 @@ impl AppModel {
         }
 
         // GStreamer audio path: same direct pipeline control as video.
+        // Resuming onto a stream near the end of its hour would play for a
+        // few minutes and then fail mid-track, so re-mint it instead.
+        if self.playback_state == PlaybackState::Paused
+            && self.media_player.is_some()
+            && self.stream_minted_at.is_some_and(|at| stream_expiring(at.elapsed()))
+            && let Some(task) = self.remint_current_stream(self.playback_position)
+        {
+            return task;
+        }
         if let Some(mp) = &self.media_player {
             let new_state = match self.playback_state {
                 PlaybackState::Playing => {
@@ -963,6 +1031,15 @@ impl AppModel {
 
             if ended {
                 tracing::info!("GStreamer audio ended (errored={errored}, eos={eos}, state={:?})", self.playback_state);
+                // A download failure mid-track is usually an expired stream
+                // rather than a finished one, so try a fresh URL before
+                // treating it as the end and moving the queue on.
+                if errored
+                    && !eos
+                    && let Some(task) = self.remint_current_stream(self.playback_position)
+                {
+                    return task;
+                }
                 self.media_player = None;
                 match self.loop_status {
                     LoopStatus::Track => {
@@ -1245,5 +1322,32 @@ impl AppModel {
         let end_ts_ms =
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
         self.play_reporter.record(in_progress.finalize(end_ts_ms, token));
+    }
+}
+
+#[cfg(test)]
+mod stream_lifetime_tests {
+    use super::{STREAM_LIFETIME, STREAM_REFRESH_MARGIN, stream_expiring};
+    use std::time::Duration;
+
+    #[test]
+    fn a_fresh_stream_is_used_as_is() {
+        assert!(!stream_expiring(Duration::ZERO));
+        assert!(!stream_expiring(Duration::from_secs(30 * 60)));
+    }
+
+    #[test]
+    fn a_stream_inside_the_margin_is_reminted() {
+        // The margin exists so a track resumed at 56 minutes does not play
+        // for four minutes and then die mid-song.
+        assert!(!stream_expiring(STREAM_LIFETIME - STREAM_REFRESH_MARGIN - Duration::from_secs(1)));
+        assert!(stream_expiring(STREAM_LIFETIME - STREAM_REFRESH_MARGIN));
+        assert!(stream_expiring(Duration::from_secs(56 * 60)));
+    }
+
+    #[test]
+    fn a_stream_past_its_hour_is_reminted() {
+        assert!(stream_expiring(STREAM_LIFETIME));
+        assert!(stream_expiring(Duration::from_secs(3 * 60 * 60)));
     }
 }

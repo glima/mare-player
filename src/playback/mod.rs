@@ -462,6 +462,18 @@ impl MediaPlayer {
     ///
     /// `replay_gain_db` is the fixed video pre-amp from config (TIDAL authors
     /// no replay-gain for videos).
+    /// An audio pipeline that starts at `position_secs` rather than at the
+    /// beginning — what a re-minted stream needs to carry on where the
+    /// expired one stopped.
+    pub fn new_audio_at(
+        uri: &str,
+        analyzer: Option<SharedSpectrumAnalyzer>,
+        replay_gain_db: f32,
+        position_secs: f64,
+    ) -> Result<Self, String> {
+        Self::build(uri, MediaKind::Audio, analyzer, replay_gain_db, Some(position_secs))
+    }
+
     pub fn new_video(uri: &str, analyzer: Option<SharedSpectrumAnalyzer>, replay_gain_db: f32) -> Result<Self, String> {
         Self::build(uri, MediaKind::Video, analyzer, replay_gain_db, None)
     }
