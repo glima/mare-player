@@ -6709,7 +6709,7 @@ dependencies = [
 [[package]]
 name = "tidlers"
 version = "0.5.0"
-source = "git+https://codeberg.org/tomkoid/tidlers.git#8057bbad1e6a91eeeda27302398d66f962d254bb"
+source = "git+https://codeberg.org/tomkoid/tidlers.git#9d53253e936c2d097ea1b0c9552b4015851de725"
 dependencies = [
  "base64 0.22.1",
  "chrono",

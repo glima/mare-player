@@ -487,21 +487,17 @@ impl TidalAppClient {
     /// Add `resource_id` to the user's favorites via tidlers.
     async fn add_to_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
-        let id: u32 = resource_id.parse().map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
-
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        client.add_to_favorites(resource, id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
+        client.add_to_favorites(resource, resource_id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
     /// Remove `resource_id` from the user's favorites via tidlers.
     async fn remove_from_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
-        let id: u32 = resource_id.parse().map_err(|e| TidalError::ParseError(format!("bad id `{resource_id}`: {e}")))?;
-
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
-        client.remove_from_favorites(resource, id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
+        client.remove_from_favorites(resource, resource_id).await.map_err(|e| TidalError::RequestFailed(format!("{e:?}")))
     }
 
     /// Create a new TidalAppClient
@@ -1264,7 +1260,7 @@ impl TidalAppClient {
 
         debug!("Getting album tracks for: {}", album_id);
 
-        match client.get_album_items(album_id.to_string(), Some(limit.unwrap_or(100) as u64), offset.map(|o| o as u64)).await {
+        match client.get_album_items(album_id.to_string(), Some(limit.unwrap_or(100)), offset).await {
             Ok(response) => {
                 let tracks: Vec<Track> = response.items.into_iter().map(|item| Track::from(item.item)).collect();
                 Ok(tracks)
@@ -1442,7 +1438,7 @@ impl TidalAppClient {
 
         debug!("Getting top tracks for artist: {}", artist_id);
 
-        match client.get_artist_tracks(artist_id.to_string(), limit.map(|l| l as u64), None).await {
+        match client.get_artist_tracks(artist_id.to_string(), limit, None).await {
             Ok(response) => {
                 let tracks = response.items.into_iter().map(Track::from).collect();
                 Ok(tracks)
@@ -1463,7 +1459,7 @@ impl TidalAppClient {
 
         debug!("Getting albums for artist: {}", artist_id);
 
-        match client.get_artist_albums(artist_id.to_string(), limit.map(|l| l as u64), None).await {
+        match client.get_artist_albums(artist_id.to_string(), limit, None).await {
             Ok(response) => {
                 let albums = response.items.into_iter().map(Album::from).collect();
                 Ok(albums)
@@ -1487,7 +1483,7 @@ impl TidalAppClient {
 
         debug!("Getting videos for artist: {}", artist_id);
 
-        match client.get_artist_videos(artist_id.to_string(), limit.map(|l| l as u64), None).await {
+        match client.get_artist_videos(artist_id.to_string(), limit, None).await {
             Ok(response) => {
                 let videos = response
                     .items
