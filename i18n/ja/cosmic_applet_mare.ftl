@@ -100,6 +100,8 @@ artist-count = {$count} アーティスト
 
 # 検索
 search-placeholder = トラック、アルバム、アーティストを検索...
+search-top = トップ
+load-more = さらに読み込む
 
 # デバッグ
 debug-unoptimized = （未最適化）

@@ -442,6 +442,81 @@ pub struct SearchResults {
     /// `#[serde(default)]` keeps older cached search payloads deserializable.
     #[serde(default)]
     pub videos: Vec<Track>,
+    /// How many matches TIDAL has per category — usually more than were
+    /// fetched, which is what lets a category view offer "load more".
+    /// Zero (the default for older cached payloads) means "unknown".
+    #[serde(default)]
+    pub totals: SearchTotals,
+}
+
+/// Server-side match counts per search category. See [`SearchResults::total`].
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchTotals {
+    pub tracks: u32,
+    pub artists: u32,
+    pub albums: u32,
+    pub playlists: u32,
+    pub videos: u32,
+}
+
+impl SearchTotals {
+    pub fn get(self, category: SearchCategory) -> u32 {
+        match category {
+            SearchCategory::Tracks => self.tracks,
+            SearchCategory::Artists => self.artists,
+            SearchCategory::Albums => self.albums,
+            SearchCategory::Playlists => self.playlists,
+            SearchCategory::Videos => self.videos,
+        }
+    }
+
+    fn get_mut(&mut self, category: SearchCategory) -> &mut u32 {
+        match category {
+            SearchCategory::Tracks => &mut self.tracks,
+            SearchCategory::Artists => &mut self.artists,
+            SearchCategory::Albums => &mut self.albums,
+            SearchCategory::Playlists => &mut self.playlists,
+            SearchCategory::Videos => &mut self.videos,
+        }
+    }
+}
+
+/// A kind of search result. The search view shows either an overview of all
+/// categories ("Top") or the full, pageable list of one of these.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum SearchCategory {
+    Tracks,
+    Artists,
+    Albums,
+    Playlists,
+    Videos,
+}
+
+impl SearchCategory {
+    /// Display order for both the category chips and the Top overview sections.
+    pub const ALL: [Self; 5] = [Self::Tracks, Self::Artists, Self::Albums, Self::Playlists, Self::Videos];
+
+    /// How many of this category's results the Top overview shows.
+    pub fn preview_len(self) -> usize {
+        match self {
+            Self::Tracks | Self::Videos => 5,
+            Self::Artists | Self::Albums | Self::Playlists => 3,
+        }
+    }
+}
+
+/// A single flattened row of the **search** view, rendered through the virtual
+/// `List` widget so long category lists only materialise visible rows (and
+/// load their covers lazily). Items are indices into the matching
+/// [`SearchResults`] vector.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchRow {
+    /// A Top-overview section heading; clicking it opens that category.
+    SectionHeader(SearchCategory),
+    /// The `usize`-th result of a category.
+    Item(SearchCategory, usize),
+    /// "Load more" at the end of a category list TIDAL has more results for.
+    LoadMore(SearchCategory),
 }
 
 // ── Playback source ──────────────────────────────────────────────────
@@ -553,6 +628,68 @@ impl SearchResults {
     pub fn total_count(&self) -> usize {
         self.tracks.len() + self.albums.len() + self.artists.len() + self.playlists.len() + self.videos.len()
     }
+
+    /// Number of loaded results in `category`.
+    pub fn len(&self, category: SearchCategory) -> usize {
+        match category {
+            SearchCategory::Tracks => self.tracks.len(),
+            SearchCategory::Artists => self.artists.len(),
+            SearchCategory::Albums => self.albums.len(),
+            SearchCategory::Playlists => self.playlists.len(),
+            SearchCategory::Videos => self.videos.len(),
+        }
+    }
+
+    /// Whether TIDAL reported more matches in `category` than are loaded.
+    pub fn has_more(&self, category: SearchCategory) -> bool {
+        self.totals.get(category) as usize > self.len(category)
+    }
+
+    /// Append the next page of `category` (fetched with an offset equal to the
+    /// current [`len`](Self::len)) and adopt its fresh total. An empty page
+    /// means TIDAL has nothing past this point whatever its total claims, so
+    /// the total is clamped and "load more" stops being offered.
+    pub fn append_page(&mut self, category: SearchCategory, page: SearchResults) {
+        let SearchResults { tracks, albums, artists, playlists, videos, totals } = page;
+        let page_total = totals.get(category);
+        let added = match category {
+            SearchCategory::Tracks => extend_count(&mut self.tracks, tracks),
+            SearchCategory::Artists => extend_count(&mut self.artists, artists),
+            SearchCategory::Albums => extend_count(&mut self.albums, albums),
+            SearchCategory::Playlists => extend_count(&mut self.playlists, playlists),
+            SearchCategory::Videos => extend_count(&mut self.videos, videos),
+        };
+        let len = self.len(category) as u32;
+        *self.totals.get_mut(category) = if added == 0 { len } else { page_total.max(len) };
+    }
+
+    /// Flatten the results into list rows: with no `category`, the Top
+    /// overview (a header plus a short preview per non-empty category);
+    /// otherwise every loaded result of that category, then "load more" if
+    /// TIDAL has further matches.
+    pub fn rows(&self, category: Option<SearchCategory>) -> Vec<SearchRow> {
+        match category {
+            None => SearchCategory::ALL
+                .into_iter()
+                .filter(|&c| self.len(c) > 0)
+                .flat_map(|c| {
+                    let preview = (0..self.len(c).min(c.preview_len())).map(move |i| SearchRow::Item(c, i));
+                    std::iter::once(SearchRow::SectionHeader(c)).chain(preview)
+                })
+                .collect(),
+            Some(c) => (0..self.len(c))
+                .map(|i| SearchRow::Item(c, i))
+                .chain(self.has_more(c).then_some(SearchRow::LoadMore(c)))
+                .collect(),
+        }
+    }
+}
+
+/// Extend `into` with `items`, returning how many were added.
+fn extend_count<T>(into: &mut Vec<T>, items: Vec<T>) -> usize {
+    let added = items.len();
+    into.extend(items);
+    added
 }
 
 /// A single activity from the TIDAL Feed (new releases from followed artists).
@@ -1438,9 +1575,63 @@ mod tests {
             artists: vec![Artist::default(), Artist::default(), Artist::default()],
             playlists: vec![Playlist::default()],
             videos: vec![],
+            totals: SearchTotals::default(),
         };
         assert!(!results.is_empty());
         assert_eq!(results.total_count(), 7);
+    }
+
+    fn tracks(n: usize) -> Vec<Track> {
+        (0..n).map(|i| Track { id: i.to_string(), ..Default::default() }).collect()
+    }
+
+    #[test]
+    fn top_rows_preview_each_non_empty_category_in_display_order() {
+        let results =
+            SearchResults { tracks: tracks(20), videos: tracks(2), albums: vec![Album::default(); 20], ..Default::default() };
+        let rows = results.rows(None);
+        use SearchCategory::*;
+        let mut expected = vec![SearchRow::SectionHeader(Tracks)];
+        expected.extend((0..5).map(|i| SearchRow::Item(Tracks, i)));
+        expected.push(SearchRow::SectionHeader(Albums));
+        expected.extend((0..3).map(|i| SearchRow::Item(Albums, i)));
+        expected.push(SearchRow::SectionHeader(Videos));
+        expected.extend((0..2).map(|i| SearchRow::Item(Videos, i)));
+        assert_eq!(rows, expected);
+    }
+
+    #[test]
+    fn category_rows_list_everything_and_offer_more_only_when_tidal_has_more() {
+        let mut results = SearchResults { tracks: tracks(20), ..Default::default() };
+        // Unknown total (older cache): nothing more to offer.
+        assert_eq!(results.rows(Some(SearchCategory::Tracks)).len(), 20);
+
+        results.totals.tracks = 300;
+        let rows = results.rows(Some(SearchCategory::Tracks));
+        assert_eq!(rows.len(), 21);
+        assert_eq!(rows[19], SearchRow::Item(SearchCategory::Tracks, 19));
+        assert_eq!(rows[20], SearchRow::LoadMore(SearchCategory::Tracks));
+        assert!(results.rows(Some(SearchCategory::Artists)).is_empty());
+    }
+
+    #[test]
+    fn appending_pages_tracks_totals_and_stops_on_an_empty_page() {
+        let mut results = SearchResults {
+            tracks: tracks(20),
+            totals: SearchTotals { tracks: 300, ..Default::default() },
+            ..Default::default()
+        };
+        let page =
+            SearchResults { tracks: tracks(50), totals: SearchTotals { tracks: 70, ..Default::default() }, ..Default::default() };
+        results.append_page(SearchCategory::Tracks, page);
+        assert_eq!(results.len(SearchCategory::Tracks), 70);
+        assert!(!results.has_more(SearchCategory::Tracks));
+
+        // TIDAL's total can overstate what it will actually page through.
+        results.totals.tracks = 300;
+        results.append_page(SearchCategory::Tracks, SearchResults::default());
+        assert_eq!(results.len(SearchCategory::Tracks), 70);
+        assert!(!results.has_more(SearchCategory::Tracks));
     }
 
     #[test]

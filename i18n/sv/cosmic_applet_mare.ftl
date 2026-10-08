@@ -106,6 +106,8 @@ artist-count = {$count} {$count ->
 
 # Sök
 search-placeholder = Sök spår, album, artister...
+search-top = Topp
+load-more = Läs in fler
 
 # Felsökning
 debug-unoptimized = (ooptimerad)

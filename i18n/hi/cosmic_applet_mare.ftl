@@ -106,6 +106,8 @@ artist-count = {$count} {$count ->
 
 # Search
 search-placeholder = ट्रैक, एल्बम, कलाकार खोजें...
+search-top = शीर्ष
+load-more = और लोड करें
 
 # Debug
 debug-unoptimized = (अनऑप्टिमाइज़्ड)

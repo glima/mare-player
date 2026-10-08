@@ -15,7 +15,7 @@ use crate::config::{AudioQuality, Config, LogLevel};
 use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::{PlaybackFailure, PlaybackUrl};
 use crate::tidal::models::{
-    Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchResults, Track,
+    Album, Artist, ExplorePage, ExploreTarget, FeedActivity, Mix, PlaybackSource, Playlist, SearchCategory, SearchResults, Track,
 };
 use crate::tidal::mpris::{MprisCommand, MprisHandle};
 
@@ -186,6 +186,12 @@ pub enum Message {
     PerformSearchDebounced(u64),
     /// Search completed with results
     SearchComplete(Result<SearchResults, String>),
+    /// Show one search category in full (`Some`) or the Top overview (`None`)
+    SelectSearchCategory(Option<SearchCategory>),
+    /// Fetch the next page of a search category
+    LoadMoreSearchResults(SearchCategory),
+    /// A search category page loaded: (query, category, offset, page)
+    MoreSearchResultsLoaded(String, SearchCategory, usize, Result<SearchResults, String>),
 
     // Playlists
     /// Load user playlists

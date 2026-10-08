@@ -100,6 +100,8 @@ artist-count = {$count} sanatçı
 
 # Arama
 search-placeholder = Parça, albüm, sanatçı ara...
+search-top = En iyiler
+load-more = Daha fazla yükle
 
 # Hata ayıklama
 debug-unoptimized = (optimize edilmemiş)

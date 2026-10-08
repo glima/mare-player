@@ -100,6 +100,8 @@ artist-count = {$count} 位艺术家
 
 # 搜索
 search-placeholder = 搜索曲目、专辑、艺术家...
+search-top = 热门
+load-more = 加载更多
 
 # 调试
 debug-unoptimized = （未优化）

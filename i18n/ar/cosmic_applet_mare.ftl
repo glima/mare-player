@@ -114,6 +114,8 @@ artist-count = {$count} {$count ->
 
 # Search
 search-placeholder = ابحث عن مقاطع، ألبومات، فنانين...
+search-top = الأفضل
+load-more = تحميل المزيد
 
 # Debug
 debug-unoptimized = (غير محسَّن)

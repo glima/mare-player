@@ -23,7 +23,7 @@ use cosmic::widget::{self, button, container, icon, text};
 use crate::fl;
 use crate::messages::Message;
 use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::{Album, Playlist, Track};
+use crate::tidal::models::{Album, Artist, Playlist, Track};
 
 use super::constants::THUMBNAIL_SIZE;
 use super::icons::RADIO_SVG;
@@ -162,6 +162,27 @@ pub(crate) fn build_album_row<'a>(loaded_images: &HandleCache, album: &Album) ->
         .width(Length::Fill);
 
     list_item(row, Message::ShowAlbumDetail(album.clone()), 6)
+}
+
+/// Standalone artist row builder (picture + name + primary role) for virtual
+/// `List` closures. Used by the Profiles view and search results; navigates
+/// to the artist detail view on click.
+pub(crate) fn build_profile_artist_row<'a>(loaded_images: &HandleCache, artist: &Artist) -> Element<'a, Message> {
+    let mut info_children: Vec<Element<'_, Message>> = vec![text(artist.name.clone()).size(13).wrapping(Wrapping::None).into()];
+
+    // Show primary role if available (e.g. "Artist", "Producer", "DJ")
+    if let Some(role) = artist.roles.first() {
+        info_children.push(text(role.clone()).size(11).wrapping(Wrapping::None).into());
+    }
+
+    let row = widget::Row::new()
+        .push(build_thumbnail(loaded_images, artist.picture_url.as_deref(), "system-users-symbolic"))
+        .push(fading_text_column(info_children))
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+
+    list_item(row, Message::ShowArtistDetail(artist.id.clone()), 6)
 }
 
 // =============================================================================

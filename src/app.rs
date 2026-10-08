@@ -118,6 +118,12 @@ impl cosmic::Application for AppModel {
             login_uri_rx: None,
             search_query: String::new(),
             search_results: None,
+            search_category: None,
+            search_rows: cosmic::iced::widget::list::Content::default(),
+            search_rows_revision: 0,
+            search_loading_more: false,
+            search_tracks_arc: Arc::from([]),
+            search_videos_arc: Arc::from([]),
             user_playlists: Vec::new(),
             playlist_thumbnails: HashMap::new(),
             user_albums: Vec::new(),
@@ -571,6 +577,7 @@ impl cosmic::Application for AppModel {
             | Message::ArtistInfoLoaded(_)
             | Message::FavoriteTracksLoaded(_)
             | Message::SearchComplete(_)
+            | Message::MoreSearchResultsLoaded(..)
             | Message::MixesLoaded(_)
             | Message::MixTracksLoaded(_)
             | Message::TrackRadioLoaded(_, _, _)
@@ -742,6 +749,11 @@ impl cosmic::Application for AppModel {
             Message::PerformSearchDebounced(version) => self.handle_perform_search_debounced(version),
             Message::PerformSearch => self.handle_perform_search(),
             Message::SearchComplete(result) => self.handle_search_complete(result),
+            Message::SelectSearchCategory(category) => self.handle_select_search_category(category),
+            Message::LoadMoreSearchResults(category) => self.handle_load_more_search_results(category),
+            Message::MoreSearchResultsLoaded(query, category, offset, result) => {
+                self.handle_more_search_results_loaded(query, category, offset, result)
+            }
 
             // Data handlers - playlists
             Message::LoadPlaylists => self.handle_load_playlists(),

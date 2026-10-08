@@ -296,6 +296,47 @@ mod tests {
         app
     }
 
+    /// Paging (search "load more") must edit `Content` in place rather than
+    /// replace it, because it keeps the list's widget identity: the control
+    /// shows a replaced `Content` in a reused tree drawing with a stale row
+    /// height, while incremental remove/push lays out correctly.
+    #[test]
+    fn incremental_appends_keep_a_reused_list_tree_contiguous() {
+        let rows_after_append = |incremental: bool| {
+            // Two 56px rows, then a 40px "load more" row.
+            let mut content: Content<f32> = std::iter::repeat_n(56.0, 2).chain([40.0]).collect();
+            let draws = Rc::new(RefCell::new(Vec::new()));
+            let mut old = probe_list(&content, draws.clone());
+            let mut tree = widget::Tree::new(old.as_widget());
+            for _ in 0..4 {
+                frame(&mut old, &mut tree, &draws);
+            }
+            drop(old);
+            if incremental {
+                content.remove(2);
+                (0..50).for_each(|_| content.push(56.0));
+                content.push(40.0);
+            } else {
+                content = std::iter::repeat_n(56.0, 52).chain([40.0]).collect();
+            }
+            let mut appended = probe_list(&content, draws.clone());
+            tree.diff(appended.as_widget_mut());
+            for _ in 0..6 {
+                frame(&mut appended, &mut tree, &draws);
+            }
+            draws.take()
+        };
+        let contiguous = |rows: &[Rectangle]| rows.windows(2).all(|r| (r[1].y - r[0].y - 56.0).abs() < 0.01);
+
+        let replaced = rows_after_append(false);
+        assert!(replaced.len() > 3);
+        assert!(!contiguous(&replaced), "control: replacing Content in a reused List tree must reproduce the bug");
+
+        let incremental = rows_after_append(true);
+        assert!(incremental.len() > 3);
+        assert!(contiguous(&incremental));
+    }
+
     fn root_page() -> ExplorePage {
         ExplorePage {
             title: "Explore".into(),

@@ -100,6 +100,8 @@ artist-count = {$count} artis
 
 # Carian
 search-placeholder = Cari lagu, album, artis...
+search-top = Teratas
+load-more = Muat lagi
 
 # Nyahpepijat
 debug-unoptimized = (tidak dioptimumkan)

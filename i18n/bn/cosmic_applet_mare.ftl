@@ -106,6 +106,8 @@ artist-count = {$count} জন {$count ->
 
 # অনুসন্ধান
 search-placeholder = ট্র্যাক, অ্যালবাম, শিল্পী অনুসন্ধান করুন...
+search-top = শীর্ষ
+load-more = আরও লোড করুন
 
 # ডিবাগ
 debug-unoptimized = (অনুকূলিত নয়)

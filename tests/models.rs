@@ -527,30 +527,55 @@ mod search_results {
 
     #[test]
     fn is_empty_when_all_categories_empty() {
-        let sr = SearchResults { tracks: vec![], albums: vec![], artists: vec![], playlists: vec![], videos: vec![] };
+        let sr = SearchResults {
+            tracks: vec![],
+            albums: vec![],
+            artists: vec![],
+            playlists: vec![],
+            videos: vec![],
+            totals: Default::default(),
+        };
         assert!(sr.is_empty());
     }
 
     #[test]
     fn not_empty_with_tracks() {
-        let sr =
-            SearchResults { tracks: vec![Track::default()], albums: vec![], artists: vec![], playlists: vec![], videos: vec![] };
+        let sr = SearchResults {
+            tracks: vec![Track::default()],
+            albums: vec![],
+            artists: vec![],
+            playlists: vec![],
+            videos: vec![],
+            totals: Default::default(),
+        };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
 
     #[test]
     fn not_empty_with_albums() {
-        let sr =
-            SearchResults { tracks: vec![], albums: vec![Album::default()], artists: vec![], playlists: vec![], videos: vec![] };
+        let sr = SearchResults {
+            tracks: vec![],
+            albums: vec![Album::default()],
+            artists: vec![],
+            playlists: vec![],
+            videos: vec![],
+            totals: Default::default(),
+        };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
 
     #[test]
     fn not_empty_with_artists() {
-        let sr =
-            SearchResults { tracks: vec![], albums: vec![], artists: vec![Artist::default()], playlists: vec![], videos: vec![] };
+        let sr = SearchResults {
+            tracks: vec![],
+            albums: vec![],
+            artists: vec![Artist::default()],
+            playlists: vec![],
+            videos: vec![],
+            totals: Default::default(),
+        };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
     }
@@ -563,6 +588,7 @@ mod search_results {
             artists: vec![],
             playlists: vec![Playlist::default()],
             videos: vec![],
+            totals: Default::default(),
         };
         assert!(!sr.is_empty());
         assert_eq!(sr.total_count(), 1);
@@ -576,6 +602,7 @@ mod search_results {
             artists: vec![Artist::default()],
             playlists: vec![Playlist::default(), Playlist::default()],
             videos: vec![],
+            totals: Default::default(),
         };
         assert_eq!(sr.total_count(), 8);
         assert!(!sr.is_empty());
@@ -596,6 +623,7 @@ mod search_results {
             artists: vec![],
             playlists: vec![],
             videos: vec![],
+            totals: Default::default(),
         };
         let sr2 = sr.clone();
         assert_eq!(sr2.total_count(), 1);
@@ -606,7 +634,7 @@ mod search_results {
     fn large_result_set() {
         let tracks: Vec<Track> = (0..200).map(|i| Track { id: i.to_string(), ..Default::default() }).collect();
         let albums: Vec<Album> = (0..50).map(|i| Album { id: i.to_string(), ..Default::default() }).collect();
-        let sr = SearchResults { tracks, albums, artists: vec![], playlists: vec![], videos: vec![] };
+        let sr = SearchResults { tracks, albums, artists: vec![], playlists: vec![], videos: vec![], totals: Default::default() };
         assert_eq!(sr.total_count(), 250);
         assert!(!sr.is_empty());
     }
@@ -806,6 +834,7 @@ mod scenarios {
             artists: vec![Artist { id: "ar1".to_string(), name: "Search Artist".to_string(), ..Default::default() }],
             playlists: vec![Playlist { uuid: "pl1".to_string(), title: "Search Playlist".to_string(), ..Default::default() }],
             videos: vec![],
+            totals: Default::default(),
         };
 
         // Serialize each component individually (SearchResults doesn't derive Serialize)

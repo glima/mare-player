@@ -100,6 +100,8 @@ artist-count = {$count} ศิลปิน
 
 # การค้นหา
 search-placeholder = ค้นหาแทร็ก อัลบั้ม ศิลปิน...
+search-top = ยอดนิยม
+load-more = โหลดเพิ่ม
 
 # ดีบัก
 debug-unoptimized = (ไม่ได้เพิ่มประสิทธิภาพ)

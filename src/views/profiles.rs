@@ -7,15 +7,13 @@
 
 use crate::fl;
 use cosmic::Element;
-use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
 use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
-use crate::state::{AppModel, HandleCache};
-use crate::tidal::models::Artist;
-use crate::views::components::rows::build_thumbnail;
-use crate::views::components::{back_button, fading_text_column, list_item, scrollable_element, virtual_list_row};
+use crate::state::AppModel;
+use crate::views::components::rows::build_profile_artist_row;
+use crate::views::components::{back_button, scrollable_element, virtual_list_row};
 
 impl AppModel {
     /// Render the followed artists (profiles) list view.
@@ -57,24 +55,4 @@ impl AppModel {
 
         widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
     }
-}
-
-/// Build a followed-artist list-item (picture + name + role) for the virtual
-/// `List`. Navigates to the artist detail view on click.
-fn build_profile_artist_row<'a>(loaded_images: &HandleCache, artist: &Artist) -> Element<'a, Message> {
-    let mut info_children: Vec<Element<'_, Message>> = vec![text(artist.name.clone()).size(13).wrapping(Wrapping::None).into()];
-
-    // Show primary role if available (e.g. "Artist", "Producer", "DJ")
-    if let Some(role) = artist.roles.first() {
-        info_children.push(text(role.clone()).size(11).wrapping(Wrapping::None).into());
-    }
-
-    let row = widget::Row::new()
-        .push(build_thumbnail(loaded_images, artist.picture_url.as_deref(), "system-users-symbolic"))
-        .push(fading_text_column(info_children))
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .width(Length::Fill);
-
-    list_item(row, Message::ShowArtistDetail(artist.id.clone()), 6)
 }

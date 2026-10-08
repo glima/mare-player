@@ -110,6 +110,8 @@ artist-count = {$count} {$count ->
 
 # Пошук
 search-placeholder = Шукати треки, альбоми, виконавців...
+search-top = Найкраще
+load-more = Завантажити ще
 
 # Налагодження
 debug-unoptimized = (неоптимізовано)

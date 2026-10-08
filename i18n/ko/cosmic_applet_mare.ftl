@@ -100,6 +100,8 @@ artist-count = 아티스트 {$count}명
 
 # Search
 search-placeholder = 트랙, 앨범, 아티스트 검색...
+search-top = 인기
+load-more = 더 불러오기
 
 # Debug
 debug-unoptimized = (최적화되지 않음)

@@ -15,8 +15,8 @@ use super::auth::{AuthManager, AuthState, LoginRequest, StoredCredentials, UserP
 use super::client_identity;
 use super::models::{
     Album, Artist, CreditContributor, CreditRole, ExploreCard, ExplorePage, ExploreSection, ExploreTarget, FeedActivity,
-    FeedItem, Mix, PageLink, Playlist, SearchResults, StreamQuality, Track, TrackCredits, TrackLyrics, tidal_cover_url,
-    tidal_promo_image_url,
+    FeedItem, Mix, PageLink, Playlist, SearchCategory, SearchResults, StreamQuality, Track, TrackCredits, TrackLyrics,
+    tidal_cover_url, tidal_promo_image_url,
 };
 use base64::{Engine, engine::general_purpose};
 use reqwest::header::AUTHORIZATION;
@@ -974,22 +974,39 @@ impl TidalAppClient {
         let _ = AuthManager::delete_credentials();
     }
 
-    /// Search for tracks, albums, artists, and playlists
-    pub async fn search(&self, query: &str, limit: u32) -> TidalResult<SearchResults> {
+    /// Search `categories`, returning up to `limit` results per category
+    /// starting at `offset`, plus TIDAL's total match count for each.
+    pub async fn search(
+        &self,
+        query: &str,
+        categories: &[SearchCategory],
+        limit: u32,
+        offset: u32,
+    ) -> TidalResult<SearchResults> {
         // Ensure token is valid before the operation
         self.ensure_valid_token().await?;
 
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
 
-        debug!("Searching for: {}", query);
+        debug!("Searching for: {} ({:?}, offset {})", query, categories, offset);
 
         use tidlers::client::models::search::config::{SearchConfig, SearchType};
 
         let config = SearchConfig {
             query: query.to_string(),
-            types: vec![SearchType::Tracks, SearchType::Albums, SearchType::Artists, SearchType::Playlists, SearchType::Videos],
+            types: categories
+                .iter()
+                .map(|c| match c {
+                    SearchCategory::Tracks => SearchType::Tracks,
+                    SearchCategory::Artists => SearchType::Artists,
+                    SearchCategory::Albums => SearchType::Albums,
+                    SearchCategory::Playlists => SearchType::Playlists,
+                    SearchCategory::Videos => SearchType::Videos,
+                })
+                .collect(),
             limit,
+            offset,
             ..Default::default()
         };
 
@@ -999,21 +1016,25 @@ impl TidalAppClient {
 
                 // Convert tracks from SearchTrackHit
                 if let Some(tracks) = results.tracks {
+                    search_results.totals.tracks = tracks.total_number_of_items;
                     search_results.tracks = tracks.items.into_iter().map(Track::from).collect();
                 }
 
                 // Convert albums from SearchAlbumHit
                 if let Some(albums) = results.albums {
+                    search_results.totals.albums = albums.total_number_of_items;
                     search_results.albums = albums.items.into_iter().map(Album::from).collect();
                 }
 
                 // Convert artists from SearchArtistHit
                 if let Some(artists) = results.artists {
+                    search_results.totals.artists = artists.total_number_of_items;
                     search_results.artists = artists.items.into_iter().map(Artist::from).collect();
                 }
 
                 // Convert playlists from SearchPlaylistHit
                 if let Some(playlists) = results.playlists {
+                    search_results.totals.playlists = playlists.total_number_of_items;
                     search_results.playlists = playlists.items.into_iter().map(Playlist::from).collect();
                 }
 
@@ -1021,6 +1042,7 @@ impl TidalAppClient {
                 // have no album; their thumbnail is the `image` UUID, mirroring
                 // how playlist/Explore video items get their cover.
                 if let Some(videos) = results.videos {
+                    search_results.totals.videos = videos.total_number_of_items;
                     search_results.videos = videos
                         .items
                         .into_iter()

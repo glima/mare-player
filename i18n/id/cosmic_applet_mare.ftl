@@ -100,6 +100,8 @@ artist-count = {$count} artis
 
 # Pencarian
 search-placeholder = Cari lagu, album, artis...
+search-top = Teratas
+load-more = Muat lebih banyak
 
 # Debug
 debug-unoptimized = (belum dioptimalkan)

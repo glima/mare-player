@@ -106,6 +106,8 @@ artist-count = {$count} {$count ->
 
 # Ricerca
 search-placeholder = Cerca brani, album, artisti...
+search-top = Top
+load-more = Carica altri
 
 # Debug
 debug-unoptimized = (non ottimizzato)

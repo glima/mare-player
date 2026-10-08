@@ -115,6 +115,8 @@ impl AppModel {
         self.view_state = ViewState::Main;
         self.search_query.clear();
         self.search_results = None;
+        self.search_category = None;
+        self.rebuild_search_rows(true);
         self.history_filter_visible = false;
         self.history_filter_query.clear();
         self.favorite_tracks_filter_visible = false;
@@ -652,6 +654,7 @@ impl AppModel {
             ViewState::Feed => self.rebuild_feed_content(),
             ViewState::TrackDetail => self.rebuild_track_detail_rows(),
             ViewState::Explore => self.rebuild_explore_rows(),
+            ViewState::Search => self.rebuild_search_rows(true),
             _ => {}
         }
     }

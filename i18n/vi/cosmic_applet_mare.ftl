@@ -100,6 +100,8 @@ artist-count = {$count} nghệ sĩ
 
 # Tìm kiếm
 search-placeholder = Tìm bài hát, album, nghệ sĩ...
+search-top = Hàng đầu
+load-more = Tải thêm
 
 # Gỡ lỗi
 debug-unoptimized = (chưa tối ưu)
