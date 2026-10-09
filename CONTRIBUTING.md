@@ -204,10 +204,8 @@ access token if you paste raw log lines — it appears in some requests.
 
 ## Security
 
-Report anything involving credentials, the keyring, or the OAuth flow
-privately through GitHub's [security
-advisories](https://github.com/glima/mare-player/security/advisories/new)
-rather than a public issue.
+Report vulnerabilities privately, as described in [`SECURITY.md`](./SECURITY.md),
+rather than in a public issue.
 
 Never commit a token, a session dump, or a `client_secret`. The OAuth client
 we authenticate as is documented in `src/tidal/client_identity.rs`; its
