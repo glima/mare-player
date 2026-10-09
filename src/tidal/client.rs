@@ -453,6 +453,26 @@ impl Default for TidalAppClient {
     }
 }
 
+/// The signed-in account's profile, as far as the session's user info has it.
+/// The picture and subscription plan are fetched separately.
+///
+/// This is personal data (name, email): show it in the UI, never log it.
+fn user_profile(client: &TidalClient) -> UserProfile {
+    match &client.user_info {
+        Some(u) => UserProfile {
+            username: Some(u.username.clone()),
+            first_name: u.first_name.clone(),
+            last_name: u.last_name.clone(),
+            full_name: u.full_name.clone(),
+            nickname: u.nickname.clone(),
+            email: Some(u.email.clone()),
+            picture_url: None,
+            subscription_plan: None,
+        },
+        None => UserProfile::default(),
+    }
+}
+
 impl TidalAppClient {
     // ── Credential extraction helpers ───────────────────────────────────
     //
@@ -740,28 +760,7 @@ impl TidalAppClient {
 
                         let username = client.user_info.as_ref().map(|u| u.username.clone());
 
-                        // Build full user profile from tidlers User struct
-                        let profile = {
-                            use crate::tidal::auth::UserProfile;
-                            if let Some(u) = &client.user_info {
-                                info!(
-                                    "TIDAL user fields — username: {:?}, first_name: {:?}, last_name: {:?}, full_name: {:?}, nickname: {:?}, email: {:?}",
-                                    u.username, u.first_name, u.last_name, u.full_name, u.nickname, u.email
-                                );
-                                UserProfile {
-                                    username: Some(u.username.clone()),
-                                    first_name: u.first_name.clone(),
-                                    last_name: u.last_name.clone(),
-                                    full_name: u.full_name.clone(),
-                                    nickname: u.nickname.clone(),
-                                    email: Some(u.email.clone()),
-                                    picture_url: None,       // fetched separately below
-                                    subscription_plan: None, // fetched separately below
-                                }
-                            } else {
-                                UserProfile { username: username.clone(), ..Default::default() }
-                            }
-                        };
+                        let profile = user_profile(&client);
 
                         // Store the refreshed session
                         let new_credentials = StoredCredentials {
@@ -902,28 +901,7 @@ impl TidalAppClient {
                 let username = client.user_info.as_ref().map(|u| u.username.clone());
                 let user_id = client.user_info.as_ref().map(|u| u.user_id.to_string());
 
-                // Build full user profile from tidlers User struct
-                let profile = {
-                    use crate::tidal::auth::UserProfile;
-                    if let Some(u) = &client.user_info {
-                        info!(
-                            "TIDAL user fields — username: {:?}, first_name: {:?}, last_name: {:?}, full_name: {:?}, nickname: {:?}, email: {:?}",
-                            u.username, u.first_name, u.last_name, u.full_name, u.nickname, u.email
-                        );
-                        UserProfile {
-                            username: Some(u.username.clone()),
-                            first_name: u.first_name.clone(),
-                            last_name: u.last_name.clone(),
-                            full_name: u.full_name.clone(),
-                            nickname: u.nickname.clone(),
-                            email: Some(u.email.clone()),
-                            picture_url: None,       // fetched separately below
-                            subscription_plan: None, // fetched separately below
-                        }
-                    } else {
-                        UserProfile { username: username.clone(), ..Default::default() }
-                    }
-                };
+                let profile = user_profile(client);
 
                 // Store credentials for future sessions
                 let credentials = StoredCredentials {
