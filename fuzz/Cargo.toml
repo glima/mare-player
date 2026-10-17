@@ -31,5 +31,5 @@ bench = false
 # nightlies no longer have. Turning on its `std` feature makes it call
 # `std::process::abort` instead. Normal stable builds are unaffected.
 [dependencies.branches]
-version = "0.4"
+version = "0.5"
 features = ["std"]
