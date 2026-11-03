@@ -79,17 +79,35 @@ via the `panel-applet` feature flag (enabled by default).
 
 ## Installation
 
-### Fedora / Fedora-derived systems (COPR)
+Maré comes in two variants. Install only one: they ship the same files, so
+their packages can't be installed side by side.
+
+- **Panel applet** (`cosmic-applet-mare`): lives in the COSMIC panel.
+- **Standalone app** (`mare-player`): an ordinary application window.
+
+| Your system | Install from | Updates |
+|---|---|---|
+| Fedora 44 or 45 | [COPR](#fedora-copr) | With your system updates |
+| Debian 13, Ubuntu 24.04, Pop!_OS 24.04 or newer | [`.deb` package](#debian-and-ubuntu-deb) | Install each new release |
+| Other Fedora-like RPM systems | [`.rpm` package](#other-rpm-distributions-rpm) | Install each new release |
+| Any other distribution | [Tarball](#any-distribution-targz) | Install each new release |
+| Anything, or to work on Maré | [Source](#from-source) | Pull and rebuild |
+
+The packages and tarballs are attached to every
+[release](https://github.com/glima/mare-player/releases/latest), for x86_64
+and aarch64 (`amd64` and `arm64` in `.deb` names). They are built on Ubuntu
+24.04, so they need glibc 2.39 or newer. Each release also ships `SHA256SUMS`
+and signed provenance; see [Verifying a download](SECURITY.md#verifying-a-download).
+
+### Fedora (COPR)
 
 The [COPR repository](https://copr.fedorainfracloud.org/coprs/limachaves/mare-player/)
-currently offers Fedora 44/45 packages for x86_64 and aarch64. Compatible
-Fedora-derived systems must use the same Fedora package base and architecture;
-these instructions are for DNF-managed systems, not immutable editions.
+offers Fedora 44 and 45 packages for x86_64 and aarch64. Fedora-derived
+systems need the same Fedora package base and architecture; these
+instructions are for DNF-managed systems, not immutable editions.
 
 If `dnf copr` is unavailable, install `dnf5-plugins` first (`dnf-plugins-core`
-for DNF4).
-
-Enable the repository and install the **standalone app**:
+for DNF4). Then enable the repository and install the **standalone app**:
 
 ```sh
 sudo dnf copr enable limachaves/mare-player
@@ -102,12 +120,89 @@ For the **COSMIC panel applet**, install `cosmic-applet-mare` instead:
 sudo dnf install cosmic-applet-mare
 ```
 
-Choose only one variant: the packages conflict and cannot be installed together.
-Updates arrive through normal system updates (`sudo dnf upgrade`). See
-[Playback codecs](#playback-codecs-runtime) for additional runtime codecs.
-For source packaging and release automation, see the [maintainer guide](packaging/rpm/README.md).
+Updates arrive with normal system updates (`sudo dnf upgrade`). AAC and H.264
+additionally need RPM Fusion's `gstreamer1-libav`; see
+[Playback codecs](#playback-codecs-runtime). For source packaging and release
+automation, see the [maintainer guide](packaging/rpm/README.md).
 
-### Dependencies
+### Debian and Ubuntu (.deb)
+
+Download the package for your variant and architecture from the
+[latest release](https://github.com/glima/mare-player/releases/latest), then
+install it with apt, which also pulls in its dependencies, GStreamer codecs
+included:
+
+```sh
+sudo apt install ./mare-player_*_amd64.deb          # standalone app
+sudo apt install ./cosmic-applet-mare_*_amd64.deb   # or the panel applet
+```
+
+With the [GitHub CLI](https://cli.github.com/), `gh release download --repo
+glima/mare-player --pattern 'mare-player_*_amd64.deb'` fetches the package.
+
+### Other RPM distributions (.rpm)
+
+The `.rpm` packages name their dependencies the way Fedora does, so they suit
+Fedora-like systems that COPR doesn't cover; on other RPM distributions, such
+as openSUSE, use the [tarball](#any-distribution-targz). Download the package
+from the [latest release](https://github.com/glima/mare-player/releases/latest)
+and install it with dnf:
+
+```sh
+sudo dnf install ./mare-player-*.x86_64.rpm          # standalone app
+sudo dnf install ./cosmic-applet-mare-*.x86_64.rpm   # or the panel applet
+```
+
+They pull in GStreamer's base and good plugins; add the bad and libav sets
+from [Playback codecs](#playback-codecs-runtime).
+
+### Any distribution (.tar.gz)
+
+The tarball holds the binaries, the desktop entry, the AppStream metadata and
+the icon. Its name doesn't change between releases, so the latest one is
+always at the same URL. To install the **standalone app** under `/usr/local`:
+
+```sh
+curl -LO https://github.com/glima/mare-player/releases/latest/download/mare-player-x86_64.tar.gz
+tar -xzf mare-player-x86_64.tar.gz
+cd mare-player
+sudo install -Dm755 -t /usr/local/bin mare-player
+sudo install -Dm644 -t /usr/local/share/applications io.github.cosmic-applet-mare.desktop
+sudo install -Dm644 -t /usr/local/share/metainfo io.github.cosmic-applet-mare.metainfo.xml
+sudo install -Dm644 -t /usr/local/share/icons/hicolor/scalable/apps io.github.cosmic-applet-mare.svg
+```
+
+For the **panel applet**, download `cosmic-applet-mare-x86_64.tar.gz` instead
+and install both of its binaries, `cosmic-applet-mare` and
+`mare-video-window`. On ARM, use `aarch64` in the file name. To uninstall,
+remove the installed files.
+
+The tarball doesn't bring its dependencies: you need D-Bus, libsecret,
+libxkbcommon and GStreamer with the [playback codecs](#playback-codecs-runtime),
+and `wl-clipboard` for Copy Link on Wayland. Desktop systems usually have the
+libraries already; the codecs and `wl-clipboard` may need installing.
+
+### Playback codecs (runtime)
+
+All playback — audio tracks **and** music videos — runs through GStreamer, so
+the demuxers/decoders from the good/bad/libav plugin sets are required at
+runtime: FLAC/AAC/MP3 for audio (DASH/HLS), and H.264 for video. The `.deb`
+packages depend on all of them; the others don't, or not entirely.
+
+```sh
+# Fedora / RHEL (avdec_* come from RPM Fusion's gstreamer1-libav)
+sudo dnf install gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-libav
+
+# Ubuntu / Debian
+sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
+
+# Arch
+sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
+```
+
+### From source
+
+#### Dependencies
 
 Install the required system libraries before building:
 
@@ -124,24 +219,9 @@ sudo apt install libdbus-1-dev libsecret-1-dev libxkbcommon-dev \
 sudo pacman -S dbus libsecret libxkbcommon gstreamer gst-plugins-base
 ```
 
-#### Playback codecs (runtime)
+Playback also needs the [playback codecs](#playback-codecs-runtime).
 
-All playback — audio tracks **and** music videos — runs through GStreamer, so
-the demuxers/decoders from the good/bad/libav plugin sets are required at
-runtime: FLAC/AAC/MP3 for audio (DASH/HLS), and H.264 for video.
-
-```sh
-# Fedora / RHEL (avdec_* come from RPM Fusion's gstreamer1-libav)
-sudo dnf install gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-libav
-
-# Ubuntu / Debian
-sudo apt install gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
-
-# Arch
-sudo pacman -S gst-plugins-good gst-plugins-bad gst-libav
-```
-
-### Build & Install
+#### Build & Install
 
 Requires Rust 2024 edition (1.85+) and [just](https://github.com/casey/just).
 
