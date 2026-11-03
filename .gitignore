@@ -6,6 +6,8 @@ target/
 coverage/
 vendor/
 vendor.tar
+# Delta agent worktrees, checked out inside this repo
+.delta/
 debian/*
 !debian/changelog
 !debian/control
