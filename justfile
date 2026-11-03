@@ -474,14 +474,32 @@ mirror-nostr:
 
 # Bump cargo version, create git commit, and create tag (usage: just tag v0.1.0 "Ocean Breeze")
 tag version name="":
-    #!/usr/bin/env sh
-    set -eu
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo_version="{{ trim_start_match(version, "v") }}"
     tag="v${cargo_version}"
-    find -type f -name Cargo.toml -exec sed -i "0,/^version/s/^version.*/version = \"${cargo_version}\"/" '{}' \; -exec git add '{}' \;
+    # Every tracked manifest, from git rather than a filesystem search, which
+    # would also reach untracked copies (e.g. Delta worktrees under .delta/).
+    mapfile -t manifests < <(git ls-files ':(glob)**/Cargo.toml')
+    # Only the [package] version: the first `version` line could belong to a
+    # dependency table.
+    for manifest in "${manifests[@]}"; do
+        sed -i "/^\[package\]/,/^\[/s/^version = \".*\"/version = \"${cargo_version}\"/" "$manifest"
+    done
+    for manifest in "${manifests[@]}"; do
+        if ! sed -n '/^\[package\]/,/^\[/p' "$manifest" | grep -qx "version = \"${cargo_version}\""; then
+            echo "error: ${manifest} has no [package] version ${cargo_version}" >&2
+            exit 1
+        fi
+    done
+    # Each workspace has its own lockfile; fuzz/ is a separate workspace.
+    mapfile -t lockfiles < <(git ls-files ':(glob)**/Cargo.lock')
+    for lockfile in "${lockfiles[@]}"; do
+        cargo update --workspace --manifest-path "$(dirname "$lockfile")/Cargo.toml"
+    done
     cargo check
     cargo clean
-    git add Cargo.lock
+    git add "${manifests[@]}" "${lockfiles[@]}"
     git commit -m "release: ${tag}"
     git tag -a "${tag}" -m '{{ name }}'
 
