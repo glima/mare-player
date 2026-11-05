@@ -174,7 +174,10 @@ test-matrix *args:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "═══ Testing: panel-applet (default features) ═══"
-    just features='--all-features' test --profile applet {{ args }}
+    # The applet as released: default features, CPU renderer. `--all-features`
+    # would add wgpu, which no build ships and which compiles out the
+    # CPU-renderer layout tests. (`just check` still compiles --all-features.)
+    just features='--features panel-applet' test --profile applet {{ args }}
     echo ""
     echo "═══ Testing: standalone (no default features) ═══"
     just features='--no-default-features --features wgpu' test --profile standalone {{ args }}
