@@ -22,13 +22,13 @@ use cosmic::Element;
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::widget::text::Wrapping;
 use cosmic::iced::{Alignment, Length};
-use cosmic::widget::{self, container, scrollable, text};
+use cosmic::widget::{self, container, text};
 
 use crate::fl;
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::tidal::models::TrackLyrics;
-use crate::views::components::{back_button, fading_header_title};
+use crate::views::components::{back_button, fading_header_title, scrollable_element};
 
 /// Font size for the active synced line (the karaoke "now-playing" line).
 const ACTIVE_LINE_SIZE: u16 = 18;
@@ -110,7 +110,7 @@ impl AppModel {
             column = column.push(line_widget);
         }
 
-        scrollable(column).height(Length::Fill).into()
+        scrollable_element(column)
     }
 
     /// Render plain-text (non-synced) lyrics as a single scrollable block.
@@ -122,6 +122,51 @@ impl AppModel {
         let alignment = if lyrics.is_right_to_left { Horizontal::Right } else { Horizontal::Center };
         let body = text(lyrics.plain_text.clone().unwrap_or_default()).size(14);
         let centered = container(body).width(Length::Fill).align_x(alignment).padding([8, 16]);
-        scrollable(centered).height(Length::Fill).into()
+        scrollable_element(centered)
+    }
+}
+
+// The panel applet's popup sizes itself to its content, so a lyrics view
+// that isn't capped grows taller than the screen. Lay it out with the CPU
+// renderer (the default applet build) and check the cap holds.
+#[cfg(all(test, feature = "panel-applet", not(feature = "wgpu")))]
+mod tests {
+    use crate::state::AppModel;
+    use crate::tidal::models::{LrcLine, TrackLyrics};
+    use crate::views::components::MAX_POPUP_HEIGHT;
+    use cosmic::Application;
+    use cosmic::iced::core::{Size, layout, widget::Tree};
+
+    const LINES: usize = 200;
+
+    fn lyrics_view_height(lyrics: TrackLyrics) -> f32 {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        app.selected_track_lyrics = Some(lyrics);
+        let renderer = cosmic::Renderer::new(cosmic::iced::Font::default(), 14.0.into());
+        let mut view = app.view_lyrics();
+        let mut tree = Tree::new(view.as_widget());
+        // Popups are laid out with no height limit and shrink to fit.
+        let limits = layout::Limits::new(Size::ZERO, Size::new(400.0, f32::INFINITY));
+        view.as_widget_mut().layout(&mut tree, &renderer, &limits).size().height
+    }
+
+    /// Header, spacing and the provider footer around the scroll area.
+    const CHROME: f32 = 150.0;
+
+    // `AppModel::init` starts tidlers' play reporter, which needs a runtime.
+    #[tokio::test]
+    async fn long_plain_lyrics_scroll_within_the_popup() {
+        let text = (0..LINES).map(|i| format!("line {i}")).collect::<Vec<_>>().join("\n");
+        let height =
+            lyrics_view_height(TrackLyrics { provider: Some("Test".into()), plain_text: Some(text), ..Default::default() });
+        assert!(height <= MAX_POPUP_HEIGHT + CHROME, "plain lyrics view is {height}px tall");
+    }
+
+    #[tokio::test]
+    async fn long_synced_lyrics_scroll_within_the_popup() {
+        let lrc_lines = (0..LINES).map(|i| LrcLine { time_ms: i as u64 * 1000, text: format!("line {i}") }).collect();
+        let height = lyrics_view_height(TrackLyrics { provider: Some("Test".into()), lrc_lines, ..Default::default() });
+        assert!(height <= MAX_POPUP_HEIGHT + CHROME, "synced lyrics view is {height}px tall");
     }
 }
