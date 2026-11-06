@@ -209,6 +209,10 @@ pub struct Album {
     pub quality_tags: Vec<String>,
     /// Album review / editorial description text
     pub review: Option<String>,
+    /// When the user added the album to their favourites, as Unix
+    /// milliseconds. Only set for favourite albums.
+    #[serde(default)]
+    pub added_at: Option<i64>,
 }
 
 impl Album {
@@ -247,6 +251,7 @@ impl From<tidlers::client::models::album::Album> for Album {
             audio_quality: a.audio_quality,
             quality_tags: a.media_metadata.map(|metadata| metadata.tags).unwrap_or_default(),
             review: None,
+            added_at: None,
         }
     }
 }
@@ -267,6 +272,7 @@ impl From<tidlers::client::models::album::AlbumResponse> for Album {
             audio_quality: Some(a.audio_quality),
             quality_tags: a.media_metadata.tags,
             review: None,
+            added_at: None,
         }
     }
 }
@@ -290,6 +296,7 @@ impl From<tidlers::client::models::search::SearchAlbumHit> for Album {
             audio_quality: a.audio_quality,
             quality_tags: Vec::new(),
             review: None,
+            added_at: None,
         }
     }
 }
@@ -389,6 +396,7 @@ impl From<tidlers::client::models::album::ArtistAlbum> for Album {
             audio_quality: Some(a.audio_quality),
             quality_tags: a.media_metadata.tags,
             review: None,
+            added_at: None,
         }
     }
 }

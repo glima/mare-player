@@ -86,6 +86,8 @@ pub enum Message {
     FavoriteTracksFilterChanged(String),
     /// A favourite tracks sort button was pressed (see `ListSort::pressed`)
     SortFavoriteTracks(SortKey),
+    /// A favourite albums sort button was pressed (see `ListSort::pressed`)
+    SortFavoriteAlbums(SortKey),
     /// Show the mixes & radio view
     ShowMixes,
     /// Show the feed view (new releases from followed artists)

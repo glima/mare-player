@@ -154,19 +154,36 @@ impl AppModel {
                     self.favorite_album_ids.insert(album.id.clone());
                     // Add to user_albums if not already there
                     if !self.user_albums.iter().any(|a| a.id == album.id) {
-                        self.user_albums.insert(0, album);
+                        self.user_albums.insert(0, Album { added_at: Some(now_ms()), ..album });
                     }
                 } else {
                     self.favorite_album_ids.remove(&album.id);
                     // Also remove from the displayed list
                     self.user_albums.retain(|a| a.id != album.id);
                 }
+                // Only the albums list shows `albums_content`, so keeping it
+                // current is cheap and saves it going stale.
+                self.rebuild_albums_content();
             }
             Err(e) => {
                 tracing::error!("Failed to update album favorite: {}", e);
                 self.error_message = Some(format!("Failed to update album favorite: {}", e));
             }
         }
+    }
+
+    /// Press a favourite albums sort button (see [`ListSort::pressed`]) and
+    /// reorder the list. Not persisted; [`Self::handle_sort_favorite_albums`]
+    /// also saves it.
+    pub(crate) fn press_favorite_albums_sort(&mut self, key: SortKey) {
+        self.config.favorite_albums_sort = self.config.favorite_albums_sort.pressed(key);
+        self.rebuild_albums_content();
+    }
+
+    /// Handle a favourite albums sort button, remembering the choice.
+    pub fn handle_sort_favorite_albums(&mut self, key: SortKey) {
+        self.press_favorite_albums_sort(key);
+        self.save_config("favourite albums sort");
     }
 }
 
@@ -228,7 +245,7 @@ mod tests {
     use super::sort_favorites;
     use crate::config::{ListSort, SortKey};
     use crate::state::{AppModel, ViewState};
-    use crate::tidal::models::Track;
+    use crate::tidal::models::{Album, Track};
     use cosmic::Application;
 
     const A_Z: ListSort = ListSort { key: SortKey::Name, descending: false };
@@ -309,5 +326,42 @@ mod tests {
         assert!(app.track_list_arc[0].added_at.is_some());
         app.handle_favorite_toggled(Ok((track("Charlie", None), false)));
         assert_eq!(shown(&app), ["Delta", "Alpha", "Bravo"]);
+    }
+
+    fn album(title: &str, added_at: Option<i64>) -> Album {
+        Album { id: title.to_lowercase(), title: title.into(), added_at, ..Default::default() }
+    }
+
+    fn albums_shown(app: &AppModel) -> Vec<String> {
+        (0..app.albums_content.len()).filter_map(|i| app.albums_content.get(i)).map(|a| a.title.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn the_favourite_albums_list_follows_the_sort_buttons() {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        // `init` reads the real config; start from the default order.
+        app.config.favorite_albums_sort = ListSort::default();
+        app.view_state = ViewState::Albums;
+
+        let loaded = vec![album("Bravo", Some(1)), album("Charlie", Some(3)), album("Álbum", Some(2))];
+        drop(app.handle_albums_loaded(Ok(loaded)));
+        assert_eq!(albums_shown(&app), ["Álbum", "Bravo", "Charlie"]);
+
+        app.press_favorite_albums_sort(SortKey::DateAdded);
+        assert_eq!(albums_shown(&app), ["Charlie", "Álbum", "Bravo"]);
+        app.press_favorite_albums_sort(SortKey::DateAdded);
+        assert_eq!(albums_shown(&app), ["Bravo", "Álbum", "Charlie"]);
+        app.press_favorite_albums_sort(SortKey::Name);
+        assert_eq!(albums_shown(&app), ["Álbum", "Bravo", "Charlie"]);
+        app.press_favorite_albums_sort(SortKey::Name);
+        assert_eq!(albums_shown(&app), ["Charlie", "Bravo", "Álbum"]);
+
+        // An album liked now is the newest, and unliking removes it at once.
+        app.press_favorite_albums_sort(SortKey::DateAdded);
+        app.handle_favorite_album_toggled(Ok((album("Delta", None), true)));
+        assert_eq!(albums_shown(&app), ["Delta", "Charlie", "Álbum", "Bravo"]);
+        app.handle_favorite_album_toggled(Ok((album("Charlie", None), false)));
+        assert_eq!(albums_shown(&app), ["Delta", "Álbum", "Bravo"]);
     }
 }

@@ -433,9 +433,17 @@ impl AppModel {
         self.profiles_content = self.user_followed_artists.iter().cloned().collect();
     }
 
-    /// Rebuild the favorite-albums virtual-`List` content from `user_albums`.
+    /// Rebuild the favorite-albums virtual-`List` content from `user_albums`,
+    /// in the chosen order.
     pub(crate) fn rebuild_albums_content(&mut self) {
-        self.albums_content = self.user_albums.iter().cloned().collect();
+        self.albums_content = crate::handlers::data::favorites::sort_favorites(
+            self.user_albums.clone(),
+            self.config.favorite_albums_sort,
+            |a| &a.title,
+            |a| a.added_at,
+        )
+        .into_iter()
+        .collect();
     }
 
     /// Rebuild the track-detail recommendations into virtual-`List` content:

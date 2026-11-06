@@ -219,6 +219,7 @@ mod album {
             audio_quality: Some("LOSSLESS".to_string()),
             quality_tags: vec!["LOSSLESS".to_string()],
             review: Some("A masterpiece".to_string()),
+            added_at: Some(1_767_225_600_000),
         };
         let b = a.clone();
         assert_eq!(a.id, b.id);
@@ -232,6 +233,7 @@ mod album {
         assert_eq!(a.audio_quality, b.audio_quality);
         assert_eq!(a.quality_tags, b.quality_tags);
         assert_eq!(a.review, b.review);
+        assert_eq!(a.added_at, b.added_at);
     }
 
     #[test]
@@ -249,6 +251,7 @@ mod album {
             audio_quality: Some("HI_RES".to_string()),
             quality_tags: vec!["LOSSLESS".to_string(), "HIRES_LOSSLESS".to_string()],
             review: None,
+            added_at: Some(1_767_225_600_000),
         };
         let json = serde_json::to_string(&a).unwrap();
         let a2: Album = serde_json::from_str(&json).unwrap();
@@ -257,6 +260,16 @@ mod album {
         assert_eq!(a2.num_tracks, 8);
         assert_eq!(a2.advertised_quality().as_deref(), Some("Hi-Res Lossless"));
         assert!(!a2.explicit);
+        assert_eq!(a2.added_at, Some(1_767_225_600_000));
+    }
+
+    #[test]
+    fn albums_cached_without_an_added_date_still_load() {
+        let mut json = serde_json::to_value(Album { id: "7".to_string(), ..Default::default() }).unwrap();
+        json.as_object_mut().unwrap().remove("added_at");
+        let album: Album = serde_json::from_value(json).unwrap();
+        assert_eq!(album.id, "7");
+        assert_eq!(album.added_at, None);
     }
 
     #[test]

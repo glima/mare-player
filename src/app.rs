@@ -789,6 +789,10 @@ impl cosmic::Application for AppModel {
                 self.handle_sort_favorite_tracks(key);
                 Task::none()
             }
+            Message::SortFavoriteAlbums(key) => {
+                self.handle_sort_favorite_albums(key);
+                Task::none()
+            }
             Message::FavoriteToggled(result) => {
                 self.handle_favorite_toggled(result);
                 Task::none()

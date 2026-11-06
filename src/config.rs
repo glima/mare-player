@@ -195,6 +195,8 @@ pub struct Config {
     pub video_preamp_db: f32,
     /// How the favourite tracks list is ordered.
     pub favorite_tracks_sort: ListSort,
+    /// How the favourite albums list is ordered.
+    pub favorite_albums_sort: ListSort,
 }
 
 impl Default for Config {
@@ -206,6 +208,7 @@ impl Default for Config {
             volume_level: 1.0,
             video_preamp_db: -8.0,
             favorite_tracks_sort: ListSort::default(),
+            favorite_albums_sort: ListSort::default(),
         }
     }
 }

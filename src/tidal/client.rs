@@ -209,7 +209,11 @@ impl From<PlaylistItemsResponse> for ApiPaginatedResponse<Track> {
 impl From<CollectionFavoriteAlbumsResponse> for ApiPaginatedResponse<Album> {
     fn from(page: CollectionFavoriteAlbumsResponse) -> Self {
         Self {
-            items: page.items.into_iter().map(|entry| Album::from(entry.item)).collect(),
+            items: page
+                .items
+                .into_iter()
+                .map(|entry| Album { added_at: favorite_added_at(&entry.created), ..Album::from(entry.item) })
+                .collect(),
             offset: page.offset,
             total_number_of_items: page.total_number_of_items,
         }
@@ -2119,6 +2123,7 @@ impl TidalAppClient {
                 .map(|tags| tags.iter().filter_map(|t| t.as_str().map(str::to_string)).collect())
                 .unwrap_or_default(),
             review: None,
+            added_at: None,
         })
     }
 
@@ -2369,6 +2374,7 @@ impl TidalAppClient {
                 audio_quality: album.audio_quality,
                 quality_tags: Vec::new(),
                 review: None,
+                added_at: None,
             }),
             TItem::HistoryMix(mix) => {
                 FeedItem::HistoryMix { id: mix.id, title: mix.title, subtitle: mix.subtitle, image_url: mix.image_url }
@@ -2553,6 +2559,8 @@ mod tests {
             assert_eq!(album.num_tracks, 12);
             assert_eq!(album.duration, 3600);
             assert_eq!(album.release_date.as_deref(), Some("2026-01-01"));
+            // `created` (2026-01-01T00:00:00Z) is kept as Unix milliseconds.
+            assert_eq!(album.added_at, Some(1_767_225_600_000));
             assert_eq!(album.cover_url.as_deref(), Some("https://resources.tidal.com/images/aa/bb/320x320.jpg"));
             assert!(album.explicit);
             assert_eq!(album.audio_quality.as_deref(), Some("LOSSLESS"));

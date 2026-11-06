@@ -3,6 +3,8 @@
 //! Album views for Maré Player.
 //!
 //! This module contains the album list view and album detail view.
+//! The list view orders the favourite albums A–Z or by date added, with the
+//! same sort buttons as favourite tracks.
 //! The detail view shows album metadata (cover, artist, release date, quality,
 //! track count), a favorite heart icon, and a clickable artist name that
 //! navigates to the artist detail view.
@@ -22,7 +24,7 @@ use crate::views::artist::strip_markup;
 use crate::views::components::rows::build_album_row;
 use crate::views::components::{
     ALBUM_COVER_SIZE, TrackRowOptions, back_button, fading_header_title, favorite_icon_handle, scrollable_element,
-    scrollable_list, virtual_list_row,
+    scrollable_list, sort_buttons, virtual_list_row,
 };
 
 impl AppModel {
@@ -52,7 +54,11 @@ impl AppModel {
             scrollable_element(list)
         };
 
-        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
+        let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
+        if !self.user_albums.is_empty() {
+            col = col.push(sort_buttons(self.config.favorite_albums_sort, Message::SortFavoriteAlbums));
+        }
+        col.push(content).into()
     }
 
     /// Render the album detail view showing album info, favorite button, and tracks.
