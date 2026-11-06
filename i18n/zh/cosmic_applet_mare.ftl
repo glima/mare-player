@@ -66,7 +66,6 @@ albums = 专辑
 artists = 艺术家
 playlists = 播放列表
 videos = 视频
-profiles = 个人资料
 tracks = 曲目
 favorite-tracks = 收藏曲目
 

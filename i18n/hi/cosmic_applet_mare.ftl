@@ -66,7 +66,6 @@ albums = एल्बम
 artists = कलाकार
 playlists = प्लेलिस्ट
 videos = वीडियो
-profiles = प्रोफ़ाइल
 tracks = ट्रैक
 favorite-tracks = पसंदीदा ट्रैक
 

@@ -66,7 +66,6 @@ albums = Alben
 artists = Künstler
 playlists = Playlists
 videos = Videos
-profiles = Profile
 tracks = Titel
 favorite-tracks = Lieblingstitel
 

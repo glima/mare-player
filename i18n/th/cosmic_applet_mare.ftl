@@ -66,7 +66,6 @@ albums = อัลบั้ม
 artists = ศิลปิน
 playlists = เพลย์ลิสต์
 videos = วิดีโอ
-profiles = โปรไฟล์
 tracks = แทร็ก
 favorite-tracks = แทร็กโปรด
 

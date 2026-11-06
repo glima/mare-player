@@ -310,6 +310,7 @@ mod artist {
             popularity: Some(95),
             roles: vec!["Artist".to_string(), "Producer".to_string()],
             url: Some("https://tidal.com/artist/123".to_string()),
+            added_at: Some(1_767_225_600_000),
         };
         let b = a.clone();
         assert_eq!(a.id, b.id);
@@ -319,6 +320,7 @@ mod artist {
         assert_eq!(a.popularity, b.popularity);
         assert_eq!(a.roles, b.roles);
         assert_eq!(a.url, b.url);
+        assert_eq!(a.added_at, b.added_at);
     }
 
     #[test]
@@ -331,6 +333,7 @@ mod artist {
             popularity: Some(75),
             roles: vec!["DJ".to_string(), "Songwriter".to_string()],
             url: Some("https://tidal.com/artist/42".to_string()),
+            added_at: None,
         };
         let json = serde_json::to_string(&a).unwrap();
         let a2: Artist = serde_json::from_str(&json).unwrap();

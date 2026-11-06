@@ -66,7 +66,6 @@ albums = Album
 artists = Artisti
 playlists = Playlist
 videos = Video
-profiles = Profili
 tracks = Brani
 favorite-tracks = Brani preferiti
 

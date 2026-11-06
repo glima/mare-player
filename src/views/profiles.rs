@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Profiles (followed artists) view for Maré Player.
+//! Artists (followed artists) view for Maré Player.
 //!
-//! This module renders the user's followed artists as a browsable list.
-//! Tapping an artist navigates to the existing artist detail view.
+//! This module renders the user's followed artists as a browsable list,
+//! ordered A–Z or by date followed with the same sort buttons as the
+//! favourites. Tapping an artist navigates to the existing artist detail view.
 
 use crate::fl;
 use cosmic::Element;
@@ -13,14 +14,14 @@ use cosmic::widget::{self, button, text};
 use crate::messages::Message;
 use crate::state::AppModel;
 use crate::views::components::rows::build_profile_artist_row;
-use crate::views::components::{back_button, scrollable_element, virtual_list_row};
+use crate::views::components::{back_button, scrollable_element, sort_buttons, virtual_list_row};
 
 impl AppModel {
-    /// Render the followed artists (profiles) list view.
+    /// Render the followed artists list view.
     pub fn view_profiles(&self) -> Element<'_, Message> {
         let header = widget::Row::new()
             .push(back_button(Message::ShowMain))
-            .push(text(fl!("profiles")).size(18))
+            .push(text(fl!("artists")).size(18))
             .push(widget::space::horizontal())
             .push(
                 button::icon(widget::icon::from_name("view-refresh-symbolic"))
@@ -53,6 +54,10 @@ impl AppModel {
             widget::Column::new().push(count_label).push(scrollable_element(list)).spacing(4).into()
         };
 
-        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
+        let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
+        if !self.user_followed_artists.is_empty() {
+            col = col.push(sort_buttons(self.config.followed_artists_sort, Message::SortFollowedArtists));
+        }
+        col.push(content).into()
     }
 }

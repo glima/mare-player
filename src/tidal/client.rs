@@ -178,6 +178,11 @@ impl From<CollectionFavoriteTracksResponse> for ApiPaginatedResponse<Track> {
     }
 }
 
+/// A followed artist, stamped with when the user followed it.
+fn followed_artist(entry: tidlers::client::models::collection::artist::CollectionArtistEntry) -> Artist {
+    Artist { added_at: favorite_added_at(&entry.added_at), ..Artist::from(entry.data) }
+}
+
 /// When a favourite was added, as Unix milliseconds, from TIDAL's `created`
 /// timestamp: RFC 3339 (`2026-01-01T00:00:00Z`) or with a colon-less offset
 /// (`2024-03-01T12:34:56.789+0000`). `None` if it's neither.
@@ -2153,6 +2158,7 @@ impl TidalAppClient {
             popularity: None,
             roles: Vec::new(),
             url: None,
+            added_at: None,
         })
     }
 
@@ -2315,7 +2321,7 @@ impl TidalAppClient {
             let client_guard = self.client.lock().await;
             let client = client_guard.as_ref().ok_or(tidlers::error::TidalError::NotAuthenticated)?;
             let page = client.get_collection_artists(50, cursor).await?;
-            Ok((page.items.into_iter().map(|entry| Artist::from(entry.data)).collect(), page.cursor))
+            Ok((page.items.into_iter().map(followed_artist).collect(), page.cursor))
         })
         .await?;
         info!("Loaded {} followed artists", artists.len());
@@ -2825,7 +2831,7 @@ mod tests {
     }
 
     mod followed_artists {
-        use super::super::{Artist, TidalAppClient};
+        use super::super::{Artist, TidalAppClient, followed_artist};
         use std::future::ready;
         use tidlers::client::models::collection::artist::CollectionArtistsResponse;
 
@@ -2864,7 +2870,7 @@ mod tests {
 
         fn page(ids: std::ops::Range<i64>, cursor: Option<&str>) -> Result<Page, tidlers::error::TidalError> {
             let page = tidlers_page(ids, cursor);
-            Ok((page.items.into_iter().map(|entry| Artist::from(entry.data)).collect(), page.cursor))
+            Ok((page.items.into_iter().map(followed_artist).collect(), page.cursor))
         }
 
         #[tokio::test]
@@ -2890,6 +2896,7 @@ mod tests {
             assert_eq!(artist.popularity, Some(42));
             assert_eq!(artist.roles, ["Artist", "Producer"]);
             assert_eq!(artist.url.as_deref(), Some("http://www.tidal.com/artist/0"));
+            assert_eq!(artist.added_at, Some(1_767_225_600_000));
             assert_eq!(artists[2].picture_url, None);
         }
 

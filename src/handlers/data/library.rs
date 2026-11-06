@@ -428,9 +428,17 @@ impl AppModel {
         self.mixes_content = self.user_mixes.iter().cloned().collect();
     }
 
-    /// Rebuild the followed-artists (profiles) virtual-`List` content.
+    /// Rebuild the followed-artists virtual-`List` content from
+    /// `user_followed_artists`, in the chosen order.
     pub(crate) fn rebuild_profiles_content(&mut self) {
-        self.profiles_content = self.user_followed_artists.iter().cloned().collect();
+        self.profiles_content = crate::handlers::data::favorites::sort_favorites(
+            self.user_followed_artists.clone(),
+            self.config.followed_artists_sort,
+            |a| &a.name,
+            |a| a.added_at,
+        )
+        .into_iter()
+        .collect();
     }
 
     /// Rebuild the favorite-albums virtual-`List` content from `user_albums`,
@@ -1109,9 +1117,8 @@ impl AppModel {
     pub fn handle_profiles_loaded(&mut self, result: Result<Vec<Artist>, String>) -> Task<cosmic::Action<Message>> {
         self.is_loading = false;
         match result {
-            Ok(mut artists) => {
+            Ok(artists) => {
                 tracing::info!("Loaded {} followed artists", artists.len());
-                artists.sort_by_key(|a| a.name.to_lowercase());
                 self.followed_artist_ids = artists.iter().map(|a| a.id.clone()).collect();
                 self.user_followed_artists = artists;
                 self.rebuild_profiles_content();

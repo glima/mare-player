@@ -318,6 +318,10 @@ pub struct Artist {
     pub roles: Vec<String>,
     /// TIDAL URL for the artist page
     pub url: Option<String>,
+    /// When the user followed the artist, as Unix milliseconds. Only set
+    /// for followed artists.
+    #[serde(default)]
+    pub added_at: Option<i64>,
 }
 
 /// Convert from tidlers Artist type (basic, embedded in other responses)
@@ -331,6 +335,7 @@ impl From<tidlers::client::models::artist::Artist> for Artist {
             popularity: None,
             roles: Vec::new(),
             url: None,
+            added_at: None,
         }
     }
 }
@@ -346,6 +351,7 @@ impl From<tidlers::client::models::artist::ArtistResponse> for Artist {
             popularity: Some(a.popularity),
             roles: a.artist_roles.into_iter().map(|r| r.category).collect(),
             url: Some(a.url),
+            added_at: None,
         }
     }
 }
@@ -361,6 +367,7 @@ impl From<tidlers::client::models::collection::artist::CollectionArtistDetails> 
             popularity: u32::try_from(a.popularity).ok(),
             roles: a.artist_roles.into_iter().map(|r| r.category).collect(),
             url: Some(a.url),
+            added_at: None,
         }
     }
 }
@@ -376,6 +383,7 @@ impl From<tidlers::client::models::search::SearchArtistHit> for Artist {
             popularity: None,
             roles: Vec::new(),
             url: None,
+            added_at: None,
         }
     }
 }

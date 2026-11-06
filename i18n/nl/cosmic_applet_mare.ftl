@@ -66,7 +66,6 @@ albums = Albums
 artists = Artiesten
 playlists = Afspeellijsten
 videos = Video's
-profiles = Profielen
 tracks = Nummers
 favorite-tracks = Favoriete nummers
 

@@ -66,7 +66,6 @@ albums = Album
 artists = Artister
 playlists = Spellistor
 videos = Videor
-profiles = Profiler
 tracks = Spår
 favorite-tracks = Favoritspår
 

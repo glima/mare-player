@@ -93,14 +93,14 @@ impl AppModel {
             Message::ShowFavoriteTracks,
         );
 
-        let profiles_count = if self.user_followed_artists.is_empty() {
+        let artists_count = if self.user_followed_artists.is_empty() {
             String::new()
         } else {
             format!(" ({})", self.user_followed_artists.len())
         };
 
-        let profiles_btn =
-            AppModel::menu_row("system-users-symbolic", format!("{}{}", fl!("profiles"), profiles_count), Message::ShowProfiles);
+        let artists_btn =
+            AppModel::menu_row("system-users-symbolic", format!("{}{}", fl!("artists"), artists_count), Message::ShowProfiles);
 
         let history_count = if self.play_history.is_empty() { String::new() } else { format!(" ({})", self.play_history.len()) };
 
@@ -123,12 +123,12 @@ impl AppModel {
 
         let collection_section = widget::Column::new()
             .push(albums_btn)
+            .push(artists_btn)
             .push(explore_btn)
             .push(feed_btn)
             .push(history_btn)
             .push(mixes_btn)
             .push(playlists_btn)
-            .push(profiles_btn)
             .push(tracks_btn)
             .spacing(4);
 

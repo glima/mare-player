@@ -217,26 +217,36 @@ impl AppModel {
             Ok((artist, is_now_followed)) => {
                 if is_now_followed {
                     self.followed_artist_ids.insert(artist.id.clone());
-                    // Add to user_followed_artists in sorted position if not already there
                     if !self.user_followed_artists.iter().any(|a| a.id == artist.id) {
-                        let pos = self
-                            .user_followed_artists
-                            .iter()
-                            .position(|a| a.name.to_lowercase() > artist.name.to_lowercase())
-                            .unwrap_or(self.user_followed_artists.len());
-                        self.user_followed_artists.insert(pos, artist);
+                        self.user_followed_artists.insert(0, Artist { added_at: Some(now_ms()), ..artist });
                     }
                 } else {
                     self.followed_artist_ids.remove(&artist.id);
-                    // Also remove from the displayed list
                     self.user_followed_artists.retain(|a| a.id != artist.id);
                 }
+                // Only the artists list shows `profiles_content`, so keeping it
+                // current is cheap and saves it going stale.
+                self.rebuild_profiles_content();
             }
             Err(e) => {
                 tracing::error!("Failed to update artist follow: {}", e);
                 self.error_message = Some(format!("Failed to update artist follow: {}", e));
             }
         }
+    }
+
+    /// Press a followed artists sort button (see [`ListSort::pressed`]) and
+    /// reorder the list. Not persisted; [`Self::handle_sort_followed_artists`]
+    /// also saves it.
+    pub(crate) fn press_followed_artists_sort(&mut self, key: SortKey) {
+        self.config.followed_artists_sort = self.config.followed_artists_sort.pressed(key);
+        self.rebuild_profiles_content();
+    }
+
+    /// Handle a followed artists sort button, remembering the choice.
+    pub fn handle_sort_followed_artists(&mut self, key: SortKey) {
+        self.press_followed_artists_sort(key);
+        self.save_config("followed artists sort");
     }
 }
 
@@ -245,7 +255,7 @@ mod tests {
     use super::sort_favorites;
     use crate::config::{ListSort, SortKey};
     use crate::state::{AppModel, ViewState};
-    use crate::tidal::models::{Album, Track};
+    use crate::tidal::models::{Album, Artist, Track};
     use cosmic::Application;
 
     const A_Z: ListSort = ListSort { key: SortKey::Name, descending: false };
@@ -363,5 +373,42 @@ mod tests {
         assert_eq!(albums_shown(&app), ["Delta", "Charlie", "Álbum", "Bravo"]);
         app.handle_favorite_album_toggled(Ok((album("Charlie", None), false)));
         assert_eq!(albums_shown(&app), ["Delta", "Álbum", "Bravo"]);
+    }
+
+    fn artist(name: &str, added_at: Option<i64>) -> Artist {
+        Artist { id: name.to_lowercase(), name: name.into(), added_at, ..Default::default() }
+    }
+
+    fn artists_shown(app: &AppModel) -> Vec<String> {
+        (0..app.profiles_content.len()).filter_map(|i| app.profiles_content.get(i)).map(|a| a.name.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn the_followed_artists_list_follows_the_sort_buttons() {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        // `init` reads the real config; start from the default order.
+        app.config.followed_artists_sort = ListSort::default();
+        app.view_state = ViewState::Profiles;
+
+        let loaded = vec![artist("Bravo", Some(1)), artist("charlie", Some(3)), artist("Ásgeir", Some(2))];
+        drop(app.handle_profiles_loaded(Ok(loaded)));
+        assert_eq!(artists_shown(&app), ["Ásgeir", "Bravo", "charlie"]);
+
+        app.press_followed_artists_sort(SortKey::DateAdded);
+        assert_eq!(artists_shown(&app), ["charlie", "Ásgeir", "Bravo"]);
+        app.press_followed_artists_sort(SortKey::DateAdded);
+        assert_eq!(artists_shown(&app), ["Bravo", "Ásgeir", "charlie"]);
+        app.press_followed_artists_sort(SortKey::Name);
+        assert_eq!(artists_shown(&app), ["Ásgeir", "Bravo", "charlie"]);
+        app.press_followed_artists_sort(SortKey::Name);
+        assert_eq!(artists_shown(&app), ["charlie", "Bravo", "Ásgeir"]);
+
+        // An artist followed now is the newest, and unfollowing removes it at once.
+        app.press_followed_artists_sort(SortKey::DateAdded);
+        app.handle_follow_artist_toggled(Ok((artist("Delta", None), true)));
+        assert_eq!(artists_shown(&app), ["Delta", "charlie", "Ásgeir", "Bravo"]);
+        app.handle_follow_artist_toggled(Ok((artist("charlie", None), false)));
+        assert_eq!(artists_shown(&app), ["Delta", "Ásgeir", "Bravo"]);
     }
 }

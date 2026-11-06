@@ -66,7 +66,6 @@ albums = Album
 artists = Nghệ sĩ
 playlists = Danh sách phát
 videos = Video
-profiles = Hồ sơ
 tracks = Bài hát
 favorite-tracks = Bài hát yêu thích
 

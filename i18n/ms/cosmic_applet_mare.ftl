@@ -66,7 +66,6 @@ albums = Album
 artists = Artis
 playlists = Senarai Main
 videos = Video
-profiles = Profil
 tracks = Lagu
 favorite-tracks = Lagu Kegemaran
 

@@ -197,6 +197,8 @@ pub struct Config {
     pub favorite_tracks_sort: ListSort,
     /// How the favourite albums list is ordered.
     pub favorite_albums_sort: ListSort,
+    /// How the followed artists list is ordered.
+    pub followed_artists_sort: ListSort,
 }
 
 impl Default for Config {
@@ -209,6 +211,7 @@ impl Default for Config {
             video_preamp_db: -8.0,
             favorite_tracks_sort: ListSort::default(),
             favorite_albums_sort: ListSort::default(),
+            followed_artists_sort: ListSort::default(),
         }
     }
 }
