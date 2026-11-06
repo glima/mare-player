@@ -129,11 +129,14 @@ logging-description = Hur mycket Maré skriver till systemjournalen. Gäller dir
 clear-history = Rensa historik
 history-filter-placeholder = Filtrera historik…
 favorite-tracks-filter-placeholder = Filtrera favoritlåtar…
+sort-name = A–Ö
+sort-date-added = Datum tillagt
 
 # Verktygstips
 tooltip-search = Sök
 tooltip-settings = Inställningar
 tooltip-shuffle-play = Blandad uppspelning
+tooltip-reverse-order = Vänd ordning
 tooltip-refresh = Uppdatera
 tooltip-previous-track = Föregående spår
 tooltip-next-track = Nästa spår

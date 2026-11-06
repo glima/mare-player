@@ -137,11 +137,14 @@ logging-description = مقدار ما يكتبه Maré في سجل النظام.
 clear-history = مسح السجل
 history-filter-placeholder = تصفية السجل…
 favorite-tracks-filter-placeholder = تصفية المقاطع المفضلة…
+sort-name = أ–ي
+sort-date-added = تاريخ الإضافة
 
 # Tooltips
 tooltip-search = بحث
 tooltip-settings = الإعدادات
 tooltip-shuffle-play = تشغيل عشوائي
+tooltip-reverse-order = عكس الترتيب
 tooltip-refresh = تحديث
 tooltip-previous-track = المقطع السابق
 tooltip-next-track = المقطع التالي

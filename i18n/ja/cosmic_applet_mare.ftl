@@ -123,11 +123,14 @@ logging-description = Maré がシステムジャーナルに書き込む量。�
 clear-history = 履歴をクリア
 history-filter-placeholder = 履歴を絞り込み…
 favorite-tracks-filter-placeholder = お気に入りを絞り込み…
+sort-name = タイトル順
+sort-date-added = 追加日
 
 # ツールチップ
 tooltip-search = 検索
 tooltip-settings = 設定
 tooltip-shuffle-play = シャッフル再生
+tooltip-reverse-order = 並び順を逆にする
 tooltip-refresh = 更新
 tooltip-previous-track = 前のトラック
 tooltip-next-track = 次のトラック

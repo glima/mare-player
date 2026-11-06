@@ -123,11 +123,14 @@ logging-description = Seberapa banyak Maré menulis ke jurnal sistem. Langsung d
 clear-history = Hapus Riwayat
 history-filter-placeholder = Filter riwayat…
 favorite-tracks-filter-placeholder = Filter lagu favorit…
+sort-name = A–Z
+sort-date-added = Tanggal ditambahkan
 
 # Tooltip
 tooltip-search = Cari
 tooltip-settings = Pengaturan
 tooltip-shuffle-play = Putar acak
+tooltip-reverse-order = Balik urutan
 tooltip-refresh = Segarkan
 tooltip-previous-track = Lagu sebelumnya
 tooltip-next-track = Lagu berikutnya

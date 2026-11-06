@@ -123,11 +123,14 @@ logging-description = Maré가 시스템 저널에 기록하는 양입니다. �
 clear-history = 기록 지우기
 history-filter-placeholder = 기록 필터…
 favorite-tracks-filter-placeholder = 즐겨찾기 트랙 필터…
+sort-name = 이름순
+sort-date-added = 추가한 날짜
 
 # Tooltips
 tooltip-search = 검색
 tooltip-settings = 설정
 tooltip-shuffle-play = 셔플 재생
+tooltip-reverse-order = 순서 뒤집기
 tooltip-refresh = 새로고침
 tooltip-previous-track = 이전 트랙
 tooltip-next-track = 다음 트랙

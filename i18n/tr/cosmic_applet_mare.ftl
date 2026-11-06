@@ -123,11 +123,14 @@ logging-description = Maré’nin sistem günlüğüne ne kadar yazdığı. Heme
 clear-history = Geçmişi Temizle
 history-filter-placeholder = Geçmişi filtrele…
 favorite-tracks-filter-placeholder = Favori parçaları filtrele…
+sort-name = A–Z
+sort-date-added = Eklenme tarihi
 
 # İpuçları
 tooltip-search = Ara
 tooltip-settings = Ayarlar
 tooltip-shuffle-play = Karışık çal
+tooltip-reverse-order = Sırayı tersine çevir
 tooltip-refresh = Yenile
 tooltip-previous-track = Önceki parça
 tooltip-next-track = Sonraki parça

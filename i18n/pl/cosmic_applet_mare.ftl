@@ -133,11 +133,14 @@ logging-description = Ile Maré zapisuje w dzienniku systemowym. Zmiana działa 
 clear-history = Wyczyść historię
 history-filter-placeholder = Filtruj historię…
 favorite-tracks-filter-placeholder = Filtruj ulubione utwory…
+sort-name = A–Z
+sort-date-added = Data dodania
 
 # Tooltips
 tooltip-search = Szukaj
 tooltip-settings = Ustawienia
 tooltip-shuffle-play = Odtwarzanie losowe
+tooltip-reverse-order = Odwróć kolejność
 tooltip-refresh = Odśwież
 tooltip-previous-track = Poprzedni utwór
 tooltip-next-track = Następny utwór

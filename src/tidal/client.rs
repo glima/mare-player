@@ -167,11 +167,25 @@ struct ApiPaginatedResponse<T> {
 impl From<CollectionFavoriteTracksResponse> for ApiPaginatedResponse<Track> {
     fn from(page: CollectionFavoriteTracksResponse) -> Self {
         Self {
-            items: page.items.into_iter().map(|entry| Track::from(entry.item)).collect(),
+            items: page
+                .items
+                .into_iter()
+                .map(|entry| Track { added_at: favorite_added_at(&entry.created), ..Track::from(entry.item) })
+                .collect(),
             offset: page.offset,
             total_number_of_items: page.total_number_of_items,
         }
     }
+}
+
+/// When a favourite was added, as Unix milliseconds, from TIDAL's `created`
+/// timestamp: RFC 3339 (`2026-01-01T00:00:00Z`) or with a colon-less offset
+/// (`2024-03-01T12:34:56.789+0000`). `None` if it's neither.
+fn favorite_added_at(created: &str) -> Option<i64> {
+    chrono::DateTime::parse_from_rfc3339(created)
+        .or_else(|_| chrono::DateTime::parse_from_str(created, "%Y-%m-%dT%H:%M:%S%.f%z"))
+        .map(|at| at.timestamp_millis())
+        .ok()
 }
 
 impl From<PlaylistItemsResponse> for ApiPaginatedResponse<Track> {
@@ -970,6 +984,7 @@ impl TidalAppClient {
                                 explicit: v.explicit,
                                 audio_quality: None,
                                 is_video: true,
+                                added_at: None,
                             }
                         })
                         .collect();
@@ -1385,6 +1400,7 @@ impl TidalAppClient {
                         explicit: v.explicit,
                         audio_quality: None,
                         is_video: true,
+                        added_at: None,
                     })
                     .collect();
                 Ok(videos)
@@ -2672,6 +2688,17 @@ mod tests {
             assert!(track.explicit);
             assert_eq!(track.audio_quality.as_deref(), Some("LOSSLESS"));
             assert!(!track.is_video);
+            // `created` (2026-01-01T00:00:00Z) is kept as Unix milliseconds.
+            assert_eq!(track.added_at, Some(1_767_225_600_000));
+        }
+
+        #[test]
+        fn added_dates_parse_in_both_of_tidals_formats() {
+            use super::super::favorite_added_at;
+            assert_eq!(favorite_added_at("2026-01-01T00:00:00Z"), Some(1_767_225_600_000));
+            assert_eq!(favorite_added_at("2026-01-01T00:00:00.250+0000"), Some(1_767_225_600_250));
+            assert_eq!(favorite_added_at("2026-01-01T01:00:00+0100"), Some(1_767_225_600_000));
+            assert_eq!(favorite_added_at("yesterday"), None);
         }
 
         #[tokio::test]

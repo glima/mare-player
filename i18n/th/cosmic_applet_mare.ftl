@@ -123,11 +123,14 @@ logging-description = ปริมาณที่ Maré เขียนลงใ
 clear-history = ล้างประวัติ
 history-filter-placeholder = กรองประวัติ…
 favorite-tracks-filter-placeholder = กรองแทร็กโปรด…
+sort-name = ก–ฮ
+sort-date-added = วันที่เพิ่ม
 
 # คำแนะนำเครื่องมือ
 tooltip-search = ค้นหา
 tooltip-settings = การตั้งค่า
 tooltip-shuffle-play = เล่นแบบสุ่ม
+tooltip-reverse-order = กลับลำดับ
 tooltip-refresh = รีเฟรช
 tooltip-previous-track = แทร็กก่อนหน้า
 tooltip-next-track = แทร็กถัดไป

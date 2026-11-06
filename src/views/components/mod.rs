@@ -55,5 +55,5 @@ pub use icons::{CREDITS_SVG, LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favor
 pub use list_helpers::{
     TrackRowOptions, app_icon_element, back_button, branded_text, branded_title, fading_header_title, fading_panel_text,
     fading_standard_text, fading_suggested_text, fading_text, fading_text_column, list_item, scrollable_element, scrollable_list,
-    virtual_list_row,
+    sort_buttons, virtual_list_row,
 };

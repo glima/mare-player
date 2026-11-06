@@ -129,11 +129,14 @@ logging-description = Hoeveel Maré naar het systeemjournaal schrijft. Wordt dir
 clear-history = Geschiedenis wissen
 history-filter-placeholder = Geschiedenis filteren…
 favorite-tracks-filter-placeholder = Favoriete nummers filteren…
+sort-name = A–Z
+sort-date-added = Datum toegevoegd
 
 # Tooltips
 tooltip-search = Zoeken
 tooltip-settings = Instellingen
 tooltip-shuffle-play = Willekeurig afspelen
+tooltip-reverse-order = Volgorde omkeren
 tooltip-refresh = Vernieuwen
 tooltip-previous-track = Vorig nummer
 tooltip-next-track = Volgend nummer

@@ -140,6 +140,46 @@ pub fn virtual_list_row<'a>(content: impl Into<Element<'a, Message>>, gap: u16) 
 }
 
 // =============================================================================
+// Sort Buttons
+// =============================================================================
+
+/// The A–Z and Date added buttons above a favourites list.
+///
+/// The active button is highlighted and shows the direction (up for A–Z or
+/// oldest first, down for Z–A or newest first). Pressing it again reverses
+/// the order; pressing the other one switches to it (see
+/// [`ListSort::pressed`](crate::config::ListSort::pressed)). Styled like the
+/// search category chips.
+pub fn sort_buttons<'a>(
+    sort: crate::config::ListSort,
+    on_press: impl Fn(crate::config::SortKey) -> Message,
+) -> Element<'a, Message> {
+    use crate::config::SortKey;
+
+    let chip = |key: SortKey, label: String| -> Element<'a, Message> {
+        let active = sort.key == key;
+        let mut content = widget::Row::new().push(text(label).size(12)).spacing(4).align_y(Alignment::Center);
+        if active {
+            let arrow = if sort.descending { "pan-down-symbolic" } else { "pan-up-symbolic" };
+            content = content.push(widget::icon::from_name(arrow).size(12));
+        }
+        let class = if active { cosmic::theme::Button::Suggested } else { cosmic::theme::Button::Standard };
+        let chip = button::custom(content).padding([4, 12]).class(class).on_press(on_press(key));
+        if active {
+            widget::tooltip(chip, text(crate::fl!("tooltip-reverse-order")), widget::tooltip::Position::Bottom).into()
+        } else {
+            chip.into()
+        }
+    };
+
+    widget::Row::new()
+        .push(chip(SortKey::Name, crate::fl!("sort-name")))
+        .push(chip(SortKey::DateAdded, crate::fl!("sort-date-added")))
+        .spacing(6)
+        .into()
+}
+
+// =============================================================================
 // Header Back Button
 // =============================================================================
 

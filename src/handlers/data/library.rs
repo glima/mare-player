@@ -736,6 +736,9 @@ impl AppModel {
                 // Populate favorite track IDs set
                 self.favorite_track_ids = tracks.iter().map(|t| t.id.clone()).collect();
                 self.user_favorite_tracks = tracks;
+                if self.view_state == ViewState::FavoriteTracks {
+                    self.rebuild_favorites_track_list();
+                }
                 // Covers load lazily per visible row via get_or_request.
                 Task::none()
             }

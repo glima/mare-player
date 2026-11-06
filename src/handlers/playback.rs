@@ -4,8 +4,6 @@
 //!
 //! This module handles play, pause, stop, seek, queue management, shuffle, and volume control.
 
-use cosmic::Application;
-use cosmic::cosmic_config::CosmicConfigEntry;
 #[cfg(feature = "panel-applet")]
 use cosmic::iced::platform_specific::shell::commands::popup::destroy_popup;
 use cosmic::prelude::*;
@@ -1123,11 +1121,7 @@ impl AppModel {
 
         // Persist volume to config
         self.config.volume_level = new_volume;
-        if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, crate::config::Config::VERSION)
-            && let Err(e) = self.config.write_entry(&config_context)
-        {
-            tracing::error!("Failed to save volume config: {}", e);
-        }
+        self.save_config("volume");
 
         // Show volume bar and reset timeout
         self.show_volume_bar = true;

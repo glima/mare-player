@@ -785,6 +785,10 @@ impl cosmic::Application for AppModel {
             Message::LoadFavoriteTracks => self.handle_load_favorite_tracks(),
             Message::FavoriteTracksLoaded(result) => self.handle_favorite_tracks_loaded(result),
             Message::ToggleFavorite(track) => self.handle_toggle_favorite(track),
+            Message::SortFavoriteTracks(key) => {
+                self.handle_sort_favorite_tracks(key);
+                Task::none()
+            }
             Message::FavoriteToggled(result) => {
                 self.handle_favorite_toggled(result);
                 Task::none()

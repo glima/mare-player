@@ -117,14 +117,18 @@ impl AppModel {
     pub fn handle_set_log_level(&mut self, level: LogLevel) {
         tracing::info!("Setting console log level to {}", level.as_filter_str());
         self.config.log_level = level;
+        self.save_config("log level");
+        crate::logging::set_console_level(level);
+    }
 
+    /// Write the whole config to COSMIC's config store, logging (not
+    /// failing) if that doesn't work. `what` names the change, for the log.
+    pub(crate) fn save_config(&self, what: &str) {
         if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
             && let Err(e) = self.config.write_entry(&config_context)
         {
-            tracing::error!("Failed to save log level config: {}", e);
+            tracing::error!("Failed to save {what} config: {e}");
         }
-
-        crate::logging::set_console_level(level);
     }
 
     /// Persist the most-recently-recorded play-history entry (fire-and-forget).
@@ -176,13 +180,7 @@ impl AppModel {
     pub fn handle_set_audio_quality(&mut self, quality: AudioQuality) -> Task<cosmic::Action<Message>> {
         // Update local config
         self.config.audio_quality = quality;
-
-        // Persist config to disk
-        if let Ok(config_context) = cosmic::cosmic_config::Config::new(Self::APP_ID, Config::VERSION)
-            && let Err(e) = self.config.write_entry(&config_context)
-        {
-            tracing::error!("Failed to save audio quality config: {}", e);
-        }
+        self.save_config("audio quality");
 
         // Apply to the TIDAL client
         let client = self.tidal_client.clone();

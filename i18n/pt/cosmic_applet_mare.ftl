@@ -129,11 +129,14 @@ logging-description = Quanto o Maré grava no diário do sistema. Aplica-se imed
 clear-history = Limpar Histórico
 history-filter-placeholder = Filtrar histórico…
 favorite-tracks-filter-placeholder = Filtrar faixas favoritas…
+sort-name = A–Z
+sort-date-added = Data de adição
 
 # Dicas
 tooltip-search = Pesquisar
 tooltip-settings = Configurações
 tooltip-shuffle-play = Reproduzir aleatoriamente
+tooltip-reverse-order = Inverter ordem
 tooltip-refresh = Atualizar
 tooltip-previous-track = Faixa anterior
 tooltip-next-track = Próxima faixa

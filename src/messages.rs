@@ -11,7 +11,7 @@ use cosmic::iced::window::Id;
 use cosmic::surface;
 use tokio::sync::Mutex;
 
-use crate::config::{AudioQuality, Config, LogLevel};
+use crate::config::{AudioQuality, Config, LogLevel, SortKey};
 use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::{PlaybackFailure, PlaybackUrl};
 use crate::tidal::models::{
@@ -84,6 +84,8 @@ pub enum Message {
     ToggleFavoriteTracksFilter,
     /// Favorite tracks filter query text changed (local client-side filter)
     FavoriteTracksFilterChanged(String),
+    /// A favourite tracks sort button was pressed (see `ListSort::pressed`)
+    SortFavoriteTracks(SortKey),
     /// Show the mixes & radio view
     ShowMixes,
     /// Show the feed view (new releases from followed artists)

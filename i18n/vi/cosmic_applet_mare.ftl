@@ -123,11 +123,14 @@ logging-description = Lượng thông tin Maré ghi vào nhật ký hệ thống
 clear-history = Xóa lịch sử
 history-filter-placeholder = Lọc lịch sử…
 favorite-tracks-filter-placeholder = Lọc bài hát yêu thích…
+sort-name = A–Z
+sort-date-added = Ngày thêm
 
 # Chú thích
 tooltip-search = Tìm kiếm
 tooltip-settings = Cài đặt
 tooltip-shuffle-play = Phát ngẫu nhiên
+tooltip-reverse-order = Đảo thứ tự
 tooltip-refresh = Làm mới
 tooltip-previous-track = Bài trước
 tooltip-next-track = Bài tiếp theo

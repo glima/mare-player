@@ -129,11 +129,14 @@ logging-description = Cuánto escribe Maré en el registro del sistema. Se aplic
 clear-history = Borrar historial
 history-filter-placeholder = Filtrar historial…
 favorite-tracks-filter-placeholder = Filtrar pistas favoritas…
+sort-name = A–Z
+sort-date-added = Fecha de adición
 
 # Información emergente
 tooltip-search = Buscar
 tooltip-settings = Ajustes
 tooltip-shuffle-play = Reproducción aleatoria
+tooltip-reverse-order = Invertir orden
 tooltip-refresh = Actualizar
 tooltip-previous-track = Pista anterior
 tooltip-next-track = Pista siguiente

@@ -149,11 +149,14 @@ logging-description = How much Maré writes to the system journal. Applies immed
 clear-history = Clear History
 history-filter-placeholder = Filter history…
 favorite-tracks-filter-placeholder = Filter favorite tracks…
+sort-name = A–Z
+sort-date-added = Date added
 
 # Tooltips
 tooltip-search = Search
 tooltip-settings = Settings
 tooltip-shuffle-play = Shuffle play
+tooltip-reverse-order = Reverse order
 tooltip-refresh = Refresh
 tooltip-previous-track = Previous track
 tooltip-next-track = Next track

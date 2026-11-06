@@ -129,11 +129,14 @@ logging-description = Quantité d’informations que Maré écrit dans le journa
 clear-history = Effacer l'historique
 history-filter-placeholder = Filtrer l'historique…
 favorite-tracks-filter-placeholder = Filtrer les titres favoris…
+sort-name = A–Z
+sort-date-added = Date d’ajout
 
 # Info-bulles
 tooltip-search = Rechercher
 tooltip-settings = Paramètres
 tooltip-shuffle-play = Lecture aléatoire
+tooltip-reverse-order = Inverser l’ordre
 tooltip-refresh = Actualiser
 tooltip-previous-track = Titre précédent
 tooltip-next-track = Titre suivant

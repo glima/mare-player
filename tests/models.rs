@@ -122,6 +122,7 @@ mod track {
             explicit: true,
             audio_quality: Some("HI_RES".to_string()),
             is_video: false,
+            added_at: Some(1_767_225_600_000),
         };
         let json = serde_json::to_string(&t).unwrap();
         let t2: Track = serde_json::from_str(&json).unwrap();
@@ -136,6 +137,16 @@ mod track {
         assert_eq!(t2.cover_url, Some("https://example.com/cover.jpg".to_string()));
         assert!(t2.explicit);
         assert_eq!(t2.audio_quality, Some("HI_RES".to_string()));
+        assert_eq!(t2.added_at, Some(1_767_225_600_000));
+    }
+
+    #[test]
+    fn tracks_cached_without_an_added_date_still_load() {
+        let mut json = serde_json::to_value(Track { id: "7".to_string(), ..Default::default() }).unwrap();
+        json.as_object_mut().unwrap().remove("added_at");
+        let track: Track = serde_json::from_value(json).unwrap();
+        assert_eq!(track.id, "7");
+        assert_eq!(track.added_at, None);
     }
 
     #[test]

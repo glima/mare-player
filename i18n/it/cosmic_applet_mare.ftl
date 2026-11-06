@@ -129,11 +129,14 @@ logging-description = Quanto Maré scrive nel journal di sistema. Si applica sub
 clear-history = Cancella cronologia
 history-filter-placeholder = Filtra cronologia…
 favorite-tracks-filter-placeholder = Filtra brani preferiti…
+sort-name = A–Z
+sort-date-added = Data di aggiunta
 
 # Suggerimenti
 tooltip-search = Cerca
 tooltip-settings = Impostazioni
 tooltip-shuffle-play = Riproduzione casuale
+tooltip-reverse-order = Inverti ordine
 tooltip-refresh = Aggiorna
 tooltip-previous-track = Brano precedente
 tooltip-next-track = Brano successivo

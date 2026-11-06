@@ -129,11 +129,14 @@ logging-description = Maré সিস্টেম জার্নালে ক�
 clear-history = ইতিহাস মুছুন
 history-filter-placeholder = ইতিহাস ফিল্টার করুন…
 favorite-tracks-filter-placeholder = প্রিয় ট্র্যাক ফিল্টার করুন…
+sort-name = নাম অনুযায়ী
+sort-date-added = যোগ করার তারিখ
 
 # টুলটিপ
 tooltip-search = অনুসন্ধান
 tooltip-settings = সেটিংস
 tooltip-shuffle-play = শাফল প্লে
+tooltip-reverse-order = ক্রম উল্টান
 tooltip-refresh = রিফ্রেশ
 tooltip-previous-track = আগের ট্র্যাক
 tooltip-next-track = পরের ট্র্যাক

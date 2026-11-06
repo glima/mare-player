@@ -133,11 +133,14 @@ logging-description = Скільки Maré записує до системно�
 clear-history = Очистити історію
 history-filter-placeholder = Фільтрувати історію…
 favorite-tracks-filter-placeholder = Фільтрувати улюблені треки…
+sort-name = А–Я
+sort-date-added = Дата додавання
 
 # Підказки
 tooltip-search = Пошук
 tooltip-settings = Налаштування
 tooltip-shuffle-play = Випадкове відтворення
+tooltip-reverse-order = Зворотний порядок
 tooltip-refresh = Оновити
 tooltip-previous-track = Попередній трек
 tooltip-next-track = Наступний трек

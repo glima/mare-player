@@ -46,10 +46,15 @@ impl AppModel {
         self.set_track_list(tracks);
     }
 
-    /// Rebuild the virtual track list for the favorite tracks view,
-    /// applying the current filter if active.
+    /// Rebuild the virtual track list for the favorite tracks view, in the
+    /// chosen order, applying the current filter if active.
     pub(crate) fn rebuild_favorites_track_list(&mut self) {
-        let all_tracks = self.user_favorite_tracks.clone();
+        let all_tracks = crate::handlers::data::favorites::sort_favorites(
+            self.user_favorite_tracks.clone(),
+            self.config.favorite_tracks_sort,
+            |t| &t.title,
+            |t| t.added_at,
+        );
         let tracks: Vec<_> = if self.favorite_tracks_filter_visible && !self.favorite_tracks_filter_query.is_empty() {
             let query = self.favorite_tracks_filter_query.to_lowercase();
             all_tracks

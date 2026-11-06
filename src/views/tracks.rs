@@ -8,8 +8,9 @@
 //! [`AppModel::track_list_arc`] and is kept in sync by the handler
 //! helper `rebuild_favorites_track_list`.
 //!
-//! A toggleable search bar filters the tracks client-side by matching
-//! the query against track title, artist name, and album name.
+//! Buttons under the header order the list A–Z or by date added, either
+//! way round. A toggleable search bar filters the tracks client-side by
+//! matching the query against track title, artist name, and album name.
 
 use std::sync::Arc;
 
@@ -21,7 +22,7 @@ use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{TrackRowOptions, back_button, scrollable_element};
+use crate::views::components::{TrackRowOptions, back_button, scrollable_element, sort_buttons};
 
 impl AppModel {
     /// Render the favorite tracks list view.
@@ -56,10 +57,15 @@ impl AppModel {
             .spacing(8)
             .align_y(Alignment::Center);
 
-        // --- optional filter bar ---
         let mut col = widget::Column::new().spacing(12).padding(12).width(Length::Fill);
         col = col.push(header);
 
+        // --- sort buttons ---
+        if !self.user_favorite_tracks.is_empty() {
+            col = col.push(sort_buttons(self.config.favorite_tracks_sort, Message::SortFavoriteTracks));
+        }
+
+        // --- optional filter bar ---
         if self.favorite_tracks_filter_visible {
             let filter_bar = text_input(&fl!("favorite-tracks-filter-placeholder"), &self.favorite_tracks_filter_query)
                 .id("favorite-tracks-filter-input")

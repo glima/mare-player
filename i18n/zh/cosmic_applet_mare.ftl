@@ -123,11 +123,14 @@ logging-description = Maré 写入系统日志的详细程度。立即生效。
 clear-history = 清除历史记录
 history-filter-placeholder = 筛选历史记录…
 favorite-tracks-filter-placeholder = 筛选收藏曲目…
+sort-name = 名称
+sort-date-added = 添加日期
 
 # 工具提示
 tooltip-search = 搜索
 tooltip-settings = 设置
 tooltip-shuffle-play = 随机播放
+tooltip-reverse-order = 反转顺序
 tooltip-refresh = 刷新
 tooltip-previous-track = 上一首
 tooltip-next-track = 下一首

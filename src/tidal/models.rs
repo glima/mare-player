@@ -73,6 +73,10 @@ pub struct Track {
     /// engine. Defaults to `false` and is only set for playlist video items.
     #[serde(default)]
     pub is_video: bool,
+    /// When the user added the track to their favourites, as Unix
+    /// milliseconds. Only set for favourite tracks.
+    #[serde(default)]
+    pub added_at: Option<i64>,
 }
 
 impl std::fmt::Display for Track {
@@ -120,6 +124,7 @@ impl From<tidlers::client::models::track::Track> for Track {
             explicit: t.explicit,
             audio_quality: Some(t.audio_quality),
             is_video: false,
+            added_at: None,
         }
     }
 }
@@ -141,6 +146,7 @@ impl From<tidlers::client::models::video::Video> for Track {
             explicit: v.explicit,
             audio_quality: None,
             is_video: true,
+            added_at: None,
         }
     }
 }
@@ -164,6 +170,7 @@ impl From<tidlers::client::models::search::SearchTrackHit> for Track {
             explicit: t.explicit,
             audio_quality: t.audio_quality,
             is_video: false,
+            added_at: None,
         }
     }
 }

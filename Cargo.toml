@@ -106,6 +106,7 @@ base64 = "0.23.0"
 parking_lot = "0.13.0"
 uuid = { version = "1.23.2", features = ["v4"] }
 serde_urlencoded = "0.7.1"
+unicode-normalization = "0.1.26"
 
 # On-demand profiling: automatically available in debug builds (cfg(debug_assertions)).
 # Send SIGUSR1 to the process → samples for 10 s → writes /tmp/mare-flamegraph.svg.
