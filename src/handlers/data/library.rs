@@ -388,6 +388,7 @@ impl AppModel {
         match result {
             Ok(playlists) => {
                 self.user_playlists = playlists;
+                self.sort_user_playlists();
                 // Covers load lazily per visible row (HandleCache::get_or_request).
                 // Kick off 2×2 grid thumbnail generation in the background.
                 Task::done(cosmic::Action::App(Message::GeneratePlaylistThumbnails))
@@ -421,6 +422,17 @@ impl AppModel {
     /// Handle load albums request
     pub fn handle_load_albums(&self) -> Task<cosmic::Action<Message>> {
         self.load_albums()
+    }
+
+    /// Put `user_playlists` in the chosen order; the playlists view shows
+    /// them as they are.
+    pub(crate) fn sort_user_playlists(&mut self) {
+        self.user_playlists = crate::handlers::data::favorites::sort_favorites(
+            std::mem::take(&mut self.user_playlists),
+            self.config.playlists_sort,
+            |p| &p.title,
+            |p| p.added_at,
+        );
     }
 
     /// Rebuild the mixes virtual-`List` content from `user_mixes`.

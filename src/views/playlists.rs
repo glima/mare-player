@@ -3,6 +3,8 @@
 //! Playlist views for Maré Player.
 //!
 //! This module contains the playlist list view and playlist detail view.
+//! The list view orders the user's playlists A–Z or by date created, with
+//! the same sort buttons as the favourites.
 
 use std::sync::Arc;
 
@@ -13,7 +15,9 @@ use cosmic::widget::{self, button, text};
 
 use crate::messages::Message;
 use crate::state::AppModel;
-use crate::views::components::{TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list};
+use crate::views::components::{
+    TrackRowOptions, back_button, fading_header_title, scrollable_element, scrollable_list, sort_buttons,
+};
 
 impl AppModel {
     /// Render the playlists list view.
@@ -41,7 +45,11 @@ impl AppModel {
             scrollable_list(widget::Column::with_children(playlist_items).spacing(4))
         };
 
-        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
+        let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
+        if !self.user_playlists.is_empty() {
+            col = col.push(sort_buttons(self.config.playlists_sort, Message::SortPlaylists));
+        }
+        col.push(content).into()
     }
 
     /// Render the playlist detail view showing tracks in a playlist.

@@ -430,6 +430,10 @@ pub struct Playlist {
     pub image_url: Option<String>,
     /// Whether this is a user-created playlist
     pub is_user_playlist: bool,
+    /// When the user created the playlist, as Unix milliseconds. Only set
+    /// for the user's own playlists.
+    #[serde(default)]
+    pub added_at: Option<i64>,
 }
 
 impl Playlist {
@@ -455,6 +459,7 @@ impl From<tidlers::client::models::playlist::PlaylistResponse> for Playlist {
             last_updated: Some(p.last_updated),
             image_url: Some(tidal_cover_url(&p.image)),
             is_user_playlist: true,
+            added_at: None,
         }
     }
 }
@@ -474,6 +479,7 @@ impl From<tidlers::client::models::search::SearchPlaylistHit> for Playlist {
             last_updated: p.last_updated,
             image_url: image_id.as_deref().map(tidal_cover_url),
             is_user_playlist: false,
+            added_at: None,
         }
     }
 }

@@ -4,7 +4,7 @@
 //!
 //! Handles toggling favorite tracks, favorite albums, and followed artists,
 //! including the optimistic UI update on the response, and the ordering of
-//! the favourites lists.
+//! the collection lists (favourites, followed artists and playlists).
 
 use std::cmp::Ordering;
 
@@ -248,6 +248,19 @@ impl AppModel {
         self.press_followed_artists_sort(key);
         self.save_config("followed artists sort");
     }
+
+    /// Press a playlists sort button (see [`ListSort::pressed`]) and reorder
+    /// the list. Not persisted; [`Self::handle_sort_playlists`] also saves it.
+    pub(crate) fn press_playlists_sort(&mut self, key: SortKey) {
+        self.config.playlists_sort = self.config.playlists_sort.pressed(key);
+        self.sort_user_playlists();
+    }
+
+    /// Handle a playlists sort button, remembering the choice.
+    pub fn handle_sort_playlists(&mut self, key: SortKey) {
+        self.press_playlists_sort(key);
+        self.save_config("playlists sort");
+    }
 }
 
 #[cfg(test)]
@@ -255,7 +268,7 @@ mod tests {
     use super::sort_favorites;
     use crate::config::{ListSort, SortKey};
     use crate::state::{AppModel, ViewState};
-    use crate::tidal::models::{Album, Artist, Track};
+    use crate::tidal::models::{Album, Artist, Playlist, Track};
     use cosmic::Application;
 
     const A_Z: ListSort = ListSort { key: SortKey::Name, descending: false };
@@ -410,5 +423,39 @@ mod tests {
         assert_eq!(artists_shown(&app), ["Delta", "charlie", "Ásgeir", "Bravo"]);
         app.handle_follow_artist_toggled(Ok((artist("charlie", None), false)));
         assert_eq!(artists_shown(&app), ["Delta", "Ásgeir", "Bravo"]);
+    }
+
+    fn playlist(title: &str, added_at: Option<i64>) -> Playlist {
+        Playlist { uuid: title.to_lowercase(), title: title.into(), added_at, ..Default::default() }
+    }
+
+    fn playlists_shown(app: &AppModel) -> Vec<String> {
+        app.user_playlists.iter().map(|p| p.title.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn the_playlists_list_follows_the_sort_buttons() {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        // `init` reads the real config; start from the default order.
+        app.config.playlists_sort = ListSort::default();
+        app.view_state = ViewState::Playlists;
+
+        let loaded = vec![playlist("Bravo", Some(1)), playlist("Charlie", Some(3)), playlist("Évening", Some(2))];
+        drop(app.handle_playlists_loaded(Ok(loaded)));
+        assert_eq!(playlists_shown(&app), ["Bravo", "Charlie", "Évening"]);
+
+        app.press_playlists_sort(SortKey::DateAdded);
+        assert_eq!(playlists_shown(&app), ["Charlie", "Évening", "Bravo"]);
+        app.press_playlists_sort(SortKey::DateAdded);
+        assert_eq!(playlists_shown(&app), ["Bravo", "Évening", "Charlie"]);
+        app.press_playlists_sort(SortKey::Name);
+        assert_eq!(playlists_shown(&app), ["Bravo", "Charlie", "Évening"]);
+        app.press_playlists_sort(SortKey::Name);
+        assert_eq!(playlists_shown(&app), ["Évening", "Charlie", "Bravo"]);
+
+        // A reload keeps the chosen order.
+        drop(app.handle_playlists_loaded(Ok(vec![playlist("Alpha", Some(4)), playlist("Bravo", Some(1))])));
+        assert_eq!(playlists_shown(&app), ["Bravo", "Alpha"]);
     }
 }

@@ -199,6 +199,8 @@ pub struct Config {
     pub favorite_albums_sort: ListSort,
     /// How the followed artists list is ordered.
     pub followed_artists_sort: ListSort,
+    /// How the playlists list is ordered.
+    pub playlists_sort: ListSort,
 }
 
 impl Default for Config {
@@ -212,6 +214,7 @@ impl Default for Config {
             favorite_tracks_sort: ListSort::default(),
             favorite_albums_sort: ListSort::default(),
             followed_artists_sort: ListSort::default(),
+            playlists_sort: ListSort::default(),
         }
     }
 }

@@ -29,7 +29,7 @@ use tidlers::client::models::events::PlaybackSession;
 use tidlers::client::models::home::{HomeItem, HomeListItem, HomeMixData, HomeShortcutItem};
 use tidlers::client::models::page::{PageModule, PageResponse};
 use tidlers::client::models::playback::{AssetPresentation, PlaybackMode, VideoQuality};
-use tidlers::client::models::playlist::{PlaylistItemsResponse, PlaylistMedia};
+use tidlers::client::models::playlist::{PlaylistItemsResponse, PlaylistMedia, PlaylistResponse};
 use tidlers::client::models::track::config::TrackPlaybackInfoConfig;
 use tidlers::client::models::video::config::VideoPlaybackInfoConfig;
 use tidlers::{TidalClient, auth::TidalAuth, client::models::collection::favorites::FavoriteResourceType};
@@ -183,8 +183,14 @@ fn followed_artist(entry: tidlers::client::models::collection::artist::Collectio
     Artist { added_at: favorite_added_at(&entry.added_at), ..Artist::from(entry.data) }
 }
 
-/// When a favourite was added, as Unix milliseconds, from TIDAL's `created`
-/// timestamp: RFC 3339 (`2026-01-01T00:00:00Z`) or with a colon-less offset
+/// One of the user's own playlists, dated by when it was created.
+fn user_playlist(playlist: PlaylistResponse) -> Playlist {
+    let added_at = favorite_added_at(&playlist.created);
+    Playlist { added_at, ..Playlist::from(playlist) }
+}
+
+/// When something joined the user's collection, as Unix milliseconds, from a
+/// TIDAL timestamp: RFC 3339 (`2026-01-01T00:00:00Z`) or with a colon-less offset
 /// (`2024-03-01T12:34:56.789+0000`). `None` if it's neither.
 fn favorite_added_at(created: &str) -> Option<i64> {
     chrono::DateTime::parse_from_rfc3339(created)
@@ -1019,7 +1025,7 @@ impl TidalAppClient {
 
         match client.list_playlists().await {
             Ok(response) => {
-                let playlists: Vec<Playlist> = response.items.into_iter().map(Playlist::from).collect();
+                let playlists: Vec<Playlist> = response.items.into_iter().map(user_playlist).collect();
                 Ok(playlists)
             }
             Err(e) => {
@@ -2145,6 +2151,7 @@ impl TidalAppClient {
             last_updated: None,
             image_url: image_id.map(tidal_cover_url),
             is_user_playlist: false,
+            added_at: None,
         })
     }
 
@@ -2713,6 +2720,23 @@ mod tests {
             assert_eq!(favorite_added_at("2026-01-01T00:00:00.250+0000"), Some(1_767_225_600_250));
             assert_eq!(favorite_added_at("2026-01-01T01:00:00+0100"), Some(1_767_225_600_000));
             assert_eq!(favorite_added_at("yesterday"), None);
+        }
+
+        #[test]
+        fn a_users_playlist_is_dated_by_its_creation() {
+            let response: tidlers::client::models::playlist::PlaylistResponse = serde_json::from_value(serde_json::json!({
+                "uuid": "pl-1", "title": "Road Trip", "numberOfTracks": 3, "numberOfVideos": 0,
+                "creator": {"id": 42}, "description": "", "duration": 600,
+                "lastUpdated": "2026-02-01T00:00:00.000+0000", "created": "2026-01-01T00:00:00.000+0000",
+                "type": "USER", "publicPlaylist": false, "url": "http://www.tidal.com/playlist/pl-1",
+                "image": "aa-bb", "popularity": 0, "squareImage": "cc-dd", "customImageUrl": null,
+                "promotedArtists": [], "lastItemAddedAt": null
+            }))
+            .expect("tidlers playlist fixture should deserialize");
+            let playlist = super::super::user_playlist(response);
+            assert_eq!(playlist.title, "Road Trip");
+            assert!(playlist.is_user_playlist);
+            assert_eq!(playlist.added_at, Some(1_767_225_600_000));
         }
 
         #[tokio::test]

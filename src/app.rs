@@ -797,6 +797,10 @@ impl cosmic::Application for AppModel {
                 self.handle_sort_followed_artists(key);
                 Task::none()
             }
+            Message::SortPlaylists(key) => {
+                self.handle_sort_playlists(key);
+                Task::none()
+            }
             Message::FavoriteToggled(result) => {
                 self.handle_favorite_toggled(result);
                 Task::none()
