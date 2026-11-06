@@ -497,6 +497,9 @@ pub struct Mix {
     pub mix_type: String,
     /// Cover image URL (best available from mix_images)
     pub image_url: Option<String>,
+    /// When TIDAL last refreshed the mix, as Unix milliseconds.
+    #[serde(default)]
+    pub updated_at: Option<i64>,
 }
 
 /// Convert a tidlers home-feed mix. The title falls back to "Mix", the
@@ -509,6 +512,7 @@ impl From<tidlers::client::models::home::HomeMixData> for Mix {
             image_url: m.mix_images.into_iter().max_by_key(|image| image.width).map(|image| image.url),
             id: m.id,
             mix_type: m.mix_type,
+            updated_at: i64::try_from(m.updated).ok(),
         }
     }
 }
@@ -1311,7 +1315,7 @@ mod tests {
             )
             .collect();
         serde_json::from_value(serde_json::json!({
-            "type": "DAILY_MIX", "countryCode": "US", "updated": 1, "id": "mix-123", "isStableId": true,
+            "type": "DAILY_MIX", "countryCode": "US", "updated": 1_791_880_510_041_u64, "id": "mix-123", "isStableId": true,
             "artifactIdType": "trackGroupId", "mixImages": images, "sortType": "POPULARITY", "detailMixImages": [],
             "titleTextInfo": {"text": title, "color": null},
             "subtitleTextInfo": {"text": subtitle, "color": null},
@@ -1329,6 +1333,7 @@ mod tests {
         assert_eq!(mix.title, "My Daily Discovery");
         assert_eq!(mix.subtitle, "Updated daily");
         assert_eq!(mix.image_url.as_deref(), Some("https://images.tidal.com/640.jpg"));
+        assert_eq!(mix.updated_at, Some(1_791_880_510_041));
     }
 
     #[test]

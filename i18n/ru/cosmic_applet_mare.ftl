@@ -134,6 +134,7 @@ history-filter-placeholder = Фильтр истории…
 favorite-tracks-filter-placeholder = Фильтр избранных треков…
 sort-name = А–Я
 sort-date-added = Дата добавления
+sort-last-updated = Последнее обновление
 
 # Подсказки
 tooltip-search = Поиск

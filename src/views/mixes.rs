@@ -3,7 +3,8 @@
 //! Mixes & Radio views for Maré Player.
 //!
 //! This module contains the mixes list view (personalized mixes from the
-//! TIDAL home feed) and the mix detail view showing tracks in a selected mix.
+//! TIDAL home feed), ordered A–Z or by when TIDAL last updated each mix, and
+//! the mix detail view showing tracks in a selected mix.
 //!
 //! The mix detail track list uses iced's virtual [`List`](cosmic::iced::widget::list::List) widget so that only
 //! the rows visible in the viewport are materialised.
@@ -21,7 +22,8 @@ use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::Mix;
 use crate::views::components::rows::build_thumbnail;
 use crate::views::components::{
-    TrackRowOptions, back_button, fading_header_title, fading_text_column, list_item, scrollable_element, virtual_list_row,
+    TrackRowOptions, back_button, fading_header_title, fading_text_column, list_item, scrollable_element, sort_buttons,
+    virtual_list_row,
 };
 
 impl AppModel {
@@ -58,7 +60,11 @@ impl AppModel {
             scrollable_element(list)
         };
 
-        widget::Column::new().push(header).push(content).spacing(12).padding(12).width(Length::Fill).into()
+        let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
+        if !self.user_mixes.is_empty() {
+            col = col.push(sort_buttons(self.config.mixes_sort, fl!("sort-last-updated"), Message::SortMixes));
+        }
+        col.push(content).into()
     }
 
     /// Render the mix detail view showing tracks in a mix.

@@ -130,6 +130,7 @@ history-filter-placeholder = इतिहास फ़िल्टर करे�
 favorite-tracks-filter-placeholder = पसंदीदा ट्रैक फ़िल्टर करें…
 sort-name = नाम के अनुसार
 sort-date-added = जोड़ने की तारीख
+sort-last-updated = अंतिम अपडेट
 
 # Tooltips
 tooltip-search = खोजें

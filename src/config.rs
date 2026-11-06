@@ -143,17 +143,19 @@ impl AsRef<str> for LogLevel {
     }
 }
 
-/// What a favourites list is ordered by.
+/// What a collection list (favourites, artists, playlists, mixes) is
+/// ordered by.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SortKey {
     /// By title, ignoring case and accents.
     #[default]
     Name,
-    /// By when it was added to the favourites.
+    /// By date: when it joined the collection, or for mixes, when TIDAL
+    /// last refreshed it. (Saved in the config, so the name stays.)
     DateAdded,
 }
 
-/// How a favourites list is ordered: a key and a direction. Defaults to A–Z.
+/// How a collection list is ordered: a key and a direction. Defaults to A–Z.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ListSort {
     pub key: SortKey,
@@ -201,6 +203,8 @@ pub struct Config {
     pub followed_artists_sort: ListSort,
     /// How the playlists list is ordered.
     pub playlists_sort: ListSort,
+    /// How the mixes & radio list is ordered.
+    pub mixes_sort: ListSort,
 }
 
 impl Default for Config {
@@ -215,6 +219,7 @@ impl Default for Config {
             favorite_albums_sort: ListSort::default(),
             followed_artists_sort: ListSort::default(),
             playlists_sort: ListSort::default(),
+            mixes_sort: ListSort::default(),
         }
     }
 }

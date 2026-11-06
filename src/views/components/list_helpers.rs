@@ -143,7 +143,8 @@ pub fn virtual_list_row<'a>(content: impl Into<Element<'a, Message>>, gap: u16) 
 // Sort Buttons
 // =============================================================================
 
-/// The A–Z and Date added buttons above a favourites list.
+/// The A–Z and date buttons above a collection list. `date_label` names the
+/// date the list is ordered by, such as "Date added".
 ///
 /// The active button is highlighted and shows the direction (up for A–Z or
 /// oldest first, down for Z–A or newest first). Pressing it again reverses
@@ -152,6 +153,7 @@ pub fn virtual_list_row<'a>(content: impl Into<Element<'a, Message>>, gap: u16) 
 /// search category chips.
 pub fn sort_buttons<'a>(
     sort: crate::config::ListSort,
+    date_label: String,
     on_press: impl Fn(crate::config::SortKey) -> Message,
 ) -> Element<'a, Message> {
     use crate::config::SortKey;
@@ -174,7 +176,7 @@ pub fn sort_buttons<'a>(
 
     widget::Row::new()
         .push(chip(SortKey::Name, crate::fl!("sort-name")))
-        .push(chip(SortKey::DateAdded, crate::fl!("sort-date-added")))
+        .push(chip(SortKey::DateAdded, date_label))
         .spacing(6)
         .into()
 }

@@ -124,6 +124,7 @@ history-filter-placeholder = 기록 필터…
 favorite-tracks-filter-placeholder = 즐겨찾기 트랙 필터…
 sort-name = 이름순
 sort-date-added = 추가한 날짜
+sort-last-updated = 최근 업데이트
 
 # Tooltips
 tooltip-search = 검색

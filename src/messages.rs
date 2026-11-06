@@ -92,6 +92,8 @@ pub enum Message {
     SortFollowedArtists(SortKey),
     /// A playlists sort button was pressed (see `ListSort::pressed`)
     SortPlaylists(SortKey),
+    /// A mixes sort button was pressed (see `ListSort::pressed`)
+    SortMixes(SortKey),
     /// Show the mixes & radio view
     ShowMixes,
     /// Show the feed view (new releases from followed artists)

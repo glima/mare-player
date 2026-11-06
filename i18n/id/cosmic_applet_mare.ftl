@@ -124,6 +124,7 @@ history-filter-placeholder = Filter riwayat…
 favorite-tracks-filter-placeholder = Filter lagu favorit…
 sort-name = A–Z
 sort-date-added = Tanggal ditambahkan
+sort-last-updated = Terakhir diperbarui
 
 # Tooltip
 tooltip-search = Cari

@@ -138,6 +138,7 @@ history-filter-placeholder = تصفية السجل…
 favorite-tracks-filter-placeholder = تصفية المقاطع المفضلة…
 sort-name = أ–ي
 sort-date-added = تاريخ الإضافة
+sort-last-updated = آخر تحديث
 
 # Tooltips
 tooltip-search = بحث

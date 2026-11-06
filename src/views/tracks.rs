@@ -62,7 +62,7 @@ impl AppModel {
 
         // --- sort buttons ---
         if !self.user_favorite_tracks.is_empty() {
-            col = col.push(sort_buttons(self.config.favorite_tracks_sort, Message::SortFavoriteTracks));
+            col = col.push(sort_buttons(self.config.favorite_tracks_sort, fl!("sort-date-added"), Message::SortFavoriteTracks));
         }
 
         // --- optional filter bar ---

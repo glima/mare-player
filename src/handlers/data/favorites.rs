@@ -4,7 +4,7 @@
 //!
 //! Handles toggling favorite tracks, favorite albums, and followed artists,
 //! including the optimistic UI update on the response, and the ordering of
-//! the collection lists (favourites, followed artists and playlists).
+//! the collection lists (favourites, followed artists, playlists and mixes).
 
 use std::cmp::Ordering;
 
@@ -20,7 +20,7 @@ use crate::tidal::models::{Album, Artist, Track};
 // Sorting
 // =============================================================================
 
-/// Order a favourites list by `sort`.
+/// Order a collection list by `sort`.
 ///
 /// A–Z compares `name`s without case or accents, so "Água" sorts with the
 /// A's rather than after Z. By date added, entries without a date (cached
@@ -261,6 +261,19 @@ impl AppModel {
         self.press_playlists_sort(key);
         self.save_config("playlists sort");
     }
+
+    /// Press a mixes sort button (see [`ListSort::pressed`]) and reorder the
+    /// list. Not persisted; [`Self::handle_sort_mixes`] also saves it.
+    pub(crate) fn press_mixes_sort(&mut self, key: SortKey) {
+        self.config.mixes_sort = self.config.mixes_sort.pressed(key);
+        self.rebuild_mixes_content();
+    }
+
+    /// Handle a mixes sort button, remembering the choice.
+    pub fn handle_sort_mixes(&mut self, key: SortKey) {
+        self.press_mixes_sort(key);
+        self.save_config("mixes sort");
+    }
 }
 
 #[cfg(test)]
@@ -268,7 +281,7 @@ mod tests {
     use super::sort_favorites;
     use crate::config::{ListSort, SortKey};
     use crate::state::{AppModel, ViewState};
-    use crate::tidal::models::{Album, Artist, Playlist, Track};
+    use crate::tidal::models::{Album, Artist, Mix, Playlist, Track};
     use cosmic::Application;
 
     const A_Z: ListSort = ListSort { key: SortKey::Name, descending: false };
@@ -457,5 +470,35 @@ mod tests {
         // A reload keeps the chosen order.
         drop(app.handle_playlists_loaded(Ok(vec![playlist("Alpha", Some(4)), playlist("Bravo", Some(1))])));
         assert_eq!(playlists_shown(&app), ["Bravo", "Alpha"]);
+    }
+
+    fn mix(title: &str, updated_at: Option<i64>) -> Mix {
+        Mix { id: title.to_lowercase(), title: title.into(), updated_at, ..Default::default() }
+    }
+
+    fn mixes_shown(app: &AppModel) -> Vec<String> {
+        (0..app.mixes_content.len()).filter_map(|i| app.mixes_content.get(i)).map(|m| m.title.clone()).collect()
+    }
+
+    #[tokio::test]
+    async fn the_mixes_list_follows_the_sort_buttons() {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        // `init` reads the real config; start from the default order.
+        app.config.mixes_sort = ListSort::default();
+        app.view_state = ViewState::Mixes;
+
+        let loaded = vec![mix("My Mix 2", Some(1)), mix("my daily discovery", Some(3)), mix("Ébano Radio", Some(2))];
+        drop(app.handle_mixes_loaded(Ok(loaded)));
+        assert_eq!(mixes_shown(&app), ["Ébano Radio", "my daily discovery", "My Mix 2"]);
+
+        app.press_mixes_sort(SortKey::DateAdded);
+        assert_eq!(mixes_shown(&app), ["my daily discovery", "Ébano Radio", "My Mix 2"]);
+        app.press_mixes_sort(SortKey::DateAdded);
+        assert_eq!(mixes_shown(&app), ["My Mix 2", "Ébano Radio", "my daily discovery"]);
+        app.press_mixes_sort(SortKey::Name);
+        assert_eq!(mixes_shown(&app), ["Ébano Radio", "my daily discovery", "My Mix 2"]);
+        app.press_mixes_sort(SortKey::Name);
+        assert_eq!(mixes_shown(&app), ["My Mix 2", "my daily discovery", "Ébano Radio"]);
     }
 }

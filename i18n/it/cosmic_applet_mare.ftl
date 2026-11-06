@@ -130,6 +130,7 @@ history-filter-placeholder = Filtra cronologia…
 favorite-tracks-filter-placeholder = Filtra brani preferiti…
 sort-name = A–Z
 sort-date-added = Data di aggiunta
+sort-last-updated = Ultimo aggiornamento
 
 # Suggerimenti
 tooltip-search = Cerca

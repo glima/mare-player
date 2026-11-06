@@ -124,6 +124,7 @@ history-filter-placeholder = Tapis sejarah…
 favorite-tracks-filter-placeholder = Tapis lagu kegemaran…
 sort-name = A–Z
 sort-date-added = Tarikh ditambah
+sort-last-updated = Kemas kini terakhir
 
 # Petua alat
 tooltip-search = Cari

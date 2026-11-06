@@ -130,6 +130,7 @@ history-filter-placeholder = Geschiedenis filteren…
 favorite-tracks-filter-placeholder = Favoriete nummers filteren…
 sort-name = A–Z
 sort-date-added = Datum toegevoegd
+sort-last-updated = Laatst bijgewerkt
 
 # Tooltips
 tooltip-search = Zoeken

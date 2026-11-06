@@ -56,7 +56,7 @@ impl AppModel {
 
         let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
         if !self.user_albums.is_empty() {
-            col = col.push(sort_buttons(self.config.favorite_albums_sort, Message::SortFavoriteAlbums));
+            col = col.push(sort_buttons(self.config.favorite_albums_sort, fl!("sort-date-added"), Message::SortFavoriteAlbums));
         }
         col.push(content).into()
     }

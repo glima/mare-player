@@ -47,7 +47,7 @@ impl AppModel {
 
         let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
         if !self.user_playlists.is_empty() {
-            col = col.push(sort_buttons(self.config.playlists_sort, Message::SortPlaylists));
+            col = col.push(sort_buttons(self.config.playlists_sort, fl!("sort-date-added"), Message::SortPlaylists));
         }
         col.push(content).into()
     }

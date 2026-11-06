@@ -501,6 +501,7 @@ mod mix {
             subtitle: "Fresh picks for you".to_string(),
             mix_type: "DAILY_MIX".to_string(),
             image_url: Some("https://example.com/mix.jpg".to_string()),
+            updated_at: Some(1_791_880_510_041),
         };
         let m2 = m.clone();
         assert_eq!(m.id, m2.id);
@@ -508,6 +509,7 @@ mod mix {
         assert_eq!(m.subtitle, m2.subtitle);
         assert_eq!(m.mix_type, m2.mix_type);
         assert_eq!(m.image_url, m2.image_url);
+        assert_eq!(m.updated_at, m2.updated_at);
     }
 
     #[test]
@@ -518,11 +520,13 @@ mod mix {
             subtitle: "Based on your listening".to_string(),
             mix_type: "ARTIST_MIX".to_string(),
             image_url: Some("https://example.com/art.jpg".to_string()),
+            updated_at: Some(1_791_880_510_041),
         };
         let json = serde_json::to_string(&m).unwrap();
         let m2: Mix = serde_json::from_str(&json).unwrap();
         assert_eq!(m2.id, "mix-123");
         assert_eq!(m2.mix_type, "ARTIST_MIX");
+        assert_eq!(m2.updated_at, Some(1_791_880_510_041));
     }
 
     #[test]
@@ -896,6 +900,7 @@ mod scenarios {
             subtitle: "No cover art".to_string(),
             mix_type: "DISCOVERY_MIX".to_string(),
             image_url: None,
+            updated_at: None,
         };
         assert!(m.image_url.is_none());
         let json = serde_json::to_string(&m).unwrap();

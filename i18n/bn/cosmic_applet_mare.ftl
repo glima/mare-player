@@ -130,6 +130,7 @@ history-filter-placeholder = ইতিহাস ফিল্টার করু�
 favorite-tracks-filter-placeholder = প্রিয় ট্র্যাক ফিল্টার করুন…
 sort-name = নাম অনুযায়ী
 sort-date-added = যোগ করার তারিখ
+sort-last-updated = সর্বশেষ আপডেট
 
 # টুলটিপ
 tooltip-search = অনুসন্ধান

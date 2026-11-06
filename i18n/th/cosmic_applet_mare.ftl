@@ -124,6 +124,7 @@ history-filter-placeholder = กรองประวัติ…
 favorite-tracks-filter-placeholder = กรองแทร็กโปรด…
 sort-name = ก–ฮ
 sort-date-added = วันที่เพิ่ม
+sort-last-updated = อัปเดตล่าสุด
 
 # คำแนะนำเครื่องมือ
 tooltip-search = ค้นหา

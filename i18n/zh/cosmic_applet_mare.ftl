@@ -124,6 +124,7 @@ history-filter-placeholder = 筛选历史记录…
 favorite-tracks-filter-placeholder = 筛选收藏曲目…
 sort-name = 名称
 sort-date-added = 添加日期
+sort-last-updated = 最近更新
 
 # 工具提示
 tooltip-search = 搜索

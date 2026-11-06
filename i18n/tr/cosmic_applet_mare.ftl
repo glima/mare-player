@@ -124,6 +124,7 @@ history-filter-placeholder = Geçmişi filtrele…
 favorite-tracks-filter-placeholder = Favori parçaları filtrele…
 sort-name = A–Z
 sort-date-added = Eklenme tarihi
+sort-last-updated = Son güncelleme
 
 # İpuçları
 tooltip-search = Ara

@@ -150,6 +150,7 @@ history-filter-placeholder = Filter history…
 favorite-tracks-filter-placeholder = Filter favorite tracks…
 sort-name = A–Z
 sort-date-added = Date added
+sort-last-updated = Last updated
 
 # Tooltips
 tooltip-search = Search

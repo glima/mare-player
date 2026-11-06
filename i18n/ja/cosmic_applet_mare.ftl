@@ -124,6 +124,7 @@ history-filter-placeholder = 履歴を絞り込み…
 favorite-tracks-filter-placeholder = お気に入りを絞り込み…
 sort-name = タイトル順
 sort-date-added = 追加日
+sort-last-updated = 最終更新
 
 # ツールチップ
 tooltip-search = 検索

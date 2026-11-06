@@ -130,6 +130,7 @@ history-filter-placeholder = Filtrera historik…
 favorite-tracks-filter-placeholder = Filtrera favoritlåtar…
 sort-name = A–Ö
 sort-date-added = Datum tillagt
+sort-last-updated = Senast uppdaterad
 
 # Verktygstips
 tooltip-search = Sök

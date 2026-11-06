@@ -435,9 +435,17 @@ impl AppModel {
         );
     }
 
-    /// Rebuild the mixes virtual-`List` content from `user_mixes`.
+    /// Rebuild the mixes virtual-`List` content from `user_mixes`, in the
+    /// chosen order.
     pub(crate) fn rebuild_mixes_content(&mut self) {
-        self.mixes_content = self.user_mixes.iter().cloned().collect();
+        self.mixes_content = crate::handlers::data::favorites::sort_favorites(
+            self.user_mixes.clone(),
+            self.config.mixes_sort,
+            |m| &m.title,
+            |m| m.updated_at,
+        )
+        .into_iter()
+        .collect();
     }
 
     /// Rebuild the followed-artists virtual-`List` content from

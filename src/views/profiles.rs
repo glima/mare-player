@@ -56,7 +56,7 @@ impl AppModel {
 
         let mut col = widget::Column::new().push(header).spacing(12).padding(12).width(Length::Fill);
         if !self.user_followed_artists.is_empty() {
-            col = col.push(sort_buttons(self.config.followed_artists_sort, Message::SortFollowedArtists));
+            col = col.push(sort_buttons(self.config.followed_artists_sort, fl!("sort-date-added"), Message::SortFollowedArtists));
         }
         col.push(content).into()
     }

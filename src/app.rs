@@ -801,6 +801,10 @@ impl cosmic::Application for AppModel {
                 self.handle_sort_playlists(key);
                 Task::none()
             }
+            Message::SortMixes(key) => {
+                self.handle_sort_mixes(key);
+                Task::none()
+            }
             Message::FavoriteToggled(result) => {
                 self.handle_favorite_toggled(result);
                 Task::none()

@@ -124,6 +124,7 @@ history-filter-placeholder = Lọc lịch sử…
 favorite-tracks-filter-placeholder = Lọc bài hát yêu thích…
 sort-name = A–Z
 sort-date-added = Ngày thêm
+sort-last-updated = Cập nhật lần cuối
 
 # Chú thích
 tooltip-search = Tìm kiếm
