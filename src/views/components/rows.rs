@@ -87,6 +87,29 @@ pub(crate) fn add_to_playlist_button<'a>(track: Track) -> Element<'a, Message> {
         .into()
 }
 
+/// `thumbnail` with a small video emblem in its bottom-right corner, marking
+/// a music video, or a playlist of nothing but videos.
+pub(crate) fn with_video_emblem<'a>(thumbnail: Element<'a, Message>) -> Element<'a, Message> {
+    let badge = container(widget::icon::from_name("emblem-videos-symbolic").size(12)).padding(2).class(
+        cosmic::theme::Container::custom(|_theme| cosmic::widget::container::Style {
+            background: Some(cosmic::iced::Background::Color(cosmic::iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
+            text_color: Some(cosmic::iced::Color::WHITE),
+            border: cosmic::iced::Border { radius: [7.0; 4].into(), ..Default::default() },
+            ..Default::default()
+        }),
+    );
+    cosmic::iced::widget::Stack::new()
+        .push(thumbnail)
+        .push(
+            container(badge)
+                .width(Length::Fixed(THUMBNAIL_SIZE as f32))
+                .height(Length::Fixed(THUMBNAIL_SIZE as f32))
+                .align_x(Alignment::End)
+                .align_y(Alignment::End),
+        )
+        .into()
+}
+
 /// Standalone track row builder for virtual `List` closures.
 ///
 /// This contains the full row-building logic. The [`AppModel::track_row`]
@@ -98,29 +121,7 @@ pub(crate) fn build_track_row<'a>(
     opts: &TrackRowOptions,
 ) -> Element<'a, Message> {
     let base_thumbnail = build_thumbnail(loaded_images, track.cover_url.as_deref(), opts.fallback_icon);
-    // Video entries get a small video emblem in the thumbnail's corner.
-    let thumbnail: Element<'a, Message> = if track.is_video {
-        let badge = container(widget::icon::from_name("emblem-videos-symbolic").size(12)).padding(2).class(
-            cosmic::theme::Container::custom(|_theme| cosmic::widget::container::Style {
-                background: Some(cosmic::iced::Background::Color(cosmic::iced::Color::from_rgba(0.0, 0.0, 0.0, 0.6))),
-                text_color: Some(cosmic::iced::Color::WHITE),
-                border: cosmic::iced::Border { radius: [7.0; 4].into(), ..Default::default() },
-                ..Default::default()
-            }),
-        );
-        cosmic::iced::widget::Stack::new()
-            .push(base_thumbnail)
-            .push(
-                container(badge)
-                    .width(Length::Fixed(THUMBNAIL_SIZE as f32))
-                    .height(Length::Fixed(THUMBNAIL_SIZE as f32))
-                    .align_x(Alignment::End)
-                    .align_y(Alignment::End),
-            )
-            .into()
-    } else {
-        base_thumbnail
-    };
+    let thumbnail = if track.is_video { with_video_emblem(base_thumbnail) } else { base_thumbnail };
 
     let track_info = fading_text_column(vec![
         text(track.title.clone()).size(13).wrapping(Wrapping::None).into(),
@@ -249,10 +250,12 @@ impl AppModel {
         let mut info_children: Vec<Element<'_, Message>> =
             vec![text(playlist.title.clone()).size(13).wrapping(Wrapping::None).into()];
 
-        // "12 tracks · Private": the count when there is one, and whether
-        // it's public when that's known (only for the user's own playlists).
+        // "12 tracks · 3 videos · Private": the counts there are, and
+        // whether it's public when that's known (only for the user's own
+        // playlists).
         let details: Vec<String> = [
             (playlist.num_tracks > 0).then(|| fl!("track-count", count = playlist.num_tracks)),
+            (playlist.num_videos > 0).then(|| fl!("video-count", count = playlist.num_videos)),
             playlist.public.map(|public| if public { fl!("playlist-public") } else { fl!("playlist-private") }),
         ]
         .into_iter()
@@ -271,6 +274,7 @@ impl AppModel {
         } else {
             self.thumbnail(playlist.image_url.as_deref(), "folder-music-symbolic")
         };
+        let thumb = if playlist.is_videos_only() { with_video_emblem(thumb) } else { thumb };
 
         let row = widget::Row::new().push(thumb).push(info).spacing(8).align_y(Alignment::Center).width(Length::Fill);
 

@@ -432,6 +432,7 @@ mod playlist {
             description: Some("A cool playlist".to_string()),
             creator_name: Some("user42".to_string()),
             num_tracks: 50,
+            num_videos: 4,
             duration: 7200,
             last_updated: Some("2024-01-01T00:00:00Z".to_string()),
             image_url: Some("https://example.com/playlist.jpg".to_string()),
@@ -444,6 +445,7 @@ mod playlist {
         assert_eq!(p2.uuid, "abc-def-123");
         assert_eq!(p2.title, "My Playlist");
         assert_eq!(p2.num_tracks, 50);
+        assert_eq!(p2.num_videos, 4);
         assert!(p2.is_user_playlist);
         assert_eq!(p2.description, Some("A cool playlist".to_string()));
         assert_eq!(p2.added_at, Some(1_767_225_600_000));
@@ -458,6 +460,7 @@ mod playlist {
             description: Some("desc".to_string()),
             creator_name: Some("creator".to_string()),
             num_tracks: 10,
+            num_videos: 2,
             duration: 600,
             last_updated: Some("2024-06-15".to_string()),
             image_url: Some("https://img.example.com/p.jpg".to_string()),
@@ -471,6 +474,7 @@ mod playlist {
         assert_eq!(p.description, q.description);
         assert_eq!(p.creator_name, q.creator_name);
         assert_eq!(p.num_tracks, q.num_tracks);
+        assert_eq!(p.num_videos, q.num_videos);
         assert_eq!(p.duration, q.duration);
         assert_eq!(p.last_updated, q.last_updated);
         assert_eq!(p.image_url, q.image_url);

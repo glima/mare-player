@@ -95,6 +95,7 @@ fallback-playlist = 播放列表
 released = 发行时间：{$year}
 quality-label = 音质：{$quality}
 track-count = {$count} 首曲目
+video-count = {$count} 个视频
 artist-count = {$count} 位艺术家
 
 # 搜索

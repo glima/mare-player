@@ -3,12 +3,14 @@
 //! Playlist thumbnail generation handlers for Maré Player.
 //!
 //! Generates 2×2 album-art grid thumbnails for playlists by compositing
-//! up to 4 distinct cover images into a single circular thumbnail.
+//! up to 4 distinct cover images (stills, for music videos) into a single
+//! circular thumbnail.
 
 use cosmic::prelude::*;
 
 use crate::messages::Message;
 use crate::state::AppModel;
+use crate::tidal::models::Track;
 
 impl AppModel {
     /// Generate 2×2 album-art grid thumbnails for every loaded playlist.
@@ -22,7 +24,7 @@ impl AppModel {
             .user_playlists
             .iter()
             .filter(|p| !self.playlist_thumbnails.contains_key(&p.uuid))
-            .map(|p| (p.uuid.clone(), p.num_tracks))
+            .map(|p| (p.uuid.clone(), p.num_tracks + p.num_videos))
             .collect();
 
         if playlists.is_empty() {
@@ -34,7 +36,7 @@ impl AppModel {
 
         let tasks: Vec<Task<cosmic::Action<Message>>> = playlists
             .into_iter()
-            .filter(|(_, num_tracks)| *num_tracks > 0)
+            .filter(|(_, num_items)| *num_items > 0)
             .map(|(uuid, _)| {
                 let client = client.clone();
                 let image_cache = image_cache.clone();
@@ -53,14 +55,14 @@ impl AppModel {
                             }
                         };
 
-                        // Collect up to 4 unique cover URLs
+                        // Collect up to 4 unique pictures: album covers, and
+                        // stills for music videos.
                         let mut seen = std::collections::HashSet::new();
                         let cover_urls: Vec<String> = tracks
                             .iter()
-                            .filter_map(|t| t.cover_url.as_ref())
-                            .filter(|url| seen.insert((*url).clone()))
+                            .filter_map(Track::grid_art_url)
+                            .filter(|url| seen.insert(url.clone()))
                             .take(4)
-                            .cloned()
                             .collect();
 
                         if cover_urls.is_empty() {

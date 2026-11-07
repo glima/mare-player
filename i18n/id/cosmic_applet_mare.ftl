@@ -95,6 +95,7 @@ fallback-playlist = Daftar Putar
 released = Dirilis: {$year}
 quality-label = Kualitas: {$quality}
 track-count = {$count} lagu
+video-count = {$count} video
 artist-count = {$count} artis
 
 # Pencarian

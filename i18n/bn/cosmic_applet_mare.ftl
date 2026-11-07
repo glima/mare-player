@@ -98,6 +98,7 @@ track-count = {$count}টি {$count ->
     [one] ট্র্যাক
    *[other] ট্র্যাক
 }
+video-count = {$count}টি ভিডিও
 artist-count = {$count} জন {$count ->
     [one] শিল্পী
    *[other] শিল্পী

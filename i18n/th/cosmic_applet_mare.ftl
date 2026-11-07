@@ -95,6 +95,7 @@ fallback-playlist = เพลย์ลิสต์
 released = วันที่วางจำหน่าย: {$year}
 quality-label = คุณภาพ: {$quality}
 track-count = {$count} แทร็ก
+video-count = {$count} วิดีโอ
 artist-count = {$count} ศิลปิน
 
 # การค้นหา

@@ -98,6 +98,10 @@ track-count = {$count} {$count ->
     [one] spår
    *[other] flera spår
 }
+video-count = {$count} {$count ->
+    [one] video
+   *[other] videor
+}
 artist-count = {$count} {$count ->
     [one] artist
    *[other] artister

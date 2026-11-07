@@ -95,6 +95,7 @@ fallback-playlist = 재생목록
 released = 발매일: {$year}
 quality-label = 음질: {$quality}
 track-count = 트랙 {$count}곡
+video-count = 동영상 {$count}개
 artist-count = 아티스트 {$count}명
 
 # Search

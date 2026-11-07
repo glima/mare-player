@@ -2203,6 +2203,7 @@ impl TidalAppClient {
             description: it.get("description").and_then(|v| v.as_str()).map(|s| s.to_string()),
             creator_name: None,
             num_tracks: it.get("numberOfTracks").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            num_videos: it.get("numberOfVideos").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             duration: it.get("duration").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
             last_updated: None,
             image_url: image_id.map(tidal_cover_url),
@@ -2808,6 +2809,8 @@ mod tests {
             assert!(playlist.is_user_playlist);
             assert_eq!(playlist.added_at, Some(1_767_225_600_000));
             assert_eq!(playlist.public, Some(false));
+            assert_eq!((playlist.num_tracks, playlist.num_videos), (3, 0));
+            assert_eq!(playlist.image_url.as_deref(), Some("https://resources.tidal.com/images/cc/dd/320x320.jpg"));
         }
 
         #[tokio::test]

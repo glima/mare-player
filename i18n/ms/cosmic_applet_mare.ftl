@@ -95,6 +95,7 @@ fallback-playlist = Senarai Main
 released = Dikeluarkan: {$year}
 quality-label = Kualiti: {$quality}
 track-count = {$count} lagu
+video-count = {$count} video
 artist-count = {$count} artis
 
 # Carian

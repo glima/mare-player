@@ -95,6 +95,7 @@ fallback-playlist = Danh sách phát
 released = Phát hành: {$year}
 quality-label = Chất lượng: {$quality}
 track-count = {$count} bài hát
+video-count = {$count} video
 artist-count = {$count} nghệ sĩ
 
 # Tìm kiếm

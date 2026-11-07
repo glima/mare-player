@@ -102,6 +102,14 @@ track-count = {$count} {$count ->
     [many] مقطعًا
    *[other] مقطع
 }
+video-count = {$count} {$count ->
+    [zero] فيديوهات
+    [one] فيديو
+    [two] فيديوهان
+    [few] فيديوهات
+    [many] فيديو
+   *[other] فيديو
+}
 artist-count = {$count} {$count ->
     [zero] فنانين
     [one] فنان

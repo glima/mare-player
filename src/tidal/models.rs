@@ -29,6 +29,21 @@ pub fn tidal_cover_url(uuid: &str) -> String {
     tidal_cover_url_sized(uuid, DEFAULT_COVER_SIZE_PX)
 }
 
+/// A 16:9 size every TIDAL video still comes in. Asked for a square size,
+/// TIDAL sometimes crops a still and sometimes letterboxes it.
+const VIDEO_STILL_SIZE: &str = "640x360";
+
+/// `url`, a TIDAL CDN image URL, at another `size` (`"640x360"`). Other URLs
+/// come back as they are.
+fn tidal_image_at_size(url: &str, size: &str) -> String {
+    match url.rsplit_once('/') {
+        Some((base, file)) if base.starts_with("https://resources.tidal.com/images/") && file.ends_with(".jpg") => {
+            format!("{base}/{size}.jpg")
+        }
+        _ => url.to_string(),
+    }
+}
+
 /// Build a TIDAL CDN URL for an image UUID at a specific square size.
 pub fn tidal_cover_url_sized(uuid: &str, size_px: u32) -> String {
     format!("https://resources.tidal.com/images/{}/{size_px}x{size_px}.jpg", uuid.replace('-', "/"))
@@ -97,6 +112,14 @@ impl Track {
         let minutes = self.duration / 60;
         let seconds = self.duration % 60;
         format!("{}:{:02}", minutes, seconds)
+    }
+
+    /// The picture a 2×2 playlist cover grid shows for this entry: its
+    /// album cover, or for a music video its 16:9 still, which the grid crops
+    /// to a square without letterboxing.
+    pub fn grid_art_url(&self) -> Option<String> {
+        let url = self.cover_url.as_deref()?;
+        Some(if self.is_video { tidal_image_at_size(url, VIDEO_STILL_SIZE) } else { url.to_string() })
     }
 }
 
@@ -420,8 +443,11 @@ pub struct Playlist {
     pub description: Option<String>,
     /// Creator username
     pub creator_name: Option<String>,
-    /// Number of tracks
+    /// Number of tracks, not counting music videos
     pub num_tracks: u32,
+    /// Number of music videos, which TIDAL counts apart from tracks
+    #[serde(default)]
+    pub num_videos: u32,
     /// Total duration in seconds
     pub duration: u32,
     /// Last updated timestamp
@@ -441,6 +467,11 @@ pub struct Playlist {
 }
 
 impl Playlist {
+    /// Whether it holds music videos and nothing else.
+    pub fn is_videos_only(&self) -> bool {
+        self.num_tracks == 0 && self.num_videos > 0
+    }
+
     /// Format duration as H:MM:SS or M:SS depending on length
     pub fn duration_display(&self) -> String {
         let hours = self.duration / 3600;
@@ -459,9 +490,12 @@ impl From<tidlers::client::models::playlist::PlaylistResponse> for Playlist {
             description: Some(p.description),
             creator_name: None,
             num_tracks: p.number_of_tracks as u32,
+            num_videos: p.number_of_videos as u32,
             duration: p.duration as u32,
             last_updated: Some(p.last_updated),
-            image_url: Some(tidal_cover_url(&p.image)),
+            // `image` only comes in rectangular sizes, so a square request
+            // for it is refused (403); `squareImage` is the square cover.
+            image_url: Some(tidal_cover_url(if p.square_image.is_empty() { &p.image } else { &p.square_image })),
             is_user_playlist: true,
             added_at: None,
             public: Some(p.public_playlist),
@@ -480,6 +514,7 @@ impl From<tidlers::client::models::search::SearchPlaylistHit> for Playlist {
             description: p.description,
             creator_name: None,
             num_tracks: p.number_of_tracks.unwrap_or(0),
+            num_videos: 0,
             duration: p.duration.unwrap_or(0) as u32,
             last_updated: p.last_updated,
             image_url: image_id.as_deref().map(tidal_cover_url),
@@ -1433,6 +1468,29 @@ mod tests {
 
         let track2 = Track { duration: 60, ..Default::default() };
         assert_eq!(track2.duration_display(), "1:00");
+    }
+
+    #[test]
+    fn a_grid_shows_covers_and_whole_video_stills() {
+        let cover = "https://resources.tidal.com/images/aa/bb/320x320.jpg";
+        let track = Track { cover_url: Some(cover.into()), ..Default::default() };
+        assert_eq!(track.grid_art_url().as_deref(), Some(cover));
+        // A video's square still may be letterboxed; its 16:9 one never is.
+        let video = Track { is_video: true, ..track.clone() };
+        assert_eq!(video.grid_art_url().as_deref(), Some("https://resources.tidal.com/images/aa/bb/640x360.jpg"));
+        assert_eq!(Track { cover_url: None, ..video.clone() }.grid_art_url(), None);
+        // Only TIDAL CDN images are resized.
+        let elsewhere = Track { cover_url: Some("https://example.com/a/320x320.jpg".into()), ..video };
+        assert_eq!(elsewhere.grid_art_url().as_deref(), Some("https://example.com/a/320x320.jpg"));
+    }
+
+    #[test]
+    fn only_a_playlist_of_nothing_but_videos_is_videos_only() {
+        let playlist = |num_tracks, num_videos| Playlist { num_tracks, num_videos, ..Default::default() };
+        assert!(playlist(0, 3).is_videos_only());
+        assert!(!playlist(2, 3).is_videos_only());
+        assert!(!playlist(2, 0).is_videos_only());
+        assert!(!playlist(0, 0).is_videos_only());
     }
 
     #[test]

@@ -95,6 +95,7 @@ fallback-playlist = Çalma Listesi
 released = Yayın tarihi: {$year}
 quality-label = Kalite: {$quality}
 track-count = {$count} parça
+video-count = {$count} video
 artist-count = {$count} sanatçı
 
 # Arama

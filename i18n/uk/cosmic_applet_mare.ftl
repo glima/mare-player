@@ -100,6 +100,7 @@ track-count = {$count} {$count ->
     [many] треків
    *[other] треків
 }
+video-count = {$count} відео
 artist-count = {$count} {$count ->
     [one] виконавець
     [few] виконавці

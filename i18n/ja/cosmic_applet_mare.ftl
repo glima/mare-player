@@ -95,6 +95,7 @@ fallback-playlist = プレイリスト
 released = リリース: {$year}
 quality-label = 音質: {$quality}
 track-count = {$count} 曲
+video-count = {$count} 本の動画
 artist-count = {$count} アーティスト
 
 # 検索
