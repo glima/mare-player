@@ -250,6 +250,9 @@ pub struct AppModel {
     pub(crate) user_playlists: Vec<Playlist>,
     /// Cached 2×2 album-art grid thumbnails for playlists (UUID -> image handle)
     pub(crate) playlist_thumbnails: HashMap<String, Handle>,
+    /// The "Add to playlist" picker's track and new-playlist form. Set when
+    /// the picker opens; picking a playlist or creating one takes it.
+    pub(crate) add_to_playlist: Option<AddToPlaylist>,
     /// User favorite albums
     pub(crate) user_albums: Vec<Album>,
     /// Favorite albums as virtual-`List` content (only visible cards render, so
@@ -527,6 +530,19 @@ impl AppModel {
     }
 }
 
+/// What the "Add to playlist" picker is adding, and its new-playlist form.
+#[derive(Debug, Clone, Default)]
+pub struct AddToPlaylist {
+    /// The track or video to add.
+    pub track: Track,
+    /// The playlist the picker was opened from, which it doesn't offer.
+    pub exclude: Option<String>,
+    /// The new playlist's name, as typed.
+    pub new_name: String,
+    /// Whether the new playlist is public. Private until the user says so.
+    pub new_public: bool,
+}
+
 /// Current view state for the popup
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ViewState {
@@ -576,6 +592,8 @@ pub enum ViewState {
     Settings,
     /// Share prompt dialog (track_id, track_title, album_id, album_title, is_video)
     SharePrompt(String, String, Option<String>, Option<String>, bool),
+    /// "Add to playlist" picker for the track in `AppModel::add_to_playlist`
+    AddToPlaylist,
 }
 
 #[cfg(test)]

@@ -126,6 +126,16 @@ sort-name = A–Z
 sort-date-added = Tarikh ditambah
 sort-last-updated = Kemas kini terakhir
 
+# Adding to playlists
+add-to-playlist = Tambah ke senarai main
+new-playlist = Senarai main baharu
+playlist-name = Nama senarai main
+playlist-private = Peribadi
+playlist-public = Awam
+create-playlist = Cipta
+added-to-playlist = Ditambah ke { $playlist }
+already-in-playlist = Sudah ada dalam { $playlist }
+
 # Petua alat
 tooltip-search = Cari
 tooltip-settings = Tetapan

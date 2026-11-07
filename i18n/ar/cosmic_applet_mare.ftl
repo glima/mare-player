@@ -140,6 +140,16 @@ sort-name = أ–ي
 sort-date-added = تاريخ الإضافة
 sort-last-updated = آخر تحديث
 
+# Adding to playlists
+add-to-playlist = أضف إلى قائمة تشغيل
+new-playlist = قائمة تشغيل جديدة
+playlist-name = اسم قائمة التشغيل
+playlist-private = خاصة
+playlist-public = عامة
+create-playlist = إنشاء
+added-to-playlist = تمت الإضافة إلى { $playlist }
+already-in-playlist = موجود بالفعل في { $playlist }
+
 # Tooltips
 tooltip-search = بحث
 tooltip-settings = الإعدادات

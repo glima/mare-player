@@ -23,7 +23,7 @@
 //!   │
 //!   ├── album_row(album)                    ← thumbnail + title + artist
 //!   │
-//!   ├── playlist_row(playlist)              ← thumbnail + title + track count
+//!   ├── playlist_row(playlist, on_press)    ← thumbnail + title + track count
 //!   │
 //!   ├── menu_row(icon, label, on_press)     ← icon + label + chevron
 //!   │
@@ -53,7 +53,7 @@ pub use fixed_height_list::FixedHeightList;
 pub use icons::{CREDITS_SVG, LYRICS_SVG, POPIN_SVG, POPOUT_SVG, RADIO_SVG, favorite_icon_handle};
 
 pub use list_helpers::{
-    TrackRowOptions, app_icon_element, back_button, branded_text, branded_title, fading_header_title, fading_panel_text,
+    TrackRowOptions, app_icon_element, back_button, branded_text, branded_title, chip, fading_header_title, fading_panel_text,
     fading_standard_text, fading_suggested_text, fading_text, fading_text_column, list_item, scrollable_element, scrollable_list,
     sort_buttons, virtual_list_row,
 };

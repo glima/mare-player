@@ -132,6 +132,16 @@ sort-name = A–Z
 sort-date-added = Data de adição
 sort-last-updated = Última atualização
 
+# Adding to playlists
+add-to-playlist = Adicionar a uma playlist
+new-playlist = Nova playlist
+playlist-name = Nome da playlist
+playlist-private = Privada
+playlist-public = Pública
+create-playlist = Criar
+added-to-playlist = Adicionado a { $playlist }
+already-in-playlist = Já está em { $playlist }
+
 # Dicas
 tooltip-search = Pesquisar
 tooltip-settings = Configurações

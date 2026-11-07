@@ -126,6 +126,16 @@ sort-name = 이름순
 sort-date-added = 추가한 날짜
 sort-last-updated = 최근 업데이트
 
+# Adding to playlists
+add-to-playlist = 재생목록에 추가
+new-playlist = 새 재생목록
+playlist-name = 재생목록 이름
+playlist-private = 비공개
+playlist-public = 공개
+create-playlist = 만들기
+added-to-playlist = { $playlist }에 추가됨
+already-in-playlist = 이미 { $playlist }에 있음
+
 # Tooltips
 tooltip-search = 검색
 tooltip-settings = 설정

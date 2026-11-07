@@ -21,7 +21,7 @@ use crate::fl;
 use crate::messages::Message;
 use crate::state::{AppModel, HandleCache};
 use crate::tidal::models::{Album, Artist, Track, TrackDetailRow};
-use crate::views::components::rows::build_thumbnail;
+use crate::views::components::rows::{add_to_playlist_button, build_thumbnail};
 use crate::views::components::{
     ARTIST_PICTURE_SIZE, CREDITS_SVG, back_button, fading_header_title, fading_text, fading_text_column, list_item,
     scrollable_element, virtual_list_row,
@@ -50,6 +50,7 @@ impl AppModel {
                 let btn = button::icon(ci).tooltip(fl!("tooltip-show-credits")).padding(4);
                 if let Some(track) = track_for_credits { btn.on_press(Message::ShowCredits(track)) } else { btn }
             })
+            .push_maybe(self.selected_detail_track.clone().map(add_to_playlist_button))
             .spacing(8)
             .align_y(Alignment::Center);
 

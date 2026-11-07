@@ -22,7 +22,7 @@ use crate::helpers::format_seconds;
 use crate::messages::Message;
 use crate::state::{AppModel, ViewState};
 use crate::tidal::player::PlaybackState;
-use crate::views::components::rows::build_track_radio_button;
+use crate::views::components::rows::{add_to_playlist_button, build_track_radio_button};
 use crate::views::components::{LYRICS_SVG, NOW_PLAYING_ART_SIZE, favorite_icon_handle};
 #[cfg(feature = "panel-applet")]
 use crate::views::components::{POPIN_SVG, POPOUT_SVG};
@@ -100,6 +100,7 @@ impl AppModel {
             ViewState::SharePrompt(track_id, track_title, album_id, album_title, is_video) => {
                 self.view_share_prompt(track_id.clone(), track_title.clone(), album_id.clone(), album_title.clone(), *is_video)
             }
+            ViewState::AddToPlaylist => self.view_add_to_playlist(),
         }
     }
 
@@ -539,6 +540,7 @@ impl AppModel {
             )
             .push_maybe(self.now_playing_radio_button())
             .push_maybe(self.now_playing_lyrics_button())
+            .push_maybe(current_track.clone().map(add_to_playlist_button))
             .push({
                 let btn =
                     button::icon(widget::icon::from_name("emblem-shared-symbolic")).tooltip(fl!("tooltip-share")).padding(4);

@@ -173,6 +173,7 @@ impl cosmic::Application for AppModel {
             favorite_album_ids: HashSet::new(),
             followed_artist_ids: HashSet::new(),
             nav_stack: Vec::new(),
+            add_to_playlist: None,
             is_loading: true,
             error_message: None,
             session_restore_attempted: false,
@@ -906,6 +907,24 @@ impl cosmic::Application for AppModel {
                 self.handle_cancel_share();
                 Task::none()
             }
+
+            // Adding to playlists
+            Message::ShowAddToPlaylist(track) => self.handle_show_add_to_playlist(track),
+            Message::NewPlaylistNameChanged(name) => {
+                if let Some(picker) = &mut self.add_to_playlist {
+                    picker.new_name = name;
+                }
+                Task::none()
+            }
+            Message::NewPlaylistPublicChanged(public) => {
+                if let Some(picker) = &mut self.add_to_playlist {
+                    picker.new_public = public;
+                }
+                Task::none()
+            }
+            Message::AddToPlaylist(uuid) => self.handle_add_to_playlist(uuid),
+            Message::CreatePlaylistWithTrack => self.handle_create_playlist_with_track(),
+            Message::AddedToPlaylist(result) => self.handle_added_to_playlist(result),
 
             // Misc handlers - MPRIS
             Message::MprisServiceStarted(result) => self.handle_mpris_service_started(result),

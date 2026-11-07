@@ -126,6 +126,16 @@ sort-name = A–Z
 sort-date-added = Ngày thêm
 sort-last-updated = Cập nhật lần cuối
 
+# Adding to playlists
+add-to-playlist = Thêm vào danh sách phát
+new-playlist = Danh sách phát mới
+playlist-name = Tên danh sách phát
+playlist-private = Riêng tư
+playlist-public = Công khai
+create-playlist = Tạo
+added-to-playlist = Đã thêm vào { $playlist }
+already-in-playlist = Đã có trong { $playlist }
+
 # Chú thích
 tooltip-search = Tìm kiếm
 tooltip-settings = Cài đặt

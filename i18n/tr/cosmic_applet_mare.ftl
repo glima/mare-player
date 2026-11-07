@@ -126,6 +126,16 @@ sort-name = A–Z
 sort-date-added = Eklenme tarihi
 sort-last-updated = Son güncelleme
 
+# Adding to playlists
+add-to-playlist = Çalma listesine ekle
+new-playlist = Yeni çalma listesi
+playlist-name = Çalma listesi adı
+playlist-private = Gizli
+playlist-public = Herkese açık
+create-playlist = Oluştur
+added-to-playlist = { $playlist } listesine eklendi
+already-in-playlist = Zaten { $playlist } listesinde
+
 # İpuçları
 tooltip-search = Ara
 tooltip-settings = Ayarlar

@@ -12,6 +12,7 @@ use cosmic::surface;
 use tokio::sync::Mutex;
 
 use crate::config::{AudioQuality, Config, LogLevel, SortKey};
+use crate::handlers::data::playlist_add::PlaylistAdd;
 use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::{PlaybackFailure, PlaybackUrl};
 use crate::tidal::models::{
@@ -327,6 +328,20 @@ pub enum Message {
     ShareAlbum(String, String),
     /// Cancel share dialog
     CancelShare,
+
+    // Adding to playlists
+    /// Open the "Add to playlist" picker for a track or video
+    ShowAddToPlaylist(Track),
+    /// The picker's new-playlist name was edited
+    NewPlaylistNameChanged(String),
+    /// The picker's new playlist was made public (`true`) or private
+    NewPlaylistPublicChanged(bool),
+    /// Add the picker's track to one of the user's playlists (uuid)
+    AddToPlaylist(String),
+    /// Create the picker's new playlist with its track in it
+    CreatePlaylistWithTrack,
+    /// Adding to a playlist finished
+    AddedToPlaylist(Result<PlaylistAdd, String>),
 
     // Settings
     /// Set audio quality preference

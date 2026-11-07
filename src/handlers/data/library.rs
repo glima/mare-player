@@ -382,7 +382,7 @@ impl AppModel {
     pub fn handle_playlists_loaded(&mut self, result: Result<Vec<Playlist>, String>) -> Task<cosmic::Action<Message>> {
         // Only clear is_loading when the user is actually viewing playlists,
         // so background pre-fetches don't clobber loading state for other views.
-        if self.view_state == ViewState::Playlists {
+        if matches!(self.view_state, ViewState::Playlists | ViewState::AddToPlaylist) {
             self.is_loading = false;
         }
         match result {

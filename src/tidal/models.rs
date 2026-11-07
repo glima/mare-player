@@ -434,6 +434,10 @@ pub struct Playlist {
     /// for the user's own playlists.
     #[serde(default)]
     pub added_at: Option<i64>,
+    /// Whether anyone can find the playlist (`Some(false)`: private). Only
+    /// known for the user's own playlists.
+    #[serde(default)]
+    pub public: Option<bool>,
 }
 
 impl Playlist {
@@ -460,6 +464,7 @@ impl From<tidlers::client::models::playlist::PlaylistResponse> for Playlist {
             image_url: Some(tidal_cover_url(&p.image)),
             is_user_playlist: true,
             added_at: None,
+            public: Some(p.public_playlist),
         }
     }
 }
@@ -480,6 +485,7 @@ impl From<tidlers::client::models::search::SearchPlaylistHit> for Playlist {
             image_url: image_id.as_deref().map(tidal_cover_url),
             is_user_playlist: false,
             added_at: None,
+            public: None,
         }
     }
 }

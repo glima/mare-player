@@ -126,6 +126,16 @@ sort-name = タイトル順
 sort-date-added = 追加日
 sort-last-updated = 最終更新
 
+# Adding to playlists
+add-to-playlist = プレイリストに追加
+new-playlist = 新しいプレイリスト
+playlist-name = プレイリスト名
+playlist-private = 非公開
+playlist-public = 公開
+create-playlist = 作成
+added-to-playlist = { $playlist } に追加しました
+already-in-playlist = { $playlist } に追加済みです
+
 # ツールチップ
 tooltip-search = 検索
 tooltip-settings = 設定

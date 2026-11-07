@@ -437,6 +437,7 @@ mod playlist {
             image_url: Some("https://example.com/playlist.jpg".to_string()),
             is_user_playlist: true,
             added_at: Some(1_767_225_600_000),
+            public: Some(true),
         };
         let json = serde_json::to_string(&p).unwrap();
         let p2: Playlist = serde_json::from_str(&json).unwrap();
@@ -446,6 +447,7 @@ mod playlist {
         assert!(p2.is_user_playlist);
         assert_eq!(p2.description, Some("A cool playlist".to_string()));
         assert_eq!(p2.added_at, Some(1_767_225_600_000));
+        assert_eq!(p2.public, Some(true));
     }
 
     #[test]
@@ -461,6 +463,7 @@ mod playlist {
             image_url: Some("https://img.example.com/p.jpg".to_string()),
             is_user_playlist: false,
             added_at: Some(1_767_225_600_000),
+            public: Some(false),
         };
         let q = p.clone();
         assert_eq!(p.uuid, q.uuid);
@@ -472,6 +475,7 @@ mod playlist {
         assert_eq!(p.last_updated, q.last_updated);
         assert_eq!(p.image_url, q.image_url);
         assert_eq!(p.added_at, q.added_at);
+        assert_eq!(p.public, q.public);
         assert_eq!(p.is_user_playlist, q.is_user_playlist);
     }
 }

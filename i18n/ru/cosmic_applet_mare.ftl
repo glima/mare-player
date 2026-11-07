@@ -136,6 +136,16 @@ sort-name = А–Я
 sort-date-added = Дата добавления
 sort-last-updated = Последнее обновление
 
+# Adding to playlists
+add-to-playlist = Добавить в плейлист
+new-playlist = Новый плейлист
+playlist-name = Название плейлиста
+playlist-private = Личный
+playlist-public = Публичный
+create-playlist = Создать
+added-to-playlist = Добавлено в { $playlist }
+already-in-playlist = Уже в { $playlist }
+
 # Подсказки
 tooltip-search = Поиск
 tooltip-settings = Настройки

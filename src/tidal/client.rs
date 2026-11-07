@@ -178,6 +178,14 @@ impl From<CollectionFavoriteTracksResponse> for ApiPaginatedResponse<Track> {
     }
 }
 
+/// Where `item` goes to land at the end of a playlist holding `entries`, or
+/// `None` if it is already there. Track and video ids are separate, so both
+/// the id and the kind must match.
+fn append_position(entries: &[Track], item: &Track) -> Option<u64> {
+    let present = entries.iter().any(|entry| entry.id == item.id && entry.is_video == item.is_video);
+    (!present).then_some(entries.len() as u64)
+}
+
 /// A followed artist, stamped with when the user followed it.
 fn followed_artist(entry: tidlers::client::models::collection::artist::CollectionArtistEntry) -> Artist {
     Artist { added_at: favorite_added_at(&entry.added_at), ..Artist::from(entry.data) }
@@ -1033,6 +1041,44 @@ impl TidalAppClient {
                 Err(TidalError::RequestFailed(format!("{:?}", e)))
             }
         }
+    }
+
+    /// Create an empty playlist for the user, private unless `public`.
+    /// Returns its UUID.
+    pub async fn create_playlist(&self, title: &str, public: bool) -> TidalResult<String> {
+        use tidlers::client::models::collection::SharingLevel;
+        self.ensure_valid_token().await?;
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        debug!("Creating playlist (public: {public})");
+        let sharing = if public { SharingLevel::Public } else { SharingLevel::Private };
+        let entry = client
+            .create_playlist(title, "", Some(sharing), None)
+            .await
+            .map_err(|e| Self::request_error("Create playlist", e))?;
+        info!("Created playlist {}", entry.data.uuid);
+        Ok(entry.data.uuid)
+    }
+
+    /// Add `item` (a track or a video) to the end of one of the user's
+    /// playlists, unless it is already there. Returns whether it was added.
+    ///
+    /// tidlers can't ask TIDAL to skip duplicates (`onDupes`), so this reads
+    /// the playlist first.
+    pub async fn add_to_playlist(&self, playlist_uuid: &str, item: &Track) -> TidalResult<bool> {
+        let entries = self.get_playlist_tracks(playlist_uuid, None, None).await?;
+        let Some(end) = append_position(&entries, item) else {
+            info!("{} is already in playlist {}", item.id, playlist_uuid);
+            return Ok(false);
+        };
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        client
+            .add_items_to_playlist(playlist_uuid, vec![item.id.clone()], Some(end))
+            .await
+            .map_err(|e| Self::request_error("Add to playlist", e))?;
+        info!("Added {} to playlist {}", item.id, playlist_uuid);
+        Ok(true)
     }
 
     /// Get all favourite tracks through tidlers, preserving their server order.
@@ -2152,6 +2198,7 @@ impl TidalAppClient {
             image_url: image_id.map(tidal_cover_url),
             is_user_playlist: false,
             added_at: None,
+            public: None,
         })
     }
 
@@ -2723,6 +2770,19 @@ mod tests {
         }
 
         #[test]
+        fn an_item_is_appended_once() {
+            use super::super::{Track, append_position};
+            let entry = |id: &str, is_video| Track { id: id.into(), is_video, ..Default::default() };
+            let entries = [entry("1", false), entry("2", false), entry("3", true)];
+            assert_eq!(append_position(&entries, &entry("4", false)), Some(3));
+            assert_eq!(append_position(&entries, &entry("2", false)), None);
+            // A video with a track's id, or the other way round, is another item.
+            assert_eq!(append_position(&entries, &entry("2", true)), Some(3));
+            assert_eq!(append_position(&entries, &entry("3", true)), None);
+            assert_eq!(append_position(&[], &entry("1", false)), Some(0));
+        }
+
+        #[test]
         fn a_users_playlist_is_dated_by_its_creation() {
             let response: tidlers::client::models::playlist::PlaylistResponse = serde_json::from_value(serde_json::json!({
                 "uuid": "pl-1", "title": "Road Trip", "numberOfTracks": 3, "numberOfVideos": 0,
@@ -2737,6 +2797,7 @@ mod tests {
             assert_eq!(playlist.title, "Road Trip");
             assert!(playlist.is_user_playlist);
             assert_eq!(playlist.added_at, Some(1_767_225_600_000));
+            assert_eq!(playlist.public, Some(false));
         }
 
         #[tokio::test]

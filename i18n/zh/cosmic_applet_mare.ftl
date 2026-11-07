@@ -126,6 +126,16 @@ sort-name = 名称
 sort-date-added = 添加日期
 sort-last-updated = 最近更新
 
+# Adding to playlists
+add-to-playlist = 添加到播放列表
+new-playlist = 新建播放列表
+playlist-name = 播放列表名称
+playlist-private = 私密
+playlist-public = 公开
+create-playlist = 创建
+added-to-playlist = 已添加到 { $playlist }
+already-in-playlist = 已在 { $playlist } 中
+
 # 工具提示
 tooltip-search = 搜索
 tooltip-settings = 设置

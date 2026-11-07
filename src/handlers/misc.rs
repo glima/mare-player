@@ -252,7 +252,12 @@ impl AppModel {
                 tracing::warn!("Failed to open in browser: {}", e);
             }
         });
-        self.error_message = Some(format!("Link copied & opened: {}", url));
+        self.show_note(format!("Link copied & opened: {}", url))
+    }
+
+    /// Show `note` in the message banner for three seconds.
+    pub(crate) fn show_note(&mut self, note: String) -> Task<cosmic::Action<Message>> {
+        self.error_message = Some(note);
         Task::perform(
             async {
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;

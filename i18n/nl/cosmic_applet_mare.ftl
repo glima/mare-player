@@ -132,6 +132,16 @@ sort-name = A–Z
 sort-date-added = Datum toegevoegd
 sort-last-updated = Laatst bijgewerkt
 
+# Adding to playlists
+add-to-playlist = Toevoegen aan afspeellijst
+new-playlist = Nieuwe afspeellijst
+playlist-name = Naam van de afspeellijst
+playlist-private = Privé
+playlist-public = Openbaar
+create-playlist = Maken
+added-to-playlist = Toegevoegd aan { $playlist }
+already-in-playlist = Staat al in { $playlist }
+
 # Tooltips
 tooltip-search = Zoeken
 tooltip-settings = Instellingen

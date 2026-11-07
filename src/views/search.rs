@@ -82,13 +82,12 @@ impl AppModel {
     /// popup (or a translation) is too narrow to fit them all.
     fn search_category_chips(&self) -> Element<'_, Message> {
         let chip = |label: String, category: Option<SearchCategory>| -> Element<'_, Message> {
-            let class =
-                if self.search_category == category { cosmic::theme::Button::Suggested } else { cosmic::theme::Button::Standard };
-            button::custom(text(label).size(12))
-                .padding([4, 12])
-                .class(class)
-                .on_press(Message::SelectSearchCategory(category))
-                .into()
+            crate::views::components::chip(
+                text(label).size(12),
+                self.search_category == category,
+                Message::SelectSearchCategory(category),
+            )
+            .into()
         };
         let chips = std::iter::once(chip(fl!("search-top"), None))
             .chain(SearchCategory::ALL.into_iter().map(|c| chip(category_label(c), Some(c))))
@@ -149,7 +148,10 @@ impl AppModel {
             SearchCategory::Videos => build_track_row(images, results.videos.get(i)?, i, video_opts),
             SearchCategory::Artists => build_profile_artist_row(images, results.artists.get(i)?),
             SearchCategory::Albums => build_album_row(images, results.albums.get(i)?),
-            SearchCategory::Playlists => self.playlist_row(results.playlists.get(i)?),
+            SearchCategory::Playlists => {
+                let playlist = results.playlists.get(i)?;
+                self.playlist_row(playlist, Message::ShowPlaylistDetail(playlist.uuid.clone(), playlist.title.clone()))
+            }
         })
     }
 }

@@ -22,6 +22,7 @@
 //! - `components` - Reusable UI components (thumbnail, track row, header, etc.)
 //! - `visualizer` - Audio spectrum visualizer widget
 
+pub mod add_to_playlist;
 pub mod albums;
 pub mod artist;
 pub mod auth;

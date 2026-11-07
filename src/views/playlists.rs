@@ -39,8 +39,11 @@ impl AppModel {
                     .into()
             }
         } else {
-            let playlist_items: Vec<Element<'_, Message>> =
-                self.user_playlists.iter().map(|playlist| self.playlist_row(playlist)).collect();
+            let playlist_items: Vec<Element<'_, Message>> = self
+                .user_playlists
+                .iter()
+                .map(|p| self.playlist_row(p, Message::ShowPlaylistDetail(p.uuid.clone(), p.title.clone())))
+                .collect();
 
             scrollable_list(widget::Column::with_children(playlist_items).spacing(4))
         };

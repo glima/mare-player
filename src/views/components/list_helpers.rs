@@ -143,6 +143,13 @@ pub fn virtual_list_row<'a>(content: impl Into<Element<'a, Message>>, gap: u16) 
 // Sort Buttons
 // =============================================================================
 
+/// A small choice button, styled like the search category chips and
+/// highlighted when `active`.
+pub fn chip<'a>(content: impl Into<Element<'a, Message>>, active: bool, on_press: Message) -> button::Button<'a, Message> {
+    let class = if active { cosmic::theme::Button::Suggested } else { cosmic::theme::Button::Standard };
+    button::custom(content).padding([4, 12]).class(class).on_press(on_press)
+}
+
 /// The A–Z and date buttons above a collection list. `date_label` names the
 /// date the list is ordered by, such as "Date added".
 ///
@@ -165,8 +172,7 @@ pub fn sort_buttons<'a>(
             let arrow = if sort.descending { "pan-down-symbolic" } else { "pan-up-symbolic" };
             content = content.push(widget::icon::from_name(arrow).size(12));
         }
-        let class = if active { cosmic::theme::Button::Suggested } else { cosmic::theme::Button::Standard };
-        let chip = button::custom(content).padding([4, 12]).class(class).on_press(on_press(key));
+        let chip = chip(content, active, on_press(key));
         if active {
             widget::tooltip(chip, text(crate::fl!("tooltip-reverse-order")), widget::tooltip::Position::Bottom).into()
         } else {

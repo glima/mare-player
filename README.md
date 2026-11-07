@@ -44,8 +44,10 @@ via the `panel-applet` feature flag (enabled by default).
   playback pipeline (audio tracks and music videos alike)
 - **MPRIS D-Bus Integration** — Control playback from any MPRIS client
   (playerctl, KDE Connect, desktop media keys, etc.)
-- **Library Browsing** — Playlists, albums, artists, mixes & radio,
-  favorite tracks, followed artists (profiles)
+- **Library Browsing** — Playlists, albums, followed artists, mixes &
+  radio, and favorite tracks, each sortable A–Z or by date
+- **Playlists** — Add the playing track, or the one you're looking at,
+  to one of your playlists or to a new private or public one
 - **Explore** — Browse TIDAL's curated pages: a Featured carousel plus
   Genres, Moods & Activities, Decades, and more, with recursive
   drill-down navigation

@@ -76,6 +76,17 @@ pub(crate) fn build_track_radio_button<'a>(
     if available { area.into() } else { area.on_press(Message::Noop).on_release(Message::Noop).into() }
 }
 
+/// "Add to playlist" button for `track`, opening the picker. Shown in the
+/// now-playing bar and on a track's detail page, not in list rows, where it
+/// would crowd the title.
+pub(crate) fn add_to_playlist_button<'a>(track: Track) -> Element<'a, Message> {
+    button::icon(widget::icon::from_name("list-add-symbolic"))
+        .tooltip(fl!("add-to-playlist"))
+        .on_press(Message::ShowAddToPlaylist(track))
+        .padding(4)
+        .into()
+}
+
 /// Standalone track row builder for virtual `List` closures.
 ///
 /// This contains the full row-building logic. The [`AppModel::track_row`]
@@ -234,12 +245,21 @@ impl AppModel {
     ///
     /// Used in the playlists list and search results. Wraps content via
     /// [`list_item`].
-    pub fn playlist_row<'a>(&self, playlist: &Playlist) -> Element<'a, Message> {
+    pub fn playlist_row<'a>(&self, playlist: &Playlist, on_press: Message) -> Element<'a, Message> {
         let mut info_children: Vec<Element<'_, Message>> =
             vec![text(playlist.title.clone()).size(13).wrapping(Wrapping::None).into()];
 
-        if playlist.num_tracks > 0 {
-            info_children.push(text(fl!("track-count", count = playlist.num_tracks)).size(11).into());
+        // "12 tracks · Private": the count when there is one, and whether
+        // it's public when that's known (only for the user's own playlists).
+        let details: Vec<String> = [
+            (playlist.num_tracks > 0).then(|| fl!("track-count", count = playlist.num_tracks)),
+            playlist.public.map(|public| if public { fl!("playlist-public") } else { fl!("playlist-private") }),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        if !details.is_empty() {
+            info_children.push(text(details.join(" · ")).size(11).wrapping(Wrapping::None).into());
         }
 
         let info = fading_text_column(info_children);
@@ -254,7 +274,7 @@ impl AppModel {
 
         let row = widget::Row::new().push(thumb).push(info).spacing(8).align_y(Alignment::Center).width(Length::Fill);
 
-        list_item(row, Message::ShowPlaylistDetail(playlist.uuid.clone(), playlist.title.clone()), 6)
+        list_item(row, on_press, 6)
     }
 
     /// Create a main-menu navigation row (icon + label + chevron).
@@ -279,7 +299,7 @@ impl AppModel {
 // Both the default applet and --no-default-features standalone use this renderer.
 #[cfg(all(test, not(feature = "wgpu")))]
 mod tests {
-    use super::{TrackRowOptions, build_track_radio_button, build_track_row};
+    use super::{TrackRowOptions, add_to_playlist_button, build_track_radio_button, build_track_row};
     use crate::messages::Message;
     use crate::state::HandleCache;
     use crate::tidal::models::Track;
@@ -328,6 +348,12 @@ mod tests {
         // width, inter-control gap, then half the 20px compact radio button.
         let radio_center = Point::new(300.0 - 8.0 - opts.duration_column_width() - 4.0 - 10.0, 24.0);
         (build_track_row(&HandleCache::new(0), &track, 0, &opts), radio_center)
+    }
+
+    #[test]
+    fn add_to_playlist_opens_the_picker_for_its_track() {
+        let (messages, _) = click(add_to_playlist_button(track()), Point::new(10.0, 10.0));
+        assert!(matches!(messages.as_slice(), [Message::ShowAddToPlaylist(track)] if track.id == "seed"));
     }
 
     #[test]

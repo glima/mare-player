@@ -132,6 +132,16 @@ sort-name = नाम के अनुसार
 sort-date-added = जोड़ने की तारीख
 sort-last-updated = अंतिम अपडेट
 
+# Adding to playlists
+add-to-playlist = प्लेलिस्ट में जोड़ें
+new-playlist = नई प्लेलिस्ट
+playlist-name = प्लेलिस्ट का नाम
+playlist-private = निजी
+playlist-public = सार्वजनिक
+create-playlist = बनाएँ
+added-to-playlist = { $playlist } में जोड़ा गया
+already-in-playlist = { $playlist } में पहले से है
+
 # Tooltips
 tooltip-search = खोजें
 tooltip-settings = सेटिंग्स
