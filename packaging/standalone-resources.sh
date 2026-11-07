@@ -44,8 +44,8 @@ sed -e 's|<summary>.*</summary>|<summary>TIDAL streaming for the COSMIC desktop<
     -e 's|screenshot_standalone\.png|screenshot_applet.png|' \
     -e 's|screenshot__SWAP\.png|screenshot_standalone.png|' \
     -e 's|Panel applet with library collection and now-playing bar|__SWAP_CAPTION|' \
-    -e 's|Standalone window showing album detail view|Panel applet with library collection and now-playing bar|' \
-    -e 's|__SWAP_CAPTION|Standalone window showing album detail view|' \
+    -e 's|Standalone window with library collection and a playing music video|Panel applet with library collection and now-playing bar|' \
+    -e 's|__SWAP_CAPTION|Standalone window with library collection and a playing music video|' \
     "$src/app.metainfo.xml" > "$tmp/app.metainfo.xml"
 
 # If the applet files change shape and a rewrite stops matching, fail rather

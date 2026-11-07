@@ -30,7 +30,7 @@
       <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_applet.png</image>
     </screenshot>
     <screenshot>
-      <caption>Standalone window showing album detail view</caption>
+      <caption>Standalone window with library collection and a playing music video</caption>
       <image type="source">https://raw.githubusercontent.com/glima/mare-player/HEAD/resources/screenshot_standalone.png</image>
     </screenshot>
   </screenshots>
