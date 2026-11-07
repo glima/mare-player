@@ -259,8 +259,8 @@ xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
 
 ### Browsing & Playback
 
-- **Collection** — View your playlists, albums, artists, and favorite
-  tracks from the main screen
+- **Collection** — View your playlists, albums, artists, mixes, and
+  favorite tracks from the main screen; sort each list A–Z or by date
 - **Search** — Tap the search icon to find tracks, albums, artists, and
   playlists
 - **Explore** — Browse TIDAL's curated pages (genres, moods, decades,
@@ -279,6 +279,9 @@ xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
   discography
 - **Track Detail** — Tap a track title to see related albums and
   artists seeded from it
+- **Playlists** — Add the playing track, or one from its detail page,
+  to a playlist with the + button, or to a new private or public one;
+  delete playlists you created from their page
 - **Now Playing** — Playback controls, seek bar, shuffle, and spectrum
   visualizer
 - **MPRIS** — Use media keys or any MPRIS controller (e.g.
@@ -297,7 +300,8 @@ settings:
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
 | Image Cache Limit | Max disk space for cached artwork | 200 MB |
 
-The playback volume is also persisted across restarts.
+The playback volume and each list's sort order are also persisted
+across restarts.
 
 ## Building
 
