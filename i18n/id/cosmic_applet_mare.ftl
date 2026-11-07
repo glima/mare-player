@@ -126,7 +126,7 @@ sort-name = A–Z
 sort-date-added = Tanggal ditambahkan
 sort-last-updated = Terakhir diperbarui
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Tambahkan ke daftar putar
 new-playlist = Daftar putar baru
 playlist-name = Nama daftar putar
@@ -135,6 +135,10 @@ playlist-public = Publik
 create-playlist = Buat
 added-to-playlist = Ditambahkan ke { $playlist }
 already-in-playlist = Sudah ada di { $playlist }
+delete-playlist = Hapus daftar putar
+delete-playlist-confirm = Hapus “{ $playlist }”? Tindakan ini tidak dapat dibatalkan.
+delete = Hapus
+deleted-playlist = { $playlist } dihapus
 
 # Tooltip
 tooltip-search = Cari

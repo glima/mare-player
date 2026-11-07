@@ -132,7 +132,7 @@ sort-name = A–Z
 sort-date-added = Datum toegevoegd
 sort-last-updated = Laatst bijgewerkt
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Toevoegen aan afspeellijst
 new-playlist = Nieuwe afspeellijst
 playlist-name = Naam van de afspeellijst
@@ -141,6 +141,10 @@ playlist-public = Openbaar
 create-playlist = Maken
 added-to-playlist = Toegevoegd aan { $playlist }
 already-in-playlist = Staat al in { $playlist }
+delete-playlist = Afspeellijst verwijderen
+delete-playlist-confirm = “{ $playlist }” verwijderen? Dit kan niet ongedaan worden gemaakt.
+delete = Verwijderen
+deleted-playlist = { $playlist } verwijderd
 
 # Tooltips
 tooltip-search = Zoeken

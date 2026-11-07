@@ -132,7 +132,7 @@ sort-name = A–Z
 sort-date-added = Hinzugefügt am
 sort-last-updated = Zuletzt aktualisiert
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Zur Playlist hinzufügen
 new-playlist = Neue Playlist
 playlist-name = Name der Playlist
@@ -141,6 +141,10 @@ playlist-public = Öffentlich
 create-playlist = Erstellen
 added-to-playlist = Zu { $playlist } hinzugefügt
 already-in-playlist = Bereits in { $playlist }
+delete-playlist = Playlist löschen
+delete-playlist-confirm = „{ $playlist }“ löschen? Das lässt sich nicht rückgängig machen.
+delete = Löschen
+deleted-playlist = { $playlist } gelöscht
 
 # Tooltips
 tooltip-search = Suche

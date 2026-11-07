@@ -140,7 +140,7 @@ sort-name = أ–ي
 sort-date-added = تاريخ الإضافة
 sort-last-updated = آخر تحديث
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = أضف إلى قائمة تشغيل
 new-playlist = قائمة تشغيل جديدة
 playlist-name = اسم قائمة التشغيل
@@ -149,6 +149,10 @@ playlist-public = عامة
 create-playlist = إنشاء
 added-to-playlist = تمت الإضافة إلى { $playlist }
 already-in-playlist = موجود بالفعل في { $playlist }
+delete-playlist = حذف قائمة التشغيل
+delete-playlist-confirm = هل تريد حذف «{ $playlist }»؟ لا يمكن التراجع عن ذلك.
+delete = حذف
+deleted-playlist = تم حذف { $playlist }
 
 # Tooltips
 tooltip-search = بحث

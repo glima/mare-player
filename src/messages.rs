@@ -12,7 +12,7 @@ use cosmic::surface;
 use tokio::sync::Mutex;
 
 use crate::config::{AudioQuality, Config, LogLevel, SortKey};
-use crate::handlers::data::playlist_add::PlaylistAdd;
+use crate::handlers::data::playlists::PlaylistAdd;
 use crate::tidal::auth::LoginRequest;
 use crate::tidal::client::{PlaybackFailure, PlaybackUrl};
 use crate::tidal::models::{
@@ -342,6 +342,14 @@ pub enum Message {
     CreatePlaylistWithTrack,
     /// Adding to a playlist finished
     AddedToPlaylist(Result<PlaylistAdd, String>),
+    /// Ask to confirm deleting the open playlist
+    AskDeletePlaylist,
+    /// Keep the open playlist after all
+    CancelDeletePlaylist,
+    /// Delete the playlist awaiting confirmation
+    DeletePlaylist,
+    /// Deleting a playlist finished: its (uuid, title), or why not
+    PlaylistDeleted(Result<(String, String), String>),
 
     // Settings
     /// Set audio quality preference

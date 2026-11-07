@@ -132,7 +132,7 @@ sort-name = A–Ö
 sort-date-added = Datum tillagt
 sort-last-updated = Senast uppdaterad
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Lägg till i spellista
 new-playlist = Ny spellista
 playlist-name = Spellistans namn
@@ -141,6 +141,10 @@ playlist-public = Offentlig
 create-playlist = Skapa
 added-to-playlist = Tillagd i { $playlist }
 already-in-playlist = Finns redan i { $playlist }
+delete-playlist = Ta bort spellista
+delete-playlist-confirm = Ta bort ”{ $playlist }”? Det går inte att ångra.
+delete = Ta bort
+deleted-playlist = { $playlist } togs bort
 
 # Verktygstips
 tooltip-search = Sök

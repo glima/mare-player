@@ -253,6 +253,8 @@ pub struct AppModel {
     /// The "Add to playlist" picker's track and new-playlist form. Set when
     /// the picker opens; picking a playlist or creating one takes it.
     pub(crate) add_to_playlist: Option<AddToPlaylist>,
+    /// The playlist whose page asks "Delete it?", until the user answers.
+    pub(crate) confirm_delete_playlist: Option<String>,
     /// User favorite albums
     pub(crate) user_albums: Vec<Album>,
     /// Favorite albums as virtual-`List` content (only visible cards render, so

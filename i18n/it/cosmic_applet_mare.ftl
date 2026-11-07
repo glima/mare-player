@@ -132,7 +132,7 @@ sort-name = A–Z
 sort-date-added = Data di aggiunta
 sort-last-updated = Ultimo aggiornamento
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Aggiungi a una playlist
 new-playlist = Nuova playlist
 playlist-name = Nome della playlist
@@ -141,6 +141,10 @@ playlist-public = Pubblica
 create-playlist = Crea
 added-to-playlist = Aggiunto a { $playlist }
 already-in-playlist = Già in { $playlist }
+delete-playlist = Elimina playlist
+delete-playlist-confirm = Eliminare “{ $playlist }”? L’operazione non si può annullare.
+delete = Elimina
+deleted-playlist = { $playlist } eliminata
 
 # Suggerimenti
 tooltip-search = Cerca

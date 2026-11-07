@@ -132,7 +132,7 @@ sort-name = নাম অনুযায়ী
 sort-date-added = যোগ করার তারিখ
 sort-last-updated = সর্বশেষ আপডেট
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = প্লেলিস্টে যোগ করুন
 new-playlist = নতুন প্লেলিস্ট
 playlist-name = প্লেলিস্টের নাম
@@ -141,6 +141,10 @@ playlist-public = সর্বজনীন
 create-playlist = তৈরি করুন
 added-to-playlist = { $playlist }-এ যোগ করা হয়েছে
 already-in-playlist = ইতিমধ্যে { $playlist }-এ আছে
+delete-playlist = প্লেলিস্ট মুছুন
+delete-playlist-confirm = “{ $playlist }” মুছবেন? এটি আর ফেরানো যাবে না।
+delete = মুছুন
+deleted-playlist = { $playlist } মুছে ফেলা হয়েছে
 
 # টুলটিপ
 tooltip-search = অনুসন্ধান

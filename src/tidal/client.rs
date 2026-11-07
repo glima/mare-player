@@ -1060,6 +1060,16 @@ impl TidalAppClient {
         Ok(entry.data.uuid)
     }
 
+    /// Delete one of the user's own playlists.
+    pub async fn delete_playlist(&self, uuid: &str) -> TidalResult<()> {
+        self.ensure_valid_token().await?;
+        let client_guard = self.client.lock().await;
+        let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
+        client.delete_playlist(uuid).await.map_err(|e| Self::request_error("Delete playlist", e))?;
+        info!("Deleted playlist {}", uuid);
+        Ok(())
+    }
+
     /// Add `item` (a track or a video) to the end of one of the user's
     /// playlists, unless it is already there. Returns whether it was added.
     ///

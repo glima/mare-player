@@ -126,7 +126,7 @@ sort-name = A–Z
 sort-date-added = Eklenme tarihi
 sort-last-updated = Son güncelleme
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Çalma listesine ekle
 new-playlist = Yeni çalma listesi
 playlist-name = Çalma listesi adı
@@ -135,6 +135,10 @@ playlist-public = Herkese açık
 create-playlist = Oluştur
 added-to-playlist = { $playlist } listesine eklendi
 already-in-playlist = Zaten { $playlist } listesinde
+delete-playlist = Çalma listesini sil
+delete-playlist-confirm = “{ $playlist }” silinsin mi? Bu işlem geri alınamaz.
+delete = Sil
+deleted-playlist = { $playlist } silindi
 
 # İpuçları
 tooltip-search = Ara

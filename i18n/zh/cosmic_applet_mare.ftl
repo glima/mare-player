@@ -126,7 +126,7 @@ sort-name = 名称
 sort-date-added = 添加日期
 sort-last-updated = 最近更新
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = 添加到播放列表
 new-playlist = 新建播放列表
 playlist-name = 播放列表名称
@@ -135,6 +135,10 @@ playlist-public = 公开
 create-playlist = 创建
 added-to-playlist = 已添加到 { $playlist }
 already-in-playlist = 已在 { $playlist } 中
+delete-playlist = 删除播放列表
+delete-playlist-confirm = 要删除“{ $playlist }”吗？此操作无法撤销。
+delete = 删除
+deleted-playlist = 已删除 { $playlist }
 
 # 工具提示
 tooltip-search = 搜索

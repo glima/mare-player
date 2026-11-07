@@ -126,7 +126,7 @@ sort-name = A–Z
 sort-date-added = Ngày thêm
 sort-last-updated = Cập nhật lần cuối
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Thêm vào danh sách phát
 new-playlist = Danh sách phát mới
 playlist-name = Tên danh sách phát
@@ -135,6 +135,10 @@ playlist-public = Công khai
 create-playlist = Tạo
 added-to-playlist = Đã thêm vào { $playlist }
 already-in-playlist = Đã có trong { $playlist }
+delete-playlist = Xóa danh sách phát
+delete-playlist-confirm = Xóa “{ $playlist }”? Không thể hoàn tác.
+delete = Xóa
+deleted-playlist = Đã xóa { $playlist }
 
 # Chú thích
 tooltip-search = Tìm kiếm

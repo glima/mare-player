@@ -126,7 +126,7 @@ sort-name = ก–ฮ
 sort-date-added = วันที่เพิ่ม
 sort-last-updated = อัปเดตล่าสุด
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = เพิ่มลงในเพลย์ลิสต์
 new-playlist = เพลย์ลิสต์ใหม่
 playlist-name = ชื่อเพลย์ลิสต์
@@ -135,6 +135,10 @@ playlist-public = สาธารณะ
 create-playlist = สร้าง
 added-to-playlist = เพิ่มลงใน { $playlist } แล้ว
 already-in-playlist = มีอยู่ใน { $playlist } แล้ว
+delete-playlist = ลบเพลย์ลิสต์
+delete-playlist-confirm = ลบ “{ $playlist }” ใช่ไหม การดำเนินการนี้ย้อนกลับไม่ได้
+delete = ลบ
+deleted-playlist = ลบ { $playlist } แล้ว
 
 # คำแนะนำเครื่องมือ
 tooltip-search = ค้นหา

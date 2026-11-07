@@ -174,6 +174,7 @@ impl cosmic::Application for AppModel {
             followed_artist_ids: HashSet::new(),
             nav_stack: Vec::new(),
             add_to_playlist: None,
+            confirm_delete_playlist: None,
             is_loading: true,
             error_message: None,
             session_restore_attempted: false,
@@ -925,6 +926,16 @@ impl cosmic::Application for AppModel {
             Message::AddToPlaylist(uuid) => self.handle_add_to_playlist(uuid),
             Message::CreatePlaylistWithTrack => self.handle_create_playlist_with_track(),
             Message::AddedToPlaylist(result) => self.handle_added_to_playlist(result),
+            Message::AskDeletePlaylist => {
+                self.confirm_delete_playlist = self.selected_playlist_uuid.clone();
+                Task::none()
+            }
+            Message::CancelDeletePlaylist => {
+                self.confirm_delete_playlist = None;
+                Task::none()
+            }
+            Message::DeletePlaylist => self.handle_delete_playlist(),
+            Message::PlaylistDeleted(result) => self.handle_playlist_deleted(result),
 
             // Misc handlers - MPRIS
             Message::MprisServiceStarted(result) => self.handle_mpris_service_started(result),

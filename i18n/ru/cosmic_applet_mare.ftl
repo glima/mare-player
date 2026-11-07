@@ -136,7 +136,7 @@ sort-name = А–Я
 sort-date-added = Дата добавления
 sort-last-updated = Последнее обновление
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Добавить в плейлист
 new-playlist = Новый плейлист
 playlist-name = Название плейлиста
@@ -145,6 +145,10 @@ playlist-public = Публичный
 create-playlist = Создать
 added-to-playlist = Добавлено в { $playlist }
 already-in-playlist = Уже в { $playlist }
+delete-playlist = Удалить плейлист
+delete-playlist-confirm = Удалить «{ $playlist }»? Это действие нельзя отменить.
+delete = Удалить
+deleted-playlist = Плейлист { $playlist } удалён
 
 # Подсказки
 tooltip-search = Поиск

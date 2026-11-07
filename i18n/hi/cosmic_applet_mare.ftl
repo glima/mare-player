@@ -132,7 +132,7 @@ sort-name = नाम के अनुसार
 sort-date-added = जोड़ने की तारीख
 sort-last-updated = अंतिम अपडेट
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = प्लेलिस्ट में जोड़ें
 new-playlist = नई प्लेलिस्ट
 playlist-name = प्लेलिस्ट का नाम
@@ -141,6 +141,10 @@ playlist-public = सार्वजनिक
 create-playlist = बनाएँ
 added-to-playlist = { $playlist } में जोड़ा गया
 already-in-playlist = { $playlist } में पहले से है
+delete-playlist = प्लेलिस्ट हटाएँ
+delete-playlist-confirm = “{ $playlist }” हटाएँ? इसे पूर्ववत नहीं किया जा सकता।
+delete = हटाएँ
+deleted-playlist = { $playlist } हटाई गई
 
 # Tooltips
 tooltip-search = खोजें

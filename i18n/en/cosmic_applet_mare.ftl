@@ -152,7 +152,7 @@ sort-name = A–Z
 sort-date-added = Date added
 sort-last-updated = Last updated
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Add to playlist
 new-playlist = New playlist
 playlist-name = Playlist name
@@ -161,6 +161,10 @@ playlist-public = Public
 create-playlist = Create
 added-to-playlist = Added to { $playlist }
 already-in-playlist = Already in { $playlist }
+delete-playlist = Delete playlist
+delete-playlist-confirm = Delete “{ $playlist }”? This can’t be undone.
+delete = Delete
+deleted-playlist = Deleted { $playlist }
 
 # Tooltips
 tooltip-search = Search

@@ -132,7 +132,7 @@ sort-name = A–Z
 sort-date-added = Fecha de adición
 sort-last-updated = Última actualización
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = Añadir a una lista de reproducción
 new-playlist = Nueva lista de reproducción
 playlist-name = Nombre de la lista
@@ -141,6 +141,10 @@ playlist-public = Pública
 create-playlist = Crear
 added-to-playlist = Añadido a { $playlist }
 already-in-playlist = Ya está en { $playlist }
+delete-playlist = Eliminar lista
+delete-playlist-confirm = ¿Eliminar «{ $playlist }»? No se puede deshacer.
+delete = Eliminar
+deleted-playlist = Se eliminó { $playlist }
 
 # Información emergente
 tooltip-search = Buscar

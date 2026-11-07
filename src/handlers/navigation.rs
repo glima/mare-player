@@ -292,6 +292,7 @@ impl AppModel {
         self.selected_playlist_name = Some(name);
         self.selected_playlist_uuid = Some(uuid.clone());
         self.selected_playlist_tracks.clear();
+        self.confirm_delete_playlist = None;
         self.view_state = ViewState::PlaylistDetail;
         let cache_read = self.read_view_cache::<Vec<crate::tidal::models::Track>, _>(format!("playlist:{uuid}:tracks"), |t| {
             Message::PlaylistTracksLoaded(Ok(t))

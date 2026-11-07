@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! "Add to playlist" handlers for Maré Player.
+//! Handlers that change the user's playlists, for Maré Player.
 //!
-//! The picker adds a track or video to one of the user's playlists, or to a
+//! **Adding.** The "Add to playlist" picker adds a track or video to one of the user's playlists, or to a
 //! new one, private or public as the user picks. An item already in the
 //! playlist is left alone. The picker closes as soon as a choice is made;
 //! the result arrives as a brief message, and the playlists are reloaded so
 //! their counts, covers and any new playlist show up.
+//!
+//! **Deleting.** A playlist the user created can be deleted from its page,
+//! after they confirm. It leaves the list once TIDAL has deleted it.
 
 use cosmic::prelude::*;
 
@@ -113,6 +116,53 @@ impl AppModel {
         };
         Task::batch([note, self.load_playlists()])
     }
+
+    /// Whether `uuid` is a playlist the user created, and so can delete.
+    pub(crate) fn owns_playlist(&self, uuid: &str) -> bool {
+        self.user_playlists.iter().any(|p| p.uuid == uuid && p.is_user_playlist)
+    }
+
+    /// Delete the playlist awaiting confirmation, leaving its page.
+    pub fn handle_delete_playlist(&mut self) -> Task<cosmic::Action<Message>> {
+        let Some(uuid) = self.confirm_delete_playlist.take() else {
+            return Task::none();
+        };
+        if !self.owns_playlist(&uuid) {
+            return Task::none();
+        }
+        let title = self.user_playlists.iter().find(|p| p.uuid == uuid).map(|p| p.title.clone()).unwrap_or_default();
+        let leave = if self.view_state == ViewState::PlaylistDetail && self.selected_playlist_uuid.as_ref() == Some(&uuid) {
+            self.handle_navigate_back()
+        } else {
+            Task::none()
+        };
+        let client = self.tidal_client.clone();
+        let delete = Task::perform(
+            async move {
+                let client = client.lock().await;
+                client.delete_playlist(&uuid).await.map_err(|e| e.to_string())?;
+                Ok((uuid, title))
+            },
+            |result| cosmic::Action::App(Message::PlaylistDeleted(result)),
+        );
+        Task::batch([leave, delete])
+    }
+
+    /// Drop a deleted playlist from the list, or report why it wasn't.
+    pub fn handle_playlist_deleted(&mut self, result: Result<(String, String), String>) -> Task<cosmic::Action<Message>> {
+        match result {
+            Ok((uuid, title)) => {
+                self.user_playlists.retain(|p| p.uuid != uuid);
+                self.playlist_thumbnails.remove(&uuid);
+                self.show_note(crate::fl!("deleted-playlist", playlist = title))
+            }
+            Err(e) => {
+                tracing::error!("Failed to delete playlist: {}", e);
+                self.error_message = Some(format!("Failed to delete playlist: {}", e));
+                Task::none()
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -180,5 +230,39 @@ mod tests {
         assert!(app.error_message.as_deref().unwrap().contains("B"));
         drop(app.handle_added_to_playlist(Err("HTTP 412".into())));
         assert_eq!(app.error_message.as_deref(), Some("Failed to add to playlist: HTTP 412"));
+    }
+
+    #[tokio::test]
+    async fn only_own_playlists_are_deleted_and_only_once_confirmed() {
+        let mut app = app();
+        app.user_playlists[1].is_user_playlist = true;
+        app.view_state = ViewState::Search;
+        // Someone else's playlist, found in search: never deleted.
+        drop(app.handle_show_playlist_detail("theirs".into(), "Theirs".into()));
+        assert!(!app.owns_playlist("theirs"));
+        app.confirm_delete_playlist = Some("theirs".into());
+        drop(app.handle_delete_playlist());
+        assert_eq!(app.view_state, ViewState::PlaylistDetail, "nothing to delete");
+
+        // Unconfirmed, nothing happens; another playlist forgets the question.
+        drop(app.handle_navigate_back());
+        drop(app.handle_show_playlist_detail("b".into(), "B".into()));
+        drop(app.handle_delete_playlist());
+        assert_eq!(app.view_state, ViewState::PlaylistDetail);
+        app.confirm_delete_playlist = Some("b".into());
+        drop(app.handle_navigate_back());
+        drop(app.handle_show_playlist_detail("b".into(), "B".into()));
+        assert_eq!(app.confirm_delete_playlist, None);
+
+        // Confirmed: the page closes, and the playlist goes once TIDAL agrees.
+        app.confirm_delete_playlist = Some("b".into());
+        drop(app.handle_delete_playlist());
+        assert_eq!(app.view_state, ViewState::Search);
+        assert!(app.owns_playlist("b"), "still listed until TIDAL has deleted it");
+        drop(app.handle_playlist_deleted(Err("HTTP 500".into())));
+        assert!(app.owns_playlist("b"));
+        drop(app.handle_playlist_deleted(Ok(("b".into(), "B".into()))));
+        assert!(!app.user_playlists.iter().any(|p| p.uuid == "b"));
+        assert_eq!(app.error_message, Some(crate::fl!("deleted-playlist", playlist = "B")));
     }
 }

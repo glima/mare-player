@@ -126,7 +126,7 @@ sort-name = タイトル順
 sort-date-added = 追加日
 sort-last-updated = 最終更新
 
-# Adding to playlists
+# Changing playlists
 add-to-playlist = プレイリストに追加
 new-playlist = 新しいプレイリスト
 playlist-name = プレイリスト名
@@ -135,6 +135,10 @@ playlist-public = 公開
 create-playlist = 作成
 added-to-playlist = { $playlist } に追加しました
 already-in-playlist = { $playlist } に追加済みです
+delete-playlist = プレイリストを削除
+delete-playlist-confirm = 「{ $playlist }」を削除しますか？元に戻せません。
+delete = 削除
+deleted-playlist = { $playlist } を削除しました
 
 # ツールチップ
 tooltip-search = 検索
