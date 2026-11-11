@@ -228,9 +228,9 @@ mod tests {
         let mut app = app();
         let done = |added| Ok(PlaylistAdd { title: "B".into(), uuid: "b".into(), added });
         drop(app.handle_added_to_playlist(done(false)));
-        assert!(app.error_message.as_deref().unwrap().contains("B"));
+        assert!(app.note.as_deref().unwrap().contains("B"));
         drop(app.handle_added_to_playlist(done(true)));
-        assert!(app.error_message.as_deref().unwrap().contains("B"));
+        assert!(app.note.as_deref().unwrap().contains("B"));
         drop(app.handle_added_to_playlist(Err("HTTP 412".into())));
         assert_eq!(app.error_message.as_deref(), Some("Failed to add to playlist: HTTP 412"));
     }
@@ -266,6 +266,6 @@ mod tests {
         assert!(app.owns_playlist("b"));
         drop(app.handle_playlist_deleted(Ok(("b".into(), "B".into()))));
         assert!(!app.user_playlists.iter().any(|p| p.uuid == "b"));
-        assert_eq!(app.error_message, Some(crate::fl!("deleted-playlist", playlist = "B")));
+        assert_eq!(app.note, Some(crate::fl!("deleted-playlist", playlist = "B")));
     }
 }

@@ -141,6 +141,12 @@ delete-playlist-confirm = Xóa “{ $playlist }”? Không thể hoàn tác.
 delete = Xóa
 deleted-playlist = Đã xóa { $playlist }
 
+# Updates
+update-available = Đã có Maré Player { $version }
+update-whats-new = Có gì mới
+check-for-updates = Kiểm tra cập nhật
+check-for-updates-description = Mỗi lần chạy, hỏi GitHub một lần xem có bản phát hành mới hơn không.
+
 # Chú thích
 tooltip-search = Tìm kiếm
 tooltip-settings = Cài đặt

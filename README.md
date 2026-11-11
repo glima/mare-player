@@ -69,6 +69,9 @@ via the `panel-applet` feature flag (enabled by default).
 - **Shuffle** — Shuffle play for playlists, albums, mixes, and
   favorites
 - **Sharing** — Generate song.link URLs and copy to clipboard
+- **Update Notice** — Once per run, asks GitHub for the latest release and,
+  if it is newer, says so in a green banner you can dismiss; a failed check
+  shows nothing, and Settings can turn the check off
 - **Dual Mode** — Builds as a COSMIC panel applet *or* a standalone
   windowed application (`--no-default-features`)
 - **Secure Authentication** — Browser sign-in, with credentials stored in
@@ -299,6 +302,7 @@ settings:
 |---|---|---|
 | Audio Quality | Low / High / Lossless / Hi-Res | Hi-Res |
 | Image Cache Limit | Max disk space for cached artwork | 200 MB |
+| Check for Updates | Once per run, ask GitHub whether a newer release is out | On |
 
 The playback volume and each list's sort order are also persisted
 across restarts.

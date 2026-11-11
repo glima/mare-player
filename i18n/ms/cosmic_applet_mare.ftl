@@ -141,6 +141,12 @@ delete-playlist-confirm = Padam “{ $playlist }”? Tindakan ini tidak boleh di
 delete = Padam
 deleted-playlist = { $playlist } dipadam
 
+# Updates
+update-available = Maré Player { $version } tersedia
+update-whats-new = Apa yang baharu
+check-for-updates = Semak kemas kini
+check-for-updates-description = Sekali setiap kali dijalankan, bertanya GitHub sama ada keluaran lebih baharu ada.
+
 # Petua alat
 tooltip-search = Cari
 tooltip-settings = Tetapan

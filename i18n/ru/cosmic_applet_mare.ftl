@@ -151,6 +151,12 @@ delete-playlist-confirm = Удалить «{ $playlist }»? Это действ�
 delete = Удалить
 deleted-playlist = Плейлист { $playlist } удалён
 
+# Updates
+update-available = Доступен Maré Player { $version }
+update-whats-new = Что нового
+check-for-updates = Проверять обновления
+check-for-updates-description = Раз за запуск спрашивает GitHub, вышла ли новая версия.
+
 # Подсказки
 tooltip-search = Поиск
 tooltip-settings = Настройки

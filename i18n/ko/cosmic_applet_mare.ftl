@@ -141,6 +141,12 @@ delete-playlist-confirm = “{ $playlist }”을(를) 삭제할까요? 되돌릴
 delete = 삭제
 deleted-playlist = { $playlist } 삭제됨
 
+# Updates
+update-available = Maré Player { $version } 사용 가능
+update-whats-new = 새로운 기능
+check-for-updates = 업데이트 확인
+check-for-updates-description = 실행할 때마다 한 번, 새 릴리스가 있는지 GitHub에 확인합니다.
+
 # Tooltips
 tooltip-search = 검색
 tooltip-settings = 설정

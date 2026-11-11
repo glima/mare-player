@@ -3,7 +3,8 @@
 //! Settings view for Maré Player.
 //!
 //! This module contains the settings interface for configuring
-//! audio quality, managing cache, and account settings.
+//! audio quality, managing cache, account settings, and the check for
+//! newer releases.
 
 use cosmic::Element;
 use cosmic::iced::{Alignment, Length};
@@ -169,6 +170,14 @@ impl AppModel {
                     .push(text(env!("CARGO_PKG_VERSION")).size(12))
                     .align_y(Alignment::Center),
             )
+            .push(
+                widget::Row::new()
+                    .push(text(fl!("check-for-updates")).size(12))
+                    .push(widget::space::horizontal())
+                    .push(widget::toggler(self.config.check_for_updates).on_toggle(Message::SetCheckForUpdates))
+                    .align_y(Alignment::Center),
+            )
+            .push(text(fl!("check-for-updates-description")).size(11))
             .spacing(8);
 
         // App icon at bottom center

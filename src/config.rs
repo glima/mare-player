@@ -205,6 +205,8 @@ pub struct Config {
     pub playlists_sort: ListSort,
     /// How the mixes & radio list is ordered.
     pub mixes_sort: ListSort,
+    /// Whether to ask GitHub, once per run, if a newer release is out.
+    pub check_for_updates: bool,
 }
 
 impl Default for Config {
@@ -220,6 +222,7 @@ impl Default for Config {
             followed_artists_sort: ListSort::default(),
             playlists_sort: ListSort::default(),
             mixes_sort: ListSort::default(),
+            check_for_updates: true,
         }
     }
 }

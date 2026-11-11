@@ -150,6 +150,12 @@ delete-playlist-confirm = Excluir “{ $playlist }”? Isso não pode ser desfei
 delete = Excluir
 deleted-playlist = { $playlist } excluída
 
+# Updates
+update-available = Maré Player { $version } está disponível
+update-whats-new = Novidades
+check-for-updates = Verificar atualizações
+check-for-updates-description = Uma vez por execução, pergunta ao GitHub se há uma versão mais recente.
+
 # Dicas
 tooltip-search = Pesquisar
 tooltip-settings = Configurações

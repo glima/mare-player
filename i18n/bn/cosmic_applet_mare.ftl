@@ -147,6 +147,12 @@ delete-playlist-confirm = “{ $playlist }” মুছবেন? এটি আ�
 delete = মুছুন
 deleted-playlist = { $playlist } মুছে ফেলা হয়েছে
 
+# Updates
+update-available = Maré Player { $version } পাওয়া যাচ্ছে
+update-whats-new = নতুন কী
+check-for-updates = আপডেট খুঁজুন
+check-for-updates-description = প্রতিবার চালু হলে একবার GitHub-এ নতুন রিলিজ আছে কি না দেখে।
+
 # টুলটিপ
 tooltip-search = অনুসন্ধান
 tooltip-settings = সেটিংস

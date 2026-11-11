@@ -150,6 +150,12 @@ delete-playlist-confirm = “{ $playlist }” verwijderen? Dit kan niet ongedaan
 delete = Verwijderen
 deleted-playlist = { $playlist } verwijderd
 
+# Updates
+update-available = Maré Player { $version } is beschikbaar
+update-whats-new = Wat is er nieuw
+check-for-updates = Controleren op updates
+check-for-updates-description = Vraagt GitHub eenmaal per start of er een nieuwere versie is.
+
 # Tooltips
 tooltip-search = Zoeken
 tooltip-settings = Instellingen

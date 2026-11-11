@@ -170,6 +170,12 @@ delete-playlist-confirm = Delete “{ $playlist }”? This can’t be undone.
 delete = Delete
 deleted-playlist = Deleted { $playlist }
 
+# Updates
+update-available = Maré Player { $version } is available
+update-whats-new = What’s new
+check-for-updates = Check for updates
+check-for-updates-description = Once per run, asks GitHub whether a newer release is out.
+
 # Tooltips
 tooltip-search = Search
 tooltip-settings = Settings

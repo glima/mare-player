@@ -141,6 +141,12 @@ delete-playlist-confirm = “{ $playlist }” silinsin mi? Bu işlem geri alına
 delete = Sil
 deleted-playlist = { $playlist } silindi
 
+# Updates
+update-available = Maré Player { $version } kullanıma sunuldu
+update-whats-new = Yenilikler
+check-for-updates = Güncellemeleri denetle
+check-for-updates-description = Her çalıştırmada bir kez GitHub’a daha yeni bir sürüm olup olmadığını sorar.
+
 # İpuçları
 tooltip-search = Ara
 tooltip-settings = Ayarlar

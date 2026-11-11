@@ -62,6 +62,53 @@ fn concise_error(error: &str) -> String {
     }
 }
 
+/// What a banner says: something went wrong (red), or anything else worth a
+/// word, such as a confirmation or an available update (green).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BannerKind {
+    Error,
+    Info,
+}
+
+/// A banner across the top of the content: `message`, an optional action
+/// (a label to click and what it does), and a close button.
+fn banner<'a>(
+    kind: BannerKind,
+    message: impl Into<Element<'a, Message>>,
+    action: Option<(String, Message)>,
+    on_close: Message,
+) -> Element<'a, Message> {
+    let background = match kind {
+        BannerKind::Error => cosmic::iced::Color::from_rgb(0.8, 0.2, 0.2),
+        BannerKind::Info => cosmic::iced::Color::from_rgb(0.18, 0.55, 0.34),
+    };
+    let mut row = widget::Row::new().push(message).push(widget::space::horizontal());
+    if let Some((label, on_press)) = action {
+        // Text on the banner, not a themed button, so it reads on the colour.
+        row = row.push(
+            widget::mouse_area(text(label).size(12).font(cosmic::font::bold()))
+                .on_press(on_press)
+                .interaction(cosmic::iced::mouse::Interaction::Pointer),
+        );
+    }
+    let row = row
+        .push(button::icon(widget::icon::from_name("window-close-symbolic")).on_press(on_close).padding(2))
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .width(Length::Fill);
+
+    container(row)
+        .padding(8)
+        .width(Length::Fill)
+        .class(cosmic::theme::Container::custom(move |_theme| cosmic::widget::container::Style {
+            background: Some(cosmic::iced::Background::Color(background)),
+            text_color: Some(cosmic::iced::Color::WHITE),
+            border: cosmic::iced::Border { radius: 4.0.into(), ..Default::default() },
+            ..Default::default()
+        }))
+        .into()
+}
+
 /// Font size for the two-line stream-quality badge above the spectrum. Smaller
 /// than the context line so it reads as an annotation rather than metadata.
 const QUALITY_BADGE_SIZE: u16 = 9;
@@ -104,25 +151,29 @@ impl AppModel {
         }
     }
 
-    /// Build an error banner element for display at the top of the content.
-    fn view_error_banner<'a>(&'a self, error: &'a str) -> Element<'a, Message> {
-        let error_row = widget::Row::new()
-            .push(text(concise_error(error)).size(12))
-            .push(button::icon(widget::icon::from_name("window-close-symbolic")).on_press(Message::ClearError).padding(2))
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .width(Length::Fill);
-
-        container(error_row)
-            .padding(8)
-            .width(Length::Fill)
-            .class(cosmic::theme::Container::custom(|_theme| cosmic::widget::container::Style {
-                background: Some(cosmic::iced::Background::Color(cosmic::iced::Color::from_rgb(0.8, 0.2, 0.2))),
-                text_color: Some(cosmic::iced::Color::WHITE),
-                border: cosmic::iced::Border { radius: 4.0.into(), ..Default::default() },
-                ..Default::default()
-            }))
-            .into()
+    /// The banners above the content, newest concern first: an error (red),
+    /// a passing note, and an available update (both green). `None` when
+    /// there is nothing to say.
+    fn view_banners(&self) -> Option<Element<'_, Message>> {
+        let update = self.available_update.as_ref().map(|update| {
+            banner(
+                BannerKind::Info,
+                text(crate::fl!("update-available", version = update.version.clone())).size(12),
+                Some((crate::fl!("update-whats-new"), Message::OpenReleaseNotes)),
+                Message::DismissUpdate,
+            )
+        });
+        let banners: Vec<Element<'_, Message>> = [
+            self.error_message
+                .as_deref()
+                .map(|error| banner(BannerKind::Error, text(concise_error(error)).size(12), None, Message::ClearError)),
+            self.note.as_deref().map(|note| banner(BannerKind::Info, text(note.to_string()).size(12), None, Message::ClearNote)),
+            update,
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        (!banners.is_empty()).then(|| widget::Column::with_children(banners).spacing(4).into())
     }
 
     /// Build the full content tree for the **applet-popup** layout.
@@ -144,8 +195,8 @@ impl AppModel {
         };
 
         // Wrap with error display if needed
-        if let Some(error) = &self.error_message {
-            widget::Column::new().push(self.view_error_banner(error)).push(content).spacing(8).into()
+        if let Some(banners) = self.view_banners() {
+            widget::Column::new().push(banners).push(content).spacing(8).into()
         } else {
             content
         }
@@ -176,9 +227,9 @@ impl AppModel {
 
         let mut col = widget::Column::new().height(Length::Fill);
 
-        // Error banner at the top (shrink — only present when needed)
-        if let Some(error) = &self.error_message {
-            col = col.push(self.view_error_banner(error));
+        // Banners at the top (shrink — only present when needed)
+        if let Some(banners) = self.view_banners() {
+            col = col.push(banners);
         }
 
         // Main page content fills all remaining vertical space
@@ -680,5 +731,120 @@ mod tests {
         // 120 chars + the ellipsis.
         assert_eq!(out.chars().count(), 121);
         assert!(out.ends_with('\u{2026}'));
+    }
+}
+
+#[cfg(test)]
+mod banner_tests {
+    use crate::messages::Message;
+    use crate::state::AppModel;
+    use crate::update_check::AvailableUpdate;
+    use cosmic::Application;
+
+    fn app() -> AppModel {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        // `init` reads the real config, and may have started a check.
+        app.config.check_for_updates = true;
+        app.update_check_started = false;
+        app
+    }
+
+    fn update() -> AvailableUpdate {
+        AvailableUpdate { version: "9.9.9".into(), url: "https://example.com/releases/v9.9.9".into() }
+    }
+
+    #[tokio::test]
+    async fn an_update_shows_until_dismissed_and_a_failed_check_shows_nothing() {
+        let mut app = app();
+        app.handle_update_checked(Err("offline".into()));
+        assert!(app.available_update.is_none());
+        assert!(app.error_message.is_none(), "a failed check is no news");
+        app.handle_update_checked(Ok(None));
+        assert!(app.available_update.is_none());
+
+        app.handle_update_checked(Ok(Some(update())));
+        assert_eq!(app.available_update, Some(update()));
+        assert!(app.view_banners().is_some());
+        drop(app.update(Message::DismissUpdate));
+        assert!(app.available_update.is_none());
+        assert!(app.view_banners().is_none());
+    }
+
+    #[tokio::test]
+    async fn the_check_runs_once_per_run_and_can_be_turned_off() {
+        let mut app = app();
+        assert!(app.start_update_check().units() > 0);
+        assert_eq!(app.start_update_check().units(), 0, "once per run");
+
+        // Off hides the banner, and a late answer stays hidden.
+        app.handle_update_checked(Ok(Some(update())));
+        assert_eq!(app.set_check_for_updates(false).units(), 0);
+        assert!(app.available_update.is_none());
+        app.handle_update_checked(Ok(Some(update())));
+        assert!(app.available_update.is_none());
+
+        // On again: no second check in the same run...
+        assert_eq!(app.set_check_for_updates(true).units(), 0);
+        // ...but a run that hadn't checked does so now.
+        let mut fresh = self::app();
+        fresh.config.check_for_updates = false;
+        assert!(fresh.set_check_for_updates(true).units() > 0);
+    }
+
+    #[tokio::test]
+    async fn notes_and_errors_keep_their_own_banners() {
+        let mut app = app();
+        drop(app.show_note("Added to B".into()));
+        app.error_message = Some("Failed to load playlists".into());
+        // The note's timer runs out: the error stays.
+        drop(app.update(Message::ClearNote));
+        assert!(app.note.is_none());
+        assert_eq!(app.error_message.as_deref(), Some("Failed to load playlists"));
+        drop(app.show_note("Added to B".into()));
+        drop(app.update(Message::ClearError));
+        assert_eq!(app.note.as_deref(), Some("Added to B"));
+    }
+
+    /// Clicking across a whole update banner only ever opens the release
+    /// notes or closes it, and does each somewhere.
+    #[cfg(not(feature = "wgpu"))]
+    #[test]
+    fn the_update_banner_opens_the_release_notes_or_closes() {
+        use cosmic::Element;
+        use cosmic::iced::core::{Event, Layout, Point, Rectangle, Shell, Size, clipboard, layout, mouse, widget::Tree};
+
+        let renderer = cosmic::Renderer::new(cosmic::iced::Font::default(), 14.0.into());
+        let mut seen = Vec::new();
+        for x in (0..400).step_by(4) {
+            let mut element: Element<'_, Message> = super::banner(
+                super::BannerKind::Info,
+                cosmic::widget::text("Maré Player 9.9.9 is available").size(12),
+                Some(("What's new".into(), Message::OpenReleaseNotes)),
+                Message::DismissUpdate,
+            );
+            let mut tree = Tree::new(element.as_widget());
+            let limits = layout::Limits::new(Size::ZERO, Size::new(400.0, 60.0));
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            let point = Point::new(x as f32, node.size().height / 2.0);
+            let mut messages = Vec::new();
+            for event in [mouse::Event::ButtonPressed(mouse::Button::Left), mouse::Event::ButtonReleased(mouse::Button::Left)] {
+                let mut shell = Shell::new(&mut messages);
+                element.as_widget_mut().update(
+                    &mut tree,
+                    &Event::Mouse(event),
+                    Layout::new(&node),
+                    mouse::Cursor::Available(point),
+                    &renderer,
+                    &mut clipboard::Null,
+                    &mut shell,
+                    &Rectangle::new(Point::ORIGIN, Size::new(400.0, 60.0)),
+                );
+            }
+            seen.extend(messages);
+        }
+        assert!(seen.iter().all(|m| matches!(m, Message::OpenReleaseNotes | Message::DismissUpdate)), "{seen:?}");
+        assert!(seen.iter().any(|m| matches!(m, Message::OpenReleaseNotes)));
+        assert!(seen.iter().any(|m| matches!(m, Message::DismissUpdate)));
     }
 }

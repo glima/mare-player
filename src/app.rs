@@ -178,6 +178,9 @@ impl cosmic::Application for AppModel {
             confirm_delete_playlist: None,
             is_loading: true,
             error_message: None,
+            note: None,
+            available_update: None,
+            update_check_started: false,
             session_restore_attempted: false,
             video_player: None,
             video_window: None,
@@ -296,7 +299,10 @@ impl cosmic::Application for AppModel {
             |result| cosmic::Action::App(Message::CacheDbReady(result)),
         );
 
-        (app, Task::batch([mpris_task, login_uri_task, title_task, cache_db_task]))
+        // Once per run, unless turned off: is there a newer release?
+        let update_task = if app.config.check_for_updates { app.start_update_check() } else { Task::none() };
+
+        (app, Task::batch([mpris_task, login_uri_task, title_task, cache_db_task, update_task]))
     }
 
     /// Track the current window size so views can scale text limits, etc.
@@ -885,6 +891,20 @@ impl cosmic::Application for AppModel {
                 self.list_offset = offset;
                 Task::none()
             }
+            Message::ClearNote => {
+                self.note = None;
+                Task::none()
+            }
+            Message::UpdateChecked(result) => {
+                self.handle_update_checked(result);
+                Task::none()
+            }
+            Message::OpenReleaseNotes => self.handle_open_release_notes(),
+            Message::DismissUpdate => {
+                self.available_update = None;
+                Task::none()
+            }
+            Message::SetCheckForUpdates(on) => self.handle_set_check_for_updates(on),
             Message::LoadImage(url) => self.handle_load_image(url),
             Message::ImageLoaded(url, width, height, pixels) => {
                 self.handle_image_loaded(url, width, height, pixels);

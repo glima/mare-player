@@ -20,4 +20,5 @@ pub mod messages;
 pub mod playback;
 pub mod state;
 pub mod tidal;
+pub mod update_check;
 pub mod views;

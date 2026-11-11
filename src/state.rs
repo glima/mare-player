@@ -383,8 +383,15 @@ pub struct AppModel {
     pub(crate) list_offset: f32,
     /// Loading state
     pub(crate) is_loading: bool,
-    /// Error message to display
+    /// Error message to display, in the red banner
     pub(crate) error_message: Option<String>,
+    /// A passing note ("Added to …"), in the green banner for a few seconds
+    pub(crate) note: Option<String>,
+    /// A newer release, in the green banner until dismissed. Checked once
+    /// per run, at startup.
+    pub(crate) available_update: Option<crate::update_check::AvailableUpdate>,
+    /// Whether this run has asked for a newer release yet (it asks once).
+    pub(crate) update_check_started: bool,
     /// Whether we've attempted to restore the session
     pub(crate) session_restore_attempted: bool,
     /// Active video pipeline, when a music video is playing. Holds a

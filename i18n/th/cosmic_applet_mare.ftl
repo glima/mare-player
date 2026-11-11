@@ -141,6 +141,12 @@ delete-playlist-confirm = ลบ “{ $playlist }” ใช่ไหม กา�
 delete = ลบ
 deleted-playlist = ลบ { $playlist } แล้ว
 
+# Updates
+update-available = Maré Player { $version } พร้อมใช้งานแล้ว
+update-whats-new = มีอะไรใหม่
+check-for-updates = ตรวจหาอัปเดต
+check-for-updates-description = ถาม GitHub หนึ่งครั้งต่อการเปิดใช้งานว่ามีรุ่นใหม่กว่าหรือไม่
+
 # คำแนะนำเครื่องมือ
 tooltip-search = ค้นหา
 tooltip-settings = การตั้งค่า

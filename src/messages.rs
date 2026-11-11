@@ -313,6 +313,16 @@ pub enum Message {
     ClearError,
     /// The current view's list scrolled to this offset
     ListScrolled(f32),
+    /// Clear the green note banner
+    ClearNote,
+    /// The startup check for a newer release finished
+    UpdateChecked(Result<Option<crate::update_check::AvailableUpdate>, String>),
+    /// Open the available update's release notes
+    OpenReleaseNotes,
+    /// Hide the update banner for the rest of this run
+    DismissUpdate,
+    /// Turn the check for a newer release on or off
+    SetCheckForUpdates(bool),
 
     // Image loading
     /// Image loaded (url, width, height, rgba_pixels)

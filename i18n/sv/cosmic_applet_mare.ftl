@@ -150,6 +150,12 @@ delete-playlist-confirm = Ta bort ”{ $playlist }”? Det går inte att ångra.
 delete = Ta bort
 deleted-playlist = { $playlist } togs bort
 
+# Updates
+update-available = Maré Player { $version } finns tillgänglig
+update-whats-new = Nyheter
+check-for-updates = Sök efter uppdateringar
+check-for-updates-description = Frågar GitHub en gång per start om en nyare version finns.
+
 # Verktygstips
 tooltip-search = Sök
 tooltip-settings = Inställningar

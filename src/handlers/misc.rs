@@ -255,15 +255,74 @@ impl AppModel {
         self.show_note(format!("Link copied & opened: {}", url))
     }
 
-    /// Show `note` in the message banner for three seconds.
+    /// Show `note` in the green banner for three seconds. Notes have their
+    /// own banner, so the timer never clears an error that came meanwhile.
     pub(crate) fn show_note(&mut self, note: String) -> Task<cosmic::Action<Message>> {
-        self.error_message = Some(note);
+        self.note = Some(note);
         Task::perform(
             async {
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
             },
-            |_| cosmic::Action::App(Message::ClearError),
+            |_| cosmic::Action::App(Message::ClearNote),
         )
+    }
+
+    /// Ask whether a newer release is out, unless this run already has.
+    pub(crate) fn start_update_check(&mut self) -> Task<cosmic::Action<Message>> {
+        if self.update_check_started {
+            return Task::none();
+        }
+        self.update_check_started = true;
+        Task::perform(crate::update_check::check(), |result| cosmic::Action::App(Message::UpdateChecked(result)))
+    }
+
+    /// Turn the update check on or off, remembering the choice.
+    pub fn handle_set_check_for_updates(&mut self, on: bool) -> Task<cosmic::Action<Message>> {
+        let task = self.set_check_for_updates(on);
+        self.save_config("update check");
+        task
+    }
+
+    /// Turn the update check on or off, without saving the choice. Off hides
+    /// the banner; on checks now if this run hasn't yet.
+    pub(crate) fn set_check_for_updates(&mut self, on: bool) -> Task<cosmic::Action<Message>> {
+        self.config.check_for_updates = on;
+        if on {
+            self.start_update_check()
+        } else {
+            self.available_update = None;
+            Task::none()
+        }
+    }
+
+    /// Keep a newer release to announce. A failed check is no news: it is
+    /// logged, and shows nothing. Nor does a result that arrives after the
+    /// check was turned off.
+    pub fn handle_update_checked(&mut self, result: Result<Option<crate::update_check::AvailableUpdate>, String>) {
+        if !self.config.check_for_updates {
+            return;
+        }
+        match result {
+            Ok(Some(update)) => {
+                tracing::info!("Maré Player {} is available: {}", update.version, update.url);
+                self.available_update = Some(update);
+            }
+            Ok(None) => tracing::debug!("Maré Player is up to date"),
+            Err(e) => tracing::debug!("Couldn't check for a newer Maré Player: {e}"),
+        }
+    }
+
+    /// Open the available update's release notes in the browser.
+    pub fn handle_open_release_notes(&mut self) -> Task<cosmic::Action<Message>> {
+        let Some(url) = self.available_update.as_ref().map(|update| update.url.clone()) else {
+            return Task::none();
+        };
+        tokio::spawn(async move {
+            if let Err(e) = crate::helpers::open_in_browser(&url).await {
+                tracing::warn!("Failed to open the release notes: {}", e);
+            }
+        });
+        Task::none()
     }
 
     /// Handle MPRIS service started

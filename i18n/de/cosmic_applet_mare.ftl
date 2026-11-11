@@ -150,6 +150,12 @@ delete-playlist-confirm = „{ $playlist }“ löschen? Das lässt sich nicht r�
 delete = Löschen
 deleted-playlist = { $playlist } gelöscht
 
+# Updates
+update-available = Maré Player { $version } ist verfügbar
+update-whats-new = Was ist neu
+check-for-updates = Nach Updates suchen
+check-for-updates-description = Fragt einmal pro Start bei GitHub nach einer neueren Version.
+
 # Tooltips
 tooltip-search = Suche
 tooltip-settings = Einstellungen
