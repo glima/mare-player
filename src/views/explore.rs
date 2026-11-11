@@ -403,7 +403,7 @@ mod tests {
         drop(app.handle_explore_loaded(Ok(genre_page())));
         let revision = app.explore_rows_revision;
         let count = app.explore_rows.len();
-        app.nav_stack.push(ViewState::Explore);
+        app.nav_stack.push(crate::state::NavEntry { view: ViewState::Explore, list_offset: 0.0 });
         app.view_state = ViewState::PlaylistDetail;
         drop(app.handle_navigate_back());
         assert_eq!(app.view_state, ViewState::Explore);

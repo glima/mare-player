@@ -33,9 +33,9 @@ impl AppModel {
         // Reopened from its own now-playing bar, the picker just switches
         // track instead of stacking another copy of itself.
         if self.view_state != ViewState::AddToPlaylist {
-            self.nav_stack.push(self.view_state.clone());
+            self.push_nav();
         }
-        let in_playlist = self.nav_stack.contains(&ViewState::PlaylistDetail);
+        let in_playlist = self.nav_stack.iter().any(|entry| entry.view == ViewState::PlaylistDetail);
         let exclude = if in_playlist { self.selected_playlist_uuid.clone() } else { None };
         self.add_to_playlist = Some(AddToPlaylist { track, exclude, ..Default::default() });
         self.view_state = ViewState::AddToPlaylist;
@@ -194,7 +194,10 @@ mod tests {
         assert_eq!(app.add_to_playlist.as_ref().unwrap().exclude.as_deref(), Some("a"));
         // Reopening it for another track doesn't stack a second picker.
         drop(app.handle_show_add_to_playlist(Track { id: "t2".into(), ..track() }));
-        assert_eq!(app.nav_stack, [ViewState::Playlists, ViewState::PlaylistDetail]);
+        assert_eq!(
+            app.nav_stack.iter().map(|e| e.view.clone()).collect::<Vec<_>>(),
+            [ViewState::Playlists, ViewState::PlaylistDetail]
+        );
         assert_eq!(app.add_to_playlist.as_ref().unwrap().track.id, "t2");
 
         // Out of the playlist, the last one opened is offered again.

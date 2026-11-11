@@ -173,6 +173,7 @@ impl cosmic::Application for AppModel {
             favorite_album_ids: HashSet::new(),
             followed_artist_ids: HashSet::new(),
             nav_stack: Vec::new(),
+            list_offset: 0.0,
             add_to_playlist: None,
             confirm_delete_playlist: None,
             is_loading: true,
@@ -878,6 +879,10 @@ impl cosmic::Application for AppModel {
             // Misc handlers - errors and images
             Message::ClearError => {
                 self.handle_clear_error();
+                Task::none()
+            }
+            Message::ListScrolled(offset) => {
+                self.list_offset = offset;
                 Task::none()
             }
             Message::LoadImage(url) => self.handle_load_image(url),

@@ -311,6 +311,8 @@ pub enum Message {
     // Error handling
     /// Clear the current error message
     ClearError,
+    /// The current view's list scrolled to this offset
+    ListScrolled(f32),
 
     // Image loading
     /// Image loaded (url, width, height, rgba_pixels)

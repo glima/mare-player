@@ -300,7 +300,7 @@ mod tests {
         drop(app.handle_select_search_category(Some(SearchCategory::Tracks)));
         let revision = app.search_rows_revision;
 
-        app.nav_stack.push(ViewState::Search);
+        app.nav_stack.push(crate::state::NavEntry { view: ViewState::Search, list_offset: 0.0 });
         app.view_state = ViewState::AlbumDetail;
         drop(app.handle_navigate_back());
         assert_eq!(app.view_state, ViewState::Search);

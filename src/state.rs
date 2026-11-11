@@ -377,7 +377,10 @@ pub struct AppModel {
     /// Set of artist IDs that the user follows
     pub(crate) followed_artist_ids: HashSet<String>,
     /// Navigation stack for back navigation (push current state before entering detail pages)
-    pub(crate) nav_stack: Vec<ViewState>,
+    pub(crate) nav_stack: Vec<NavEntry>,
+    /// How far the current view's list is scrolled, as it reports it. Kept
+    /// in the view's [`NavEntry`] when another view replaces it.
+    pub(crate) list_offset: f32,
     /// Loading state
     pub(crate) is_loading: bool,
     /// Error message to display
@@ -530,6 +533,18 @@ impl AppModel {
     pub(crate) fn set_track_list(&mut self, tracks: Vec<Track>) {
         self.track_list_arc = tracks.into();
     }
+}
+
+/// A view to go back to, and where its list was scrolled.
+///
+/// Leaving a view drops its list from the widget tree, and iced forgets
+/// the list's scroll position with it, so going back would land at the
+/// top. The offset is kept here instead and asked for again on the way
+/// back (see `AppModel::handle_navigate_back`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct NavEntry {
+    pub view: ViewState,
+    pub list_offset: f32,
 }
 
 /// What the "Add to playlist" picker is adding, and its new-playlist form.

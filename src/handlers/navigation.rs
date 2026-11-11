@@ -7,6 +7,10 @@
 //! `nav_stack` before entering, and `NavigateBack` pops the stack to return.
 //! This supports arbitrarily deep chains like
 //! Main → Album → Artist → Album → back → back → …
+//!
+//! Each stack entry also keeps where its view's list was scrolled, and going
+//! back scrolls the list there again: leaving a view drops its list from the
+//! widget tree, and iced forgets the offset with it.
 
 #[cfg(feature = "panel-applet")]
 use cosmic::iced::Limits;
@@ -20,7 +24,8 @@ use std::sync::LazyLock;
 use crate::tidal::models::{Album, Track};
 
 use crate::messages::Message;
-use crate::state::{AppModel, ViewState};
+use crate::state::{AppModel, NavEntry, ViewState};
+use crate::views::components::LIST_SCROLL_ID;
 
 /// Static ID for the search input widget
 pub(crate) static SEARCH_INPUT_ID: LazyLock<cosmic::widget::Id> = LazyLock::new(|| cosmic::widget::Id::new("search-input"));
@@ -111,12 +116,43 @@ impl AppModel {
     pub fn handle_popup_closed(&mut self, _id: Id) {}
 
     // =========================================================================
+    // The nav stack
+    // =========================================================================
+
+    /// Leave the current view for one reached from it, keeping the view, and
+    /// where its list is scrolled, to come back to.
+    pub(crate) fn push_nav(&mut self) {
+        self.nav_stack.push(NavEntry { view: self.view_state.clone(), list_offset: self.list_offset });
+        self.list_offset = 0.0;
+    }
+
+    /// Forget the way back, for a top-level view.
+    pub(crate) fn clear_nav(&mut self) {
+        self.nav_stack.clear();
+        self.list_offset = 0.0;
+    }
+
+    /// Scroll the list that is about to show back to `offset`. The list is
+    /// rebuilt by the view after this update, so this is a task, which runs
+    /// after that view and finds the list by its id.
+    fn restore_list_offset(&mut self, offset: f32) -> Task<cosmic::Action<Message>> {
+        self.list_offset = offset;
+        if offset <= 0.0 {
+            return Task::none();
+        }
+        cosmic::iced::widget::scrollable::scroll_to(
+            LIST_SCROLL_ID.clone(),
+            cosmic::iced::widget::scrollable::AbsoluteOffset { x: None, y: Some(offset) },
+        )
+    }
+
+    // =========================================================================
     // Top-level views (clear the nav stack — these are roots)
     // =========================================================================
 
     /// Handle show main view
     pub fn handle_show_main(&mut self) {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Main;
         self.search_query.clear();
         self.search_results = None;
@@ -130,14 +166,14 @@ impl AppModel {
 
     /// Handle show search view
     pub fn handle_show_search(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Search;
         text_input::focus(SEARCH_INPUT_ID.clone())
     }
 
     /// Handle show settings view
     pub fn handle_show_settings(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Settings;
 
         // Trigger loading of the profile picture if we have one
@@ -155,7 +191,7 @@ impl AppModel {
 
     /// Handle show playlists view
     pub fn handle_show_playlists(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Playlists;
         if self.user_playlists.is_empty() {
             self.is_loading = true;
@@ -175,7 +211,7 @@ impl AppModel {
 
     /// Handle show albums view
     pub fn handle_show_albums(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Albums;
         if self.user_albums.is_empty() {
             self.is_loading = true;
@@ -190,7 +226,7 @@ impl AppModel {
 
     /// Handle show favorite tracks view
     pub fn handle_show_favorite_tracks(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::FavoriteTracks;
         if self.user_favorite_tracks.is_empty() {
             self.is_loading = true;
@@ -208,7 +244,7 @@ impl AppModel {
 
     /// Handle show mixes & radio view
     pub fn handle_show_mixes(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Mixes;
         if self.user_mixes.is_empty() {
             self.is_loading = true;
@@ -224,7 +260,7 @@ impl AppModel {
 
     /// Handle show play history view
     pub fn handle_show_history(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::History;
 
         // Populate virtual track list for this view
@@ -242,7 +278,7 @@ impl AppModel {
 
     /// Handle show followed artists (profiles) view
     pub fn handle_show_profiles(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Profiles;
         if self.user_followed_artists.is_empty() {
             self.is_loading = true;
@@ -258,7 +294,7 @@ impl AppModel {
 
     /// Handle show feed view (new releases from followed artists)
     pub fn handle_show_feed(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Feed;
         if self.feed_activities.is_empty() {
             self.is_loading = true;
@@ -276,7 +312,7 @@ impl AppModel {
     /// Resets the in-view back stack to the root "explore" page and loads
     /// it (always re-fetched — the page is time-sensitive featured content).
     pub fn handle_show_explore(&mut self) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.clear();
+        self.clear_nav();
         self.view_state = ViewState::Explore;
         self.explore_stack = vec!["explore".to_string()];
         self.begin_explore_page_load("explore")
@@ -288,7 +324,7 @@ impl AppModel {
 
     /// Handle show playlist detail view
     pub fn handle_show_playlist_detail(&mut self, uuid: String, name: String) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         self.selected_playlist_name = Some(name);
         self.selected_playlist_uuid = Some(uuid.clone());
         self.selected_playlist_tracks.clear();
@@ -302,7 +338,7 @@ impl AppModel {
 
     /// Handle show mix detail view (tracks in a mix)
     pub fn handle_show_mix_detail(&mut self, mix_id: String, mix_name: String) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         self.selected_mix_name = Some(mix_name);
         self.selected_mix_id = Some(mix_id.clone());
         self.selected_mix_tracks.clear();
@@ -316,7 +352,7 @@ impl AppModel {
 
     /// Handle show track radio view (similar tracks based on a seed track)
     pub fn handle_show_track_radio(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         self.selected_radio_source_track = Some(track.clone());
         self.selected_radio_tracks.clear();
         self.selected_radio_mix_id = None;
@@ -334,7 +370,7 @@ impl AppModel {
     /// `Lyrics` view, and kicks off the async fetch.  The view renders
     /// a loading state until `TrackLyricsLoaded` arrives.
     pub fn handle_show_lyrics(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         let track_id = track.id.clone();
         self.selected_lyrics_track = Some(track);
         self.selected_track_lyrics = None;
@@ -355,7 +391,7 @@ impl AppModel {
     /// `Credits` view, and kicks off the async fetch.  The view renders a
     /// loading state until `TrackCreditsLoaded` arrives.
     pub fn handle_show_credits(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         let track_id = track.id.clone();
         self.selected_credits_track = Some(track);
         self.selected_track_credits = None;
@@ -378,7 +414,7 @@ impl AppModel {
     /// Related albums are derived in a second pass once similar artists arrive
     /// (see `handle_track_detail_related_artists_loaded`).
     pub fn handle_show_track_detail(&mut self, track: Track) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
 
         // Clear previous data
         self.track_detail_artist_albums.clear();
@@ -413,7 +449,7 @@ impl AppModel {
 
     /// Handle show album detail view (from favorites list where we already have the Album)
     pub fn handle_show_album_detail(&mut self, album: Album) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         let album_id = album.id.clone();
         self.selected_album = Some(album);
         self.selected_album_tracks.clear();
@@ -432,7 +468,7 @@ impl AppModel {
 
     /// Handle show album detail by ID (from now-playing bar or artist view)
     pub fn handle_show_album_detail_by_id(&mut self, album_id: String) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         self.selected_album = None;
         self.selected_album_tracks.clear();
         self.is_loading = true;
@@ -462,7 +498,7 @@ impl AppModel {
 
     /// Handle show artist detail view
     pub fn handle_show_artist_detail(&mut self, artist_id: String) -> Task<cosmic::Action<Message>> {
-        self.nav_stack.push(self.view_state.clone());
+        self.push_nav();
         self.selected_artist = None;
         self.selected_artist_top_tracks.clear();
         self.selected_artist_albums.clear();
@@ -569,12 +605,15 @@ impl AppModel {
     // Back navigation (pop the stack)
     // =========================================================================
 
-    /// Handle NavigateBack: pop the nav stack and restore the previous view.
+    /// Handle NavigateBack: pop the nav stack and restore the previous view,
+    /// scrolled to where it was left.
     ///
     /// Data for parent views (artist info, album tracks, etc.) is still in
     /// memory so we just switch the view state — no refetching needed.
     pub fn handle_navigate_back(&mut self) -> Task<cosmic::Action<Message>> {
-        let target = self.nav_stack.pop().unwrap_or(ViewState::Main);
+        let NavEntry { view: target, list_offset } =
+            self.nav_stack.pop().unwrap_or(NavEntry { view: ViewState::Main, list_offset: 0.0 });
+        let restore = self.restore_list_offset(list_offset);
 
         // Rebuild the target view's virtual-list content from its own source
         // data: restores the correct rows AND forces the `list::List` widget to
@@ -582,23 +621,15 @@ impl AppModel {
         self.rebuild_virtual_list_for(&target);
 
         // For views that need focus or lazy-loading, handle specially
-        match &target {
-            ViewState::Search => {
-                self.view_state = ViewState::Search;
-                return text_input::focus(SEARCH_INPUT_ID.clone());
-            }
-            ViewState::Playlists => {
-                self.view_state = ViewState::Playlists;
-                // Regenerate any missing grid thumbnails (e.g. after visiting a
-                // playlist detail where tracks were freshly cached).
-                return Task::done(cosmic::Action::App(Message::GeneratePlaylistThumbnails));
-            }
-            _ => {
-                self.view_state = target;
-            }
-        }
-
-        Task::none()
+        let follow_up = match &target {
+            ViewState::Search => text_input::focus(SEARCH_INPUT_ID.clone()),
+            // Regenerate any missing grid thumbnails (e.g. after visiting a
+            // playlist detail where tracks were freshly cached).
+            ViewState::Playlists => Task::done(cosmic::Action::App(Message::GeneratePlaylistThumbnails)),
+            _ => Task::none(),
+        };
+        self.view_state = target;
+        Task::batch([restore, follow_up])
     }
 
     /// Rebuild the target view's virtual-list `Content` from its own backing
@@ -660,5 +691,41 @@ impl AppModel {
             ViewState::Search => self.rebuild_search_rows(true),
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::state::{AppModel, ViewState};
+    use crate::tidal::models::{Album, Track};
+    use cosmic::Application;
+
+    #[tokio::test]
+    async fn going_back_scrolls_each_list_to_where_it_was_left() {
+        let (mut app, startup) = AppModel::init(cosmic::Core::default(), ());
+        drop(startup);
+        drop(app.handle_show_albums());
+        app.list_offset = 300.0;
+        drop(app.handle_show_album_detail(Album { id: "a".into(), ..Default::default() }));
+        assert_eq!(app.list_offset, 0.0, "a new view starts at the top");
+        app.list_offset = 40.0;
+        drop(app.handle_show_track_detail(Track { id: "t".into(), ..Default::default() }));
+
+        // Back to the album, then the albums list, each where it was.
+        assert!(app.handle_navigate_back().units() > 0, "the album list is scrolled back");
+        assert_eq!((app.view_state.clone(), app.list_offset), (ViewState::AlbumDetail, 40.0));
+        drop(app.handle_navigate_back());
+        assert_eq!((app.view_state.clone(), app.list_offset), (ViewState::Albums, 300.0));
+
+        // A list left at the top needs no scrolling back.
+        drop(app.handle_show_album_detail(Album { id: "a".into(), ..Default::default() }));
+        drop(app.handle_show_track_detail(Track { id: "t".into(), ..Default::default() }));
+        assert_eq!(app.handle_navigate_back().units(), 0);
+
+        // A top-level view starts afresh.
+        app.list_offset = 120.0;
+        drop(app.handle_show_mixes());
+        assert_eq!(app.list_offset, 0.0);
+        assert!(app.nav_stack.is_empty());
     }
 }
