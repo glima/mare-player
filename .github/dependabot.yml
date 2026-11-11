@@ -23,3 +23,9 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # Listed only to switch on the `std` feature of the copy turso_core
+      # uses (see fuzz/Cargo.toml), so it must stay on turso_core's version;
+      # for a 0.x crate, 0.4 -> 0.5 is a minor update.
+      - dependency-name: "branches"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]

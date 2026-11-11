@@ -7,6 +7,11 @@ edition = "2024"
 [package.metadata]
 cargo-fuzz = true
 
+# Its own workspace, with its own lockfile. Without this, cargo looks for
+# one in the directories above and can claim fuzz/ for an unrelated
+# workspace, e.g. when this checkout sits inside another one.
+[workspace]
+
 # `branches` is listed only to switch on its `std` feature (see below).
 [package.metadata.cargo-machete]
 ignored = ["branches"]
@@ -30,6 +35,8 @@ bench = false
 # switches its no-std abort() to `core::intrinsics::abort`, which current
 # nightlies no longer have. Turning on its `std` feature makes it call
 # `std::process::abort` instead. Normal stable builds are unaffected.
+# The version must be the one turso_core uses, or the feature lands on a
+# second copy that nothing calls (Dependabot is told to leave it).
 [dependencies.branches]
-version = "0.5"
+version = "0.4"
 features = ["std"]
