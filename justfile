@@ -450,18 +450,12 @@ fuzz target="" duration="60":
         echo "All fuzz targets passed ✓"
     fi
 
-# Update Nostr mirrors from origin/main and tags (requires nak and local nip34.json)
+# Update Nostr mirrors from origin/main and tags (requires nak, a signer in NOSTR_SECRET_KEY, and local nip34.json)
 mirror-nostr:
     #!/usr/bin/env bash
     set -euo pipefail
     if [[ -z "${NOSTR_SECRET_KEY:-}" ]]; then
-        # Print the command literally; bunkeruri belongs to the caller's shell.
-        # shellcheck disable=SC2016
-        echo 'Missing bunker URL. Run: NOSTR_SECRET_KEY="$(bunkeruri)" just mirror-nostr' >&2
-        exit 1
-    fi
-    if [[ "$NOSTR_SECRET_KEY" != bunker://* ]]; then
-        echo 'NOSTR_SECRET_KEY must be a bunker:// URL from bunkeruri.' >&2
+        echo 'Missing signer: set NOSTR_SECRET_KEY to anything nak accepts as --sec.' >&2
         exit 1
     fi
     if ! command -v nak >/dev/null 2>&1; then
