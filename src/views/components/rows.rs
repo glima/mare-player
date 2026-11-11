@@ -436,6 +436,22 @@ mod tests {
         assert!(matches!(messages.as_slice(), [Message::ShowTrackDetail(track)] if track.id == "seed"));
     }
 
+    #[test]
+    fn right_clicking_a_row_inside_a_track_list_opens_that_track() {
+        let tracks: Vec<Track> =
+            ["first", "second", "third"].map(|id| Track { id: id.into(), title: id.into(), ..Default::default() }).into();
+        let opts = TrackRowOptions { tracks: Arc::from(tracks.clone()), ..Default::default() };
+        let images = HandleCache::new(0);
+        let list: Element<'_, Message> = super::super::FixedHeightList::new(&tracks, |index, track| {
+            super::virtual_list_row(build_track_row(&images, track, index, &opts), 2)
+        })
+        .into();
+        // Within the harness's 100 px viewport, below the first row: the
+        // second row, not the first (rows are a little over 50 px tall).
+        let (messages, _) = click_with(mouse::Button::Right, list, Point::new(60.0, 75.0));
+        assert!(matches!(messages.as_slice(), [Message::ShowTrackDetail(track)] if track.id == "second"), "{messages:?}");
+    }
+
     /// `FixedHeightList` places track row `i` at `i ×` the first row's
     /// height, so every kind of track row must be exactly as tall.
     #[test]
