@@ -156,7 +156,12 @@ pub(crate) fn build_track_row<'a>(
     let tracks_arc = Arc::clone(&opts.tracks);
     let source_clone = opts.source.clone();
 
-    list_item(row, Message::PlayTrackList(tracks_arc, index, source_clone), 0)
+    // A click plays from here; a right-click opens the track's page. Buttons
+    // only take the left button, hence the mouse area, and the release (as
+    // on the back button) lets a right-click be abandoned by moving off.
+    widget::mouse_area(list_item(row, Message::PlayTrackList(tracks_arc, index, source_clone), 0))
+        .on_right_release(Message::ShowTrackDetail(track.clone()))
+        .into()
 }
 
 /// Standalone album row builder for virtual `List` closures. The
@@ -316,7 +321,11 @@ mod tests {
         Track { id: "seed".into(), title: "Seed track".into(), ..Default::default() }
     }
 
-    fn click(mut element: Element<'_, Message>, point: Point) -> (Vec<Message>, Vec<bool>) {
+    fn click(element: Element<'_, Message>, point: Point) -> (Vec<Message>, Vec<bool>) {
+        click_with(mouse::Button::Left, element, point)
+    }
+
+    fn click_with(button: mouse::Button, mut element: Element<'_, Message>, point: Point) -> (Vec<Message>, Vec<bool>) {
         let renderer = cosmic::Renderer::new(cosmic::iced::Font::default(), 14.0.into());
         let mut tree = Tree::new(element.as_widget());
         let limits = layout::Limits::new(Size::ZERO, Size::new(300.0, 100.0));
@@ -324,7 +333,7 @@ mod tests {
         let viewport = Rectangle::new(Point::ORIGIN, Size::new(300.0, 100.0));
         let mut messages = Vec::new();
         let mut captured = Vec::new();
-        for event in [mouse::Event::ButtonPressed(mouse::Button::Left), mouse::Event::ButtonReleased(mouse::Button::Left)] {
+        for event in [mouse::Event::ButtonPressed(button), mouse::Event::ButtonReleased(button)] {
             let mut shell = Shell::new(&mut messages);
             element.as_widget_mut().update(
                 &mut tree,
@@ -412,6 +421,19 @@ mod tests {
             matches!(messages.as_slice(), [Message::PlayTrackList(tracks, 0, None)] if tracks.first().is_some_and(|t| t.id == "seed"))
         );
         assert_eq!(captured, [true, true]);
+    }
+
+    #[test]
+    fn right_clicking_a_track_row_opens_the_tracks_page() {
+        let track = track();
+        let opts = TrackRowOptions { tracks: Arc::from([track.clone()]), ..Default::default() };
+        let row = build_track_row(&HandleCache::new(0), &track, 0, &opts);
+        let (messages, _) = click_with(mouse::Button::Right, row, Point::new(60.0, 20.0));
+        assert!(matches!(messages.as_slice(), [Message::ShowTrackDetail(track)] if track.id == "seed"));
+        // Over the radio button too: it only answers the left button.
+        let (row, radio_center) = radio_in_playback_row(HashSet::new());
+        let (messages, _) = click_with(mouse::Button::Right, row, radio_center);
+        assert!(matches!(messages.as_slice(), [Message::ShowTrackDetail(track)] if track.id == "seed"));
     }
 
     /// `FixedHeightList` places track row `i` at `i ×` the first row's

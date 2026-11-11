@@ -277,8 +277,8 @@ xdg-mime default io.github.cosmic-applet-mare.desktop x-scheme-handler/tidal
   lyrics highlight the active line
 - **Artist Detail** — Tap an artist name to see bio, top tracks, and
   discography
-- **Track Detail** — Tap a track title to see related albums and
-  artists seeded from it
+- **Track Detail** — Tap the playing track's title, or right-click any
+  track in a list, to see related albums and artists seeded from it
 - **Playlists** — Add the playing track, or one from its detail page,
   to a playlist with the + button, or to a new private or public one;
   delete playlists you created from their page
