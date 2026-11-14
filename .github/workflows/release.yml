@@ -67,7 +67,7 @@ jobs:
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
 
       - name: Install packaging tools
-        uses: cargo-bins/cargo-binstall@851112458b5f28a29e5bc14a690c3f283d9dcc6f # v1.26.2
+        uses: cargo-bins/cargo-binstall@5885714d0a40a14b2535c6ffc051fd8e49aa9665 # v1.27.0
 
       # `just` and `cargo-deb` ship prebuilt binaries that binstall can fetch.
       # `cargo-generate-rpm` does not advertise binstall metadata, so binstall
