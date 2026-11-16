@@ -32,7 +32,7 @@ use tidlers::client::models::playback::{AssetPresentation, PlaybackMode, VideoQu
 use tidlers::client::models::playlist::{PlaylistItemsResponse, PlaylistMedia, PlaylistResponse};
 use tidlers::client::models::track::config::TrackPlaybackInfoConfig;
 use tidlers::client::models::video::config::VideoPlaybackInfoConfig;
-use tidlers::{TidalClient, auth::TidalAuth, client::models::collection::favorites::FavoriteResourceType};
+use tidlers::{TidalClient, auth::TidalAuth, client::models::ResourceType};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
@@ -471,7 +471,7 @@ impl TidalAppClient {
     // boilerplate that was previously copy-pasted into every method.
 
     /// Add `resource_id` to the user's favorites via tidlers.
-    async fn add_to_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
+    async fn add_to_favorites(&self, resource: ResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
@@ -479,7 +479,7 @@ impl TidalAppClient {
     }
 
     /// Remove `resource_id` from the user's favorites via tidlers.
-    async fn remove_from_favorites(&self, resource: FavoriteResourceType, resource_id: &str) -> TidalResult<()> {
+    async fn remove_from_favorites(&self, resource: ResourceType, resource_id: &str) -> TidalResult<()> {
         self.ensure_valid_token().await?;
         let client_guard = self.client.lock().await;
         let client = client_guard.as_ref().ok_or(TidalError::NotAuthenticated)?;
@@ -1341,13 +1341,13 @@ impl TidalAppClient {
     /// Add a track to user's favorites
     pub async fn add_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Adding track {} to favorites", track_id);
-        self.add_to_favorites(FavoriteResourceType::Tracks, track_id).await
+        self.add_to_favorites(ResourceType::Tracks, track_id).await
     }
 
     /// Remove a track from user's favorites
     pub async fn remove_favorite_track(&self, track_id: &str) -> TidalResult<()> {
         debug!("Removing track {} from favorites", track_id);
-        self.remove_from_favorites(FavoriteResourceType::Tracks, track_id).await
+        self.remove_from_favorites(ResourceType::Tracks, track_id).await
     }
 
     // =========================================================================
@@ -1688,13 +1688,13 @@ impl TidalAppClient {
     /// Add an album to user's favorites
     pub async fn add_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Adding album {} to favorites", album_id);
-        self.add_to_favorites(FavoriteResourceType::Albums, album_id).await
+        self.add_to_favorites(ResourceType::Albums, album_id).await
     }
 
     /// Remove an album from user's favorites
     pub async fn remove_favorite_album(&self, album_id: &str) -> TidalResult<()> {
         debug!("Removing album {} from favorites", album_id);
-        self.remove_from_favorites(FavoriteResourceType::Albums, album_id).await
+        self.remove_from_favorites(ResourceType::Albums, album_id).await
     }
     /// Fetch the user's subscription plan.
     ///
@@ -2398,7 +2398,7 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `PUT /v1/users/{userId}/favorites/artists`.
     pub async fn follow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Following artist {}", artist_id);
-        self.add_to_favorites(FavoriteResourceType::Artists, artist_id).await
+        self.add_to_favorites(ResourceType::Artists, artist_id).await
     }
 
     /// Unfollow (remove from favorites) an artist by ID.
@@ -2406,7 +2406,7 @@ impl TidalAppClient {
     /// Uses the TIDAL v1 API endpoint `DELETE /v1/users/{userId}/favorites/artists/{artistId}`.
     pub async fn unfollow_artist(&self, artist_id: &str) -> TidalResult<()> {
         debug!("Unfollowing artist {}", artist_id);
-        self.remove_from_favorites(FavoriteResourceType::Artists, artist_id).await
+        self.remove_from_favorites(ResourceType::Artists, artist_id).await
     }
 
     /// Fetch the user's feed (new releases from followed artists).
