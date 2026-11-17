@@ -6,6 +6,7 @@
 [![GitHub Release](https://img.shields.io/github/release/glima/mare-player.svg)](https://github.com/glima/mare-player/releases/latest)
 ![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
 ![GitHub Repo stars](https://img.shields.io/github/stars/glima/mare-player)
+[![Tip limachaves@strike.me with Lightning](https://img.shields.io/badge/tip-lightning-F7931A?logo=lightning&logoColor=white)](https://strike.me/@limachaves/)
 
 A COSMIC™ desktop application for the TIDAL music streaming service.
 Stream Hi-Res audio, watch music videos, browse your library, and
