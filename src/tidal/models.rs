@@ -189,7 +189,7 @@ impl From<tidlers::client::models::search::SearchTrackHit> for Track {
             artist_id,
             album_name: t.album.as_ref().map(|a| a.title.clone()),
             album_id: t.album.as_ref().map(|a| a.id.to_string()),
-            cover_url: t.album.as_ref().map(|a| tidal_cover_url(&a.cover)),
+            cover_url: t.album.as_ref().and_then(|a| a.cover.as_deref()).map(tidal_cover_url),
             explicit: t.explicit,
             audio_quality: t.audio_quality,
             is_video: false,
@@ -1364,6 +1364,31 @@ mod tests {
             "description": {"text": null, "color": null}, "contentBehavior": "UNRESTRICTED"
         }))
         .expect("home mix fixture should deserialize")
+    }
+
+    #[test]
+    fn a_search_track_from_an_album_without_artwork_has_no_cover() {
+        let hit = |cover: serde_json::Value| -> tidlers::client::models::search::SearchTrackHit {
+            serde_json::from_value(serde_json::json!({
+                "artifactType": "CatalogueSuggestionsTrackDto", "id": 95459236, "editable": false,
+                "title": "Beving: Hanging D",
+                "album": {"id": 95459227, "title": "Conatus", "version": null, "cover": cover,
+                          "vibrantColor": null, "videoCover": null, "releaseDate": "2018-09-28", "upload": false},
+                "artists": [{"id": 8550992, "name": "Cello Octet Amsterdam", "handle": null, "picture": null,
+                              "userId": null, "type": "MAIN"}],
+                "version": null, "duration": 321, "popularity": 52, "doublePopularity": 0.52,
+                "explicit": false, "replayGain": -9.1
+            }))
+            .expect("search track fixture should deserialize")
+        };
+        let track = Track::from(hit(serde_json::Value::Null));
+        assert_eq!(track.album_name.as_deref(), Some("Conatus"));
+        assert_eq!(track.cover_url, None);
+        let track = Track::from(hit(serde_json::json!("9a83b806-f311-4bbf-8763-d8f68c0277f5")));
+        assert_eq!(
+            track.cover_url.as_deref(),
+            Some("https://resources.tidal.com/images/9a83b806/f311/4bbf/8763/d8f68c0277f5/320x320.jpg")
+        );
     }
 
     #[test]
